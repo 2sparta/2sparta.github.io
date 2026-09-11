@@ -38,6 +38,163 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// ==========================================================
+// Локалізація (i18n)
+// ==========================================================
+const LANG_STORAGE_KEY = "schooleballs-lang";
+
+const translations = {
+  uk: {
+    authTitle: "Вхід для вчителя",
+    emailPlaceholder: "Електронна пошта",
+    passwordPlaceholder: "Пароль",
+    loginBtn: "Увійти",
+    registerBtn: "Зареєструватися (вперше)",
+    hintHtml:
+      "Після реєстрації першого вчителя зайдіть у Firebase Console → Firestore → " +
+      "колекція <code>users</code> → знайдіть свій uid і змініть поле " +
+      "<code>role</code> на <b>teacher</b>. Інакше доступ до панелі буде закрито.",
+    appTitle: "Бали учнів",
+    logout: "Вийти",
+    tabPoints: "Бали",
+    tabTasks: "Завдання",
+    addStudentHeading: "Додати учня",
+    studentNamePlaceholder: "Ім'я учня",
+    addBtn: "Додати",
+    studentsListHeading: "Список учнів",
+    thName: "Ім'я",
+    thPoints: "Бали",
+    thChange: "Змінити",
+    thCode: "Код-запрошення",
+    thLinked: "Прив'язаний",
+    linked: "Прив'язаний",
+    notLinked: "Очікує",
+    deleteBtn: "Видалити",
+    deleteConfirm: (name) => `Видалити ${name}?`,
+    addLessonHeading: "Додати урок",
+    lessonTitlePlaceholder: "Назва уроку",
+    lessonLinkPlaceholder: "Посилання (URL)",
+    lessonsHeading: "Список уроків",
+    noLessons: "Уроків ще немає.",
+    openLink: "Відкрити",
+    deleteLessonConfirm: (title) => `Видалити урок «${title}»?`,
+    registerSuccess: (uid) =>
+      "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
+      uid + " встановіть role = teacher, після чого увійдіть знову.",
+    noTeacherRole:
+      "У цього акаунта немає прав вчителя (role != teacher). " +
+      "Перевірте роль у Firestore або використайте інший акаунт.",
+    errors: {
+      "auth/invalid-email": "Некоректний email.",
+      "auth/user-not-found": "Користувача не знайдено.",
+      "auth/wrong-password": "Невірний пароль.",
+      "auth/email-already-in-use": "Цей email вже зареєстрований.",
+      "auth/weak-password": "Пароль занадто простий (мінімум 6 символів).",
+      "auth/invalid-credential": "Невірний email або пароль.",
+    },
+  },
+  en: {
+    authTitle: "Teacher Sign In",
+    emailPlaceholder: "Email",
+    passwordPlaceholder: "Password",
+    loginBtn: "Sign In",
+    registerBtn: "Register (first time)",
+    hintHtml:
+      "After registering the first teacher, go to Firebase Console → Firestore → " +
+      "the <code>users</code> collection → find your uid and set the " +
+      "<code>role</code> field to <b>teacher</b>. Otherwise access to the panel will stay closed.",
+    appTitle: "Student Points",
+    logout: "Sign Out",
+    tabPoints: "Points",
+    tabTasks: "Tasks",
+    addStudentHeading: "Add a Student",
+    studentNamePlaceholder: "Student name",
+    addBtn: "Add",
+    studentsListHeading: "Student List",
+    thName: "Name",
+    thPoints: "Points",
+    thChange: "Change",
+    thCode: "Invite Code",
+    thLinked: "Linked",
+    linked: "Linked",
+    notLinked: "Pending",
+    deleteBtn: "Delete",
+    deleteConfirm: (name) => `Delete ${name}?`,
+    addLessonHeading: "Add a Lesson",
+    lessonTitlePlaceholder: "Lesson title",
+    lessonLinkPlaceholder: "Link (URL)",
+    lessonsHeading: "Lesson List",
+    noLessons: "No lessons yet.",
+    openLink: "Open",
+    deleteLessonConfirm: (title) => `Delete lesson "${title}"?`,
+    registerSuccess: (uid) =>
+      "Account created. Now in Firebase Console → Firestore → users → " +
+      uid + " set role = teacher, then sign in again.",
+    noTeacherRole:
+      "This account doesn't have teacher rights (role != teacher). " +
+      "Check the role in Firestore or use a different account.",
+    errors: {
+      "auth/invalid-email": "Invalid email.",
+      "auth/user-not-found": "User not found.",
+      "auth/wrong-password": "Wrong password.",
+      "auth/email-already-in-use": "This email is already registered.",
+      "auth/weak-password": "Password is too weak (min 6 characters).",
+      "auth/invalid-credential": "Invalid email or password.",
+    },
+  },
+};
+
+let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || "uk";
+if (!translations[currentLang]) currentLang = "uk";
+
+function t(key) {
+  return translations[currentLang][key];
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = currentLang;
+
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    if (translations[currentLang][key] !== undefined) {
+      el.textContent = t(key);
+    }
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-placeholder");
+    if (translations[currentLang][key] !== undefined) {
+      el.placeholder = t(key);
+    }
+  });
+
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-html");
+    if (translations[currentLang][key] !== undefined) {
+      el.innerHTML = t(key);
+    }
+  });
+
+  document.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.lang === currentLang);
+  });
+}
+
+function setLanguage(lang) {
+  if (!translations[lang] || lang === currentLang) return;
+  currentLang = lang;
+  localStorage.setItem(LANG_STORAGE_KEY, currentLang);
+  applyStaticTranslations();
+  renderStudentsTable();
+  renderLessonsList();
+}
+
+document.querySelectorAll(".lang-btn").forEach((btn) => {
+  btn.addEventListener("click", () => setLanguage(btn.dataset.lang));
+});
+
+applyStaticTranslations();
+
 // ---------- DOM refs ----------
 const authScreen = document.getElementById("auth-screen");
 const appScreen = document.getElementById("app-screen");
@@ -51,7 +208,35 @@ const newStudentName = document.getElementById("new-student-name");
 const addStudentBtn = document.getElementById("add-student-btn");
 const studentsTbody = document.getElementById("students-tbody");
 
+const tabPointsBtn = document.getElementById("tab-points-btn");
+const tabTasksBtn = document.getElementById("tab-tasks-btn");
+const pointsPanel = document.getElementById("points-panel");
+const tasksPanel = document.getElementById("tasks-panel");
+
+const newLessonTitle = document.getElementById("new-lesson-title");
+const newLessonLink = document.getElementById("new-lesson-link");
+const addLessonBtn = document.getElementById("add-lesson-btn");
+const lessonsList = document.getElementById("lessons-list");
+const noLessonsMsg = document.getElementById("no-lessons-msg");
+
 let unsubscribeStudents = null;
+let unsubscribeLessons = null;
+
+// Кешуємо останні дані зі Firestore, щоб мати змогу
+// перемалювати таблиці/списки при зміні мови без нового запиту.
+let lastStudents = []; // [{id, data}]
+let lastLessons = []; // [{id, data}]
+
+// ---------- Tabs ----------
+function showTab(tab) {
+  const isPoints = tab === "points";
+  tabPointsBtn.classList.toggle("active", isPoints);
+  tabTasksBtn.classList.toggle("active", !isPoints);
+  pointsPanel.classList.toggle("hidden", !isPoints);
+  tasksPanel.classList.toggle("hidden", isPoints);
+}
+tabPointsBtn.onclick = () => showTab("points");
+tabTasksBtn.onclick = () => showTab("tasks");
 
 // ---------- Auth ----------
 loginBtn.onclick = async () => {
@@ -81,9 +266,7 @@ registerBtn.onclick = async () => {
       email: cred.user.email,
       createdAt: Date.now(),
     });
-    authError.textContent =
-      "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
-      cred.user.uid + " встановіть role = teacher, після чого увійдіть знову.";
+    authError.textContent = t("registerSuccess")(cred.user.uid);
     await signOut(auth);
   } catch (e) {
     authError.textContent = errorText(e);
@@ -108,48 +291,46 @@ onAuthStateChanged(auth, async (user) => {
   const role = userDoc.exists() ? userDoc.data().role : null;
 
   if (role !== "teacher") {
-    authError.textContent =
-      "У этого аккаунта нет прав учителя (role != teacher). " +
-      "Проверьте роль в Firestore или используйте другой аккаунт.";
+    authError.textContent = t("noTeacherRole");
     await signOut(auth);
     return;
   }
 
   showAppScreen();
   listenToStudents();
+  listenToLessons();
 });
 
 function showAuthScreen() {
   authScreen.classList.remove("hidden");
   appScreen.classList.add("hidden");
   if (unsubscribeStudents) unsubscribeStudents();
+  if (unsubscribeLessons) unsubscribeLessons();
 }
 
 function showAppScreen() {
   authScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
+  showTab("points");
 }
 
 function errorText(e) {
-  const map = {
-    "auth/invalid-email": "Некорректный email.",
-    "auth/user-not-found": "Пользователь не найден.",
-    "auth/wrong-password": "Неверный пароль.",
-    "auth/email-already-in-use": "Этот email уже зарегистрирован.",
-    "auth/weak-password": "Пароль слишком простой (минимум 6 символов).",
-    "auth/invalid-credential": "Неверный email или пароль.",
-  };
-  return map[e.code] || e.message;
+  return translations[currentLang].errors[e.code] || e.message;
 }
 
 // ---------- Students ----------
 function listenToStudents() {
   const q = query(collection(db, "students"), orderBy("name"));
   unsubscribeStudents = onSnapshot(q, (snap) => {
-    studentsTbody.innerHTML = "";
-    snap.forEach((docSnap) => {
-      studentsTbody.appendChild(renderStudentRow(docSnap.id, docSnap.data()));
-    });
+    lastStudents = snap.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+    renderStudentsTable();
+  });
+}
+
+function renderStudentsTable() {
+  studentsTbody.innerHTML = "";
+  lastStudents.forEach(({ id, data }) => {
+    studentsTbody.appendChild(renderStudentRow(id, data));
   });
 }
 
@@ -217,19 +398,19 @@ function renderStudentRow(id, data) {
 
   const linkedTd = document.createElement("td");
   if (data.authUid) {
-    linkedTd.textContent = "Прив'язаний";
+    linkedTd.textContent = t("linked");
     linkedTd.className = "linked";
   } else {
-    linkedTd.textContent = "Очікує";
+    linkedTd.textContent = t("notLinked");
     linkedTd.className = "not-linked";
   }
 
   const deleteTd = document.createElement("td");
   const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = "Удалить";
+  deleteBtn.textContent = t("deleteBtn");
   deleteBtn.className = "secondary small";
   deleteBtn.onclick = () => {
-    if (confirm(`Удалить ${data.name}?`)) deleteDoc(doc(db, "students", id));
+    if (confirm(t("deleteConfirm")(data.name))) deleteDoc(doc(db, "students", id));
   };
   deleteTd.appendChild(deleteBtn);
 
@@ -240,4 +421,70 @@ function renderStudentRow(id, data) {
 async function changePoints(id, currentPoints, delta) {
   const newValue = Math.max(0, (currentPoints || 0) + delta);
   await updateDoc(doc(db, "students", id), { points: newValue });
+}
+
+// ---------- Lessons (завдання) ----------
+function listenToLessons() {
+  const q = query(collection(db, "lessons"), orderBy("createdAt", "desc"));
+  unsubscribeLessons = onSnapshot(q, (snap) => {
+    lastLessons = snap.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+    renderLessonsList();
+  });
+}
+
+function renderLessonsList() {
+  lessonsList.innerHTML = "";
+  lastLessons.forEach(({ id, data }) => {
+    lessonsList.appendChild(renderLessonRow(id, data));
+  });
+  noLessonsMsg.classList.toggle("hidden", lastLessons.length > 0);
+}
+
+addLessonBtn.onclick = async () => {
+  const title = newLessonTitle.value.trim();
+  let link = newLessonLink.value.trim();
+  if (!title) return;
+  if (link && !/^https?:\/\//i.test(link)) {
+    link = "https://" + link;
+  }
+  await addDoc(collection(db, "lessons"), {
+    title,
+    link: link || null,
+    createdAt: Date.now(),
+  });
+  newLessonTitle.value = "";
+  newLessonLink.value = "";
+};
+
+function renderLessonRow(id, data) {
+  const li = document.createElement("li");
+  li.className = "lesson-item";
+
+  const main = document.createElement("div");
+  main.className = "lesson-main";
+
+  const title = document.createElement("span");
+  title.className = "lesson-title";
+  title.textContent = data.title;
+  main.appendChild(title);
+
+  if (data.link) {
+    const link = document.createElement("a");
+    link.className = "lesson-link";
+    link.href = data.link;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = `${t("openLink")} ↗`;
+    main.appendChild(link);
+  }
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.textContent = t("deleteBtn");
+  deleteBtn.className = "secondary small";
+  deleteBtn.onclick = () => {
+    if (confirm(t("deleteLessonConfirm")(data.title))) deleteDoc(doc(db, "lessons", id));
+  };
+
+  li.append(main, deleteBtn);
+  return li;
 }

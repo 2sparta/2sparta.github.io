@@ -51,6 +51,12 @@ header {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  gap: 12px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .row { display: flex; gap: 10px; }
 .row input { margin-bottom: 0; }
@@ -73,3 +79,87 @@ code {
 }
 .linked { color: #16a34a; font-weight: 600; }
 .not-linked { color: #999; }
+
+/* ---------- Language switch ---------- */
+.lang-switch {
+  display: flex;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lang-switch--auth {
+  justify-content: flex-end;
+  border: none;
+  margin-bottom: 10px;
+}
+.lang-switch--auth .lang-btn {
+  border: 1px solid #ddd;
+}
+.lang-btn {
+  background: white;
+  color: #555;
+  border: none;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 0;
+}
+.lang-btn:hover { background: #f1f1f1; }
+.lang-btn.active {
+  background: #2563eb;
+  color: white;
+}
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #e2e2e2;
+}
+.tab-btn {
+  background: transparent;
+  color: #666;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab-btn:hover { background: #eef2ff; color: #2563eb; }
+.tab-btn.active {
+  color: #2563eb;
+  background: white;
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #e2e2e2;
+  border-bottom: 1px solid white;
+  transform: translateY(1px);
+}
+
+/* ---------- Lessons ---------- */
+.lessons-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lesson-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+.lesson-item:last-child { border-bottom: none; }
+.lesson-title {
+  font-weight: 600;
+  margin-right: 8px;
+}
+.lesson-link {
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: none;
+}
+.lesson-link:hover { text-decoration: underline; }
+.lesson-main { display: flex; flex-direction: column; gap: 2px; }

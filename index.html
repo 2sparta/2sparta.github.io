@@ -10,12 +10,16 @@
 
   <div id="auth-screen" class="screen">
     <div class="card">
-      <h1>Вхід для вчителя</h1>
-      <input id="email" type="email" placeholder="Електронна пошта" />
-      <input id="password" type="password" placeholder="Пароль" />
-      <button id="login-btn">Увійти</button>
-      <button id="register-btn" class="secondary">Зареєструватися (вперше)</button>
-      <p class="hint">
+      <div class="lang-switch lang-switch--auth">
+        <button id="lang-uk" class="lang-btn active" data-lang="uk">UA</button>
+        <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+      </div>
+      <h1 data-i18n="authTitle">Вхід для вчителя</h1>
+      <input id="email" type="email" data-i18n-placeholder="emailPlaceholder" placeholder="Електронна пошта" />
+      <input id="password" type="password" data-i18n-placeholder="passwordPlaceholder" placeholder="Пароль" />
+      <button id="login-btn" data-i18n="loginBtn">Увійти</button>
+      <button id="register-btn" class="secondary" data-i18n="registerBtn">Зареєструватися (вперше)</button>
+      <p class="hint" data-i18n-html="hintHtml">
         Після реєстрації першого вчителя зайдіть у Firebase Console → Firestore →
         колекція <code>users</code> → знайдіть свій uid і змініть поле
         <code>role</code> на <b>teacher</b>. Інакше доступ до панелі буде закрито.
@@ -26,34 +30,64 @@
 
   <div id="app-screen" class="screen hidden">
     <header>
-      <h1>Бали учнів</h1>
-      <button id="logout-btn" class="secondary small">Вийти</button>
+      <h1 data-i18n="appTitle">Бали учнів</h1>
+      <div class="header-actions">
+        <div class="lang-switch">
+          <button id="lang-uk-app" class="lang-btn active" data-lang="uk">UA</button>
+          <button id="lang-en-app" class="lang-btn" data-lang="en">EN</button>
+        </div>
+        <button id="logout-btn" class="secondary small" data-i18n="logout">Вийти</button>
+      </div>
     </header>
 
-    <section class="card">
-      <h2>Додати учня</h2>
-      <div class="row">
-        <input id="new-student-name" type="text" placeholder="Ім'я учня" />
-        <button id="add-student-btn">Додати</button>
-      </div>
-    </section>
+    <nav class="tabs">
+      <button id="tab-points-btn" class="tab-btn active" data-i18n="tabPoints">Бали</button>
+      <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
+    </nav>
 
-    <section class="card">
-      <h2>Список учнів</h2>
-      <table id="students-table">
-        <thead>
-          <tr>
-            <th>Ім'я</th>
-            <th>Бали</th>
-            <th>Змінити</th>
-            <th>Код-запрошення</th>
-            <th>Прив'язаний</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="students-tbody"></tbody>
-      </table>
-    </section>
+    <div id="points-panel" class="tab-panel">
+      <section class="card">
+        <h2 data-i18n="addStudentHeading">Додати учня</h2>
+        <div class="row">
+          <input id="new-student-name" type="text" data-i18n-placeholder="studentNamePlaceholder" placeholder="Ім'я учня" />
+          <button id="add-student-btn" data-i18n="addBtn">Додати</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="studentsListHeading">Список учнів</h2>
+        <table id="students-table">
+          <thead>
+            <tr>
+              <th data-i18n="thName">Ім'я</th>
+              <th data-i18n="thPoints">Бали</th>
+              <th data-i18n="thChange">Змінити</th>
+              <th data-i18n="thCode">Код-запрошення</th>
+              <th data-i18n="thLinked">Прив'язаний</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="students-tbody"></tbody>
+        </table>
+      </section>
+    </div>
+
+    <div id="tasks-panel" class="tab-panel hidden">
+      <section class="card">
+        <h2 data-i18n="addLessonHeading">Додати урок</h2>
+        <div class="row">
+          <input id="new-lesson-title" type="text" data-i18n-placeholder="lessonTitlePlaceholder" placeholder="Назва уроку" />
+          <input id="new-lesson-link" type="text" data-i18n-placeholder="lessonLinkPlaceholder" placeholder="Посилання (URL)" />
+          <button id="add-lesson-btn" data-i18n="addBtn">Додати</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="lessonsHeading">Список уроків</h2>
+        <ul id="lessons-list" class="lessons-list"></ul>
+        <p id="no-lessons-msg" class="hint hidden" data-i18n="noLessons">Уроків ще немає.</p>
+      </section>
+    </div>
   </div>
 
   <script type="module" src="app.js"></script>
