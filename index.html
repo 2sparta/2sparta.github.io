@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Шкільні бали — панель учителя</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="auth-screen" class="screen">
+    <div class="card">
+      <h1>Вхід для вчителя</h1>
+      <input id="email" type="email" placeholder="Електронна пошта" />
+      <input id="password" type="password" placeholder="Пароль" />
+      <button id="login-btn">Увійти</button>
+      <button id="register-btn" class="secondary">Зареєструватися (вперше)</button>
+      <p class="hint">
+        Після реєстрації першого вчителя зайдіть у Firebase Console → Firestore →
+        колекція <code>users</code> → знайдіть свій uid і змініть поле
+        <code>role</code> на <b>teacher</b>. Інакше доступ до панелі буде закрито.
+      </p>
+      <p id="auth-error" class="error"></p>
+    </div>
+  </div>
+
+  <div id="app-screen" class="screen hidden">
+    <header>
+      <h1>Бали учнів</h1>
+      <button id="logout-btn" class="secondary small">Вийти</button>
+    </header>
+
+    <section class="card">
+      <h2>Додати учня</h2>
+      <div class="row">
+        <input id="new-student-name" type="text" placeholder="Ім'я учня" />
+        <button id="add-student-btn">Додати</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Список учнів</h2>
+      <table id="students-table">
+        <thead>
+          <tr>
+            <th>Ім'я</th>
+            <th>Бали</th>
+            <th>Змінити</th>
+            <th>Код-запрошення</th>
+            <th>Прив'язаний</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="students-tbody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
