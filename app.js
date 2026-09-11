@@ -82,8 +82,8 @@ registerBtn.onclick = async () => {
       createdAt: Date.now(),
     });
     authError.textContent =
-      "Аккаунт создан. Теперь в Firebase Console → Firestore → users → " +
-      cred.user.uid + " поставьте role = teacher, затем войдите снова.";
+      "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
+      cred.user.uid + " встановіть role = teacher, після чого увійдіть знову.";
     await signOut(auth);
   } catch (e) {
     authError.textContent = errorText(e);
