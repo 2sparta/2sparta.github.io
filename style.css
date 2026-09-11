@@ -17,7 +17,7 @@ body {
 }
 h1 { font-size: 22px; margin: 0 0 12px; }
 h2 { font-size: 16px; margin: 0 0 12px; color: #444; }
-input {
+input, textarea {
   display: block;
   width: 100%;
   padding: 10px 12px;
@@ -25,6 +25,22 @@ input {
   border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 14px;
+  font-family: inherit;
+}
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+.lesson-form {
+  display: flex;
+  flex-direction: column;
+}
+.lesson-form input,
+.lesson-form textarea {
+  margin-bottom: 10px;
+}
+.lesson-form button {
+  align-self: flex-start;
 }
 button {
   background: #2563eb;
@@ -144,22 +160,47 @@ code {
   padding: 0;
 }
 .lesson-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid #eee;
 }
 .lesson-item:last-child { border-bottom: none; }
+.lesson-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lesson-header-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+.lesson-toggle {
+  background: transparent;
+  color: #2563eb;
+  border: none;
+  padding: 0;
+  width: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lesson-toggle:hover { background: transparent; color: #1d4ed8; }
 .lesson-title {
   font-weight: 600;
-  margin-right: 8px;
+  overflow-wrap: anywhere;
 }
-.lesson-link {
-  color: #2563eb;
-  font-size: 13px;
-  text-decoration: none;
+.lesson-content {
+  margin: 10px 0 0 28px;
+  padding: 10px 12px;
+  background: #f7f8fa;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #333;
 }
-.lesson-link:hover { text-decoration: underline; }
-.lesson-main { display: flex; flex-direction: column; gap: 2px; }

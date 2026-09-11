@@ -73,10 +73,11 @@ const translations = {
     deleteConfirm: (name) => `Видалити ${name}?`,
     addLessonHeading: "Додати урок",
     lessonTitlePlaceholder: "Назва уроку",
-    lessonLinkPlaceholder: "Посилання (URL)",
+    lessonContentPlaceholder: "Зміст уроку / завдання",
     lessonsHeading: "Список уроків",
     noLessons: "Уроків ще немає.",
-    openLink: "Відкрити",
+    expandBtn: "Показати",
+    collapseBtn: "Згорнути",
     deleteLessonConfirm: (title) => `Видалити урок «${title}»?`,
     registerSuccess: (uid) =>
       "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
@@ -122,10 +123,11 @@ const translations = {
     deleteConfirm: (name) => `Delete ${name}?`,
     addLessonHeading: "Add a Lesson",
     lessonTitlePlaceholder: "Lesson title",
-    lessonLinkPlaceholder: "Link (URL)",
+    lessonContentPlaceholder: "Lesson content / assignment",
     lessonsHeading: "Lesson List",
     noLessons: "No lessons yet.",
-    openLink: "Open",
+    expandBtn: "Show",
+    collapseBtn: "Hide",
     deleteLessonConfirm: (title) => `Delete lesson "${title}"?`,
     registerSuccess: (uid) =>
       "Account created. Now in Firebase Console → Firestore → users → " +
@@ -214,10 +216,14 @@ const pointsPanel = document.getElementById("points-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 
 const newLessonTitle = document.getElementById("new-lesson-title");
-const newLessonLink = document.getElementById("new-lesson-link");
+const newLessonContent = document.getElementById("new-lesson-content");
 const addLessonBtn = document.getElementById("add-lesson-btn");
 const lessonsList = document.getElementById("lessons-list");
 const noLessonsMsg = document.getElementById("no-lessons-msg");
+
+// Зберігаємо, які уроки розгорнуті, щоб стан не губився при
+// перемальовуванні списку (onSnapshot оновлює дані в реальному часі).
+const expandedLessons = new Set();
 
 let unsubscribeStudents = null;
 let unsubscribeLessons = null;
@@ -442,49 +448,78 @@ function renderLessonsList() {
 
 addLessonBtn.onclick = async () => {
   const title = newLessonTitle.value.trim();
-  let link = newLessonLink.value.trim();
+  const content = newLessonContent.value.trim();
   if (!title) return;
-  if (link && !/^https?:\/\//i.test(link)) {
-    link = "https://" + link;
+  try {
+    await addDoc(collection(db, "lessons"), {
+      title,
+      content: content || "",
+      createdAt: Date.now(),
+    });
+    newLessonTitle.value = "";
+    newLessonContent.value = "";
+  } catch (e) {
+    console.error("Не вдалося додати урок:", e);
+    alert(
+      currentLang === "uk"
+        ? "Не вдалося додати урок. Перевірте правила Firestore (Rules) для колекції lessons: " + e.message
+        : "Failed to add the lesson. Check Firestore Rules for the lessons collection: " + e.message
+    );
   }
-  await addDoc(collection(db, "lessons"), {
-    title,
-    link: link || null,
-    createdAt: Date.now(),
-  });
-  newLessonTitle.value = "";
-  newLessonLink.value = "";
 };
 
 function renderLessonRow(id, data) {
   const li = document.createElement("li");
   li.className = "lesson-item";
 
-  const main = document.createElement("div");
-  main.className = "lesson-main";
+  const isExpanded = expandedLessons.has(id);
+
+  // ---- Верхній рядок: заголовок + кнопки ----
+  const header = document.createElement("div");
+  header.className = "lesson-header";
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.className = "lesson-toggle";
+  toggleBtn.setAttribute("aria-label", isExpanded ? t("collapseBtn") : t("expandBtn"));
+  toggleBtn.textContent = isExpanded ? "▾" : "▸";
 
   const title = document.createElement("span");
   title.className = "lesson-title";
   title.textContent = data.title;
-  main.appendChild(title);
 
-  if (data.link) {
-    const link = document.createElement("a");
-    link.className = "lesson-link";
-    link.href = data.link;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = `${t("openLink")} ↗`;
-    main.appendChild(link);
-  }
+  const headerMain = document.createElement("div");
+  headerMain.className = "lesson-header-main";
+  headerMain.append(toggleBtn, title);
 
   const deleteBtn = document.createElement("button");
   deleteBtn.textContent = t("deleteBtn");
   deleteBtn.className = "secondary small";
-  deleteBtn.onclick = () => {
+  deleteBtn.onclick = (e) => {
+    e.stopPropagation();
     if (confirm(t("deleteLessonConfirm")(data.title))) deleteDoc(doc(db, "lessons", id));
   };
 
-  li.append(main, deleteBtn);
+  header.append(headerMain, deleteBtn);
+
+  // ---- Контент, що згортається/розгортається ----
+  const contentDiv = document.createElement("div");
+  contentDiv.className = "lesson-content" + (isExpanded ? "" : " hidden");
+  contentDiv.textContent = data.content || "";
+
+  function toggle() {
+    const nowExpanded = !expandedLessons.has(id);
+    if (nowExpanded) {
+      expandedLessons.add(id);
+    } else {
+      expandedLessons.delete(id);
+    }
+    contentDiv.classList.toggle("hidden", !nowExpanded);
+    toggleBtn.textContent = nowExpanded ? "▾" : "▸";
+    toggleBtn.setAttribute("aria-label", nowExpanded ? t("collapseBtn") : t("expandBtn"));
+  }
+
+  headerMain.onclick = toggle;
+
+  li.append(header, contentDiv);
   return li;
 }
