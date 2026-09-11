@@ -217,10 +217,10 @@ function renderStudentRow(id, data) {
 
   const linkedTd = document.createElement("td");
   if (data.authUid) {
-    linkedTd.textContent = "Привязан";
+    linkedTd.textContent = "Прив'язаний";
     linkedTd.className = "linked";
   } else {
-    linkedTd.textContent = "Ожидает";
+    linkedTd.textContent = "Очікує";
     linkedTd.className = "not-linked";
   }
 
