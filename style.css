@@ -153,6 +153,53 @@ code {
   transform: translateY(1px);
 }
 
+/* ---------- Live status ---------- */
+#live-status-card {
+  padding: 14px 18px;
+}
+.live-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.live-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.live-status-lesson .live-status-dot { background: #16a34a; }
+.live-status-break .live-status-dot { background: #f59e0b; }
+.live-status-idle { color: #999; font-size: 13px; }
+.live-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.live-status-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #999;
+}
+.live-status-lesson .live-status-label { color: #16a34a; }
+.live-status-break .live-status-label { color: #b45309; }
+.live-status-subject {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  overflow-wrap: anywhere;
+}
+.live-status-minutes {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2563eb;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* ---------- Lessons ---------- */
 .lessons-list {
   list-style: none;
@@ -229,23 +276,22 @@ code {
 }
 .schedule-table {
   width: 100%;
-  min-width: 640px;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
 }
 .schedule-table th,
 .schedule-table td {
   border: 1px solid #eee;
-  padding: 8px 6px;
+  padding: 4px 2px;
   text-align: center;
   vertical-align: middle;
 }
 .schedule-table thead th {
   background: #f7f8fa;
   color: #444;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  white-space: nowrap;
 }
 .schedule-table-corner {
   background: #f7f8fa;
@@ -253,12 +299,31 @@ code {
 .schedule-table-period {
   background: #f7f8fa;
   color: #999;
-  font-size: 12px;
+  width: 52px;
+}
+.schedule-period-number {
+  font-size: 11px;
   font-weight: 700;
-  width: 30px;
+  margin-bottom: 2px;
+}
+.schedule-period-times {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.schedule-period-time-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1px;
+  font-size: 10px;
+  font-family: inherit;
+  color: #555;
+  background: white;
 }
 .schedule-table-cell {
-  min-width: 120px;
+  overflow-wrap: anywhere;
 }
 .schedule-table-empty {
   color: #ddd;
@@ -266,24 +331,44 @@ code {
 .schedule-cell-add {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   align-items: stretch;
 }
 .schedule-cell-select {
   margin-bottom: 0;
-  padding: 4px 6px;
-  font-size: 12px;
-  border-radius: 6px;
+  padding: 2px 3px;
+  font-size: 10px;
+  border-radius: 5px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .schedule-cell-add-btn {
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: 2px 4px;
+  font-size: 11px;
   align-self: center;
 }
 .schedule-table-cell .chip {
   width: 100%;
+  max-width: 100%;
   justify-content: center;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  padding: 4px 4px 4px 8px;
 }
+
+@media (max-width: 480px) {
+  body { padding: 12px; }
+  .card { padding: 14px 12px; }
+  .schedule-table { font-size: 10px; }
+  .schedule-table thead th { font-size: 9px; padding: 3px 1px; }
+  .schedule-table-period { width: 44px; }
+  .schedule-period-time-input { font-size: 9px; }
+  .schedule-table-cell .chip { font-size: 9px; padding: 3px 3px 3px 6px; }
+  .schedule-cell-select { font-size: 9px; }
+}
+
 .chip {
   display: inline-flex;
   align-items: center;

@@ -84,8 +84,18 @@ const translations = {
 
     scheduleHeading: "Розклад",
     weekdays: { mon: "Понеділок", tue: "Вівторок", wed: "Середа", thu: "Четвер", fri: "П'ятниця", sat: "Субота", sun: "Неділя" },
+    weekdaysShort: { mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Нд" },
     addToScheduleBtn: "Додати",
     emptyDayHint: "На цей день предметів ще не додано.",
+    periodStartLabel: "Початок уроку",
+    periodEndLabel: "Кінець уроку",
+
+    liveLessonLabel: "Йде урок:",
+    liveBreakLabel: "Перерва",
+    liveNoSubject: "Урок",
+    nextLessonLabel: "Далі",
+    noActiveLesson: "Зараз немає активного уроку",
+    minutesLeft: (m) => `залишилось ${m} хв`,
 
     addLessonHeading: "Додати урок",
     lessonTitlePlaceholder: "Назва уроку",
@@ -163,8 +173,18 @@ const translations = {
 
     scheduleHeading: "Schedule",
     weekdays: { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" },
+    weekdaysShort: { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" },
     addToScheduleBtn: "Add",
     emptyDayHint: "No subjects added for this day yet.",
+    periodStartLabel: "Lesson start",
+    periodEndLabel: "Lesson end",
+
+    liveLessonLabel: "Lesson in progress:",
+    liveBreakLabel: "Break",
+    liveNoSubject: "Lesson",
+    nextLessonLabel: "Next",
+    noActiveLesson: "No active lesson right now",
+    minutesLeft: (m) => `${m} min left`,
 
     addLessonHeading: "Add a Lesson",
     lessonTitlePlaceholder: "Lesson title",
@@ -252,6 +272,7 @@ function setLanguage(lang) {
   renderSubjectSelects();
   renderSchedule();
   renderLessonsContainer();
+  updateLiveStatus();
 }
 
 document.querySelectorAll(".lang-btn").forEach((btn) => {
@@ -284,6 +305,8 @@ const subjectsList = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
 
 const scheduleDaysEl = document.getElementById("schedule-days");
+const liveStatusCard = document.getElementById("live-status-card");
+const liveStatusEl = document.getElementById("live-status");
 
 const newLessonSubject = document.getElementById("new-lesson-subject");
 const newLessonTitle = document.getElementById("new-lesson-title");
@@ -308,6 +331,7 @@ let unsubscribeStudents = null;
 let unsubscribeLessons = null;
 let unsubscribeSubjects = null;
 let unsubscribeSchedule = null;
+let liveStatusInterval = null;
 
 // Кешуємо останні дані зі Firestore
 let lastStudents = []; // [{id, data}]
@@ -322,7 +346,17 @@ const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const WEEKDAY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 function emptySchedule() {
-  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [], times: {} };
+}
+
+function parseTimeToMinutes(hhmm) {
+  if (!hhmm) return null;
+  const parts = hhmm.split(":");
+  if (parts.length < 2) return null;
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return null;
+  return h * 60 + m;
 }
 
 function formatDateLocal(d) {
@@ -410,12 +444,19 @@ function showAuthScreen() {
   if (unsubscribeLessons) unsubscribeLessons();
   if (unsubscribeSubjects) unsubscribeSubjects();
   if (unsubscribeSchedule) unsubscribeSchedule();
+  if (liveStatusInterval) {
+    clearInterval(liveStatusInterval);
+    liveStatusInterval = null;
+  }
 }
 
 function showAppScreen() {
   authScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
   showTab("points");
+  if (!liveStatusInterval) {
+    liveStatusInterval = setInterval(updateLiveStatus, 30000);
+  }
 }
 
 function errorText(e) {
@@ -541,6 +582,7 @@ function listenToSubjects() {
     renderSubjectSelects();
     renderSchedule();
     renderLessonsContainer();
+    updateLiveStatus();
   });
 }
 
@@ -609,6 +651,7 @@ function listenToSchedule() {
     scheduleData = snap.exists() ? { ...emptySchedule(), ...snap.data() } : emptySchedule();
     renderSchedule();
     renderLessonsContainer();
+    updateLiveStatus();
   });
 }
 
@@ -628,20 +671,67 @@ function renderSchedule() {
   headRow.appendChild(cornerTh);
   WEEKDAYS.forEach((dayKey) => {
     const th = document.createElement("th");
-    th.textContent = t("weekdays")[dayKey];
+    th.textContent = t("weekdaysShort")[dayKey];
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
+  const periodTimes = scheduleData.times || {};
 
   for (let r = 0; r < rowCount; r++) {
     const tr = document.createElement("tr");
 
     const rowTh = document.createElement("th");
     rowTh.className = "schedule-table-period";
-    rowTh.textContent = String(r + 1);
+
+    const numberEl = document.createElement("div");
+    numberEl.className = "schedule-period-number";
+    numberEl.textContent = String(r + 1);
+    rowTh.appendChild(numberEl);
+
+    const timesWrap = document.createElement("div");
+    timesWrap.className = "schedule-period-times";
+
+    const savedTime = periodTimes[r] || periodTimes[String(r)] || {};
+
+    const startInput = document.createElement("input");
+    startInput.type = "time";
+    startInput.className = "schedule-period-time-input";
+    startInput.value = savedTime.start || "";
+    startInput.setAttribute("aria-label", t("periodStartLabel"));
+    startInput.onchange = async () => {
+      try {
+        await setDoc(
+          doc(db, "schedule", "week"),
+          { times: { [r]: { start: startInput.value || null } } },
+          { merge: true }
+        );
+      } catch (e) {
+        reportSaveError(e, "Не вдалося зберегти час уроку", "Failed to save the lesson time");
+      }
+    };
+
+    const endInput = document.createElement("input");
+    endInput.type = "time";
+    endInput.className = "schedule-period-time-input";
+    endInput.value = savedTime.end || "";
+    endInput.setAttribute("aria-label", t("periodEndLabel"));
+    endInput.onchange = async () => {
+      try {
+        await setDoc(
+          doc(db, "schedule", "week"),
+          { times: { [r]: { end: endInput.value || null } } },
+          { merge: true }
+        );
+      } catch (e) {
+        reportSaveError(e, "Не вдалося зберегти час уроку", "Failed to save the lesson time");
+      }
+    };
+
+    timesWrap.append(startInput, endInput);
+    rowTh.appendChild(timesWrap);
     tr.appendChild(rowTh);
 
     WEEKDAYS.forEach((dayKey) => {
@@ -735,6 +825,86 @@ function renderSchedule() {
   wrap.className = "schedule-table-wrap";
   wrap.appendChild(table);
   scheduleDaysEl.appendChild(wrap);
+}
+
+// ---------- Live status (зараз урок / перерва) ----------
+function updateLiveStatus() {
+  if (!liveStatusEl) return;
+
+  const now = new Date();
+  const weekdayKey = WEEKDAY_BY_JS_INDEX[now.getDay()];
+  const dayIds = scheduleData[weekdayKey] || [];
+  const periodTimes = scheduleData.times || {};
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const maxPeriodIndex = Math.max(
+    0,
+    ...WEEKDAYS.map((d) => (scheduleData[d] || []).length),
+    ...Object.keys(periodTimes).map((k) => parseInt(k, 10) + 1)
+  );
+
+  const periods = [];
+  for (let r = 0; r < maxPeriodIndex; r++) {
+    const time = periodTimes[r] || periodTimes[String(r)];
+    const start = time ? parseTimeToMinutes(time.start) : null;
+    const end = time ? parseTimeToMinutes(time.end) : null;
+    if (start !== null && end !== null && end > start) {
+      periods.push({ r, start, end });
+    }
+  }
+  periods.sort((a, b) => a.start - b.start);
+
+  if (periods.length === 0) {
+    liveStatusCard.classList.add("hidden");
+    return;
+  }
+  liveStatusCard.classList.remove("hidden");
+
+  let state = null;
+  for (let i = 0; i < periods.length; i++) {
+    const p = periods[i];
+    if (nowMinutes >= p.start && nowMinutes < p.end) {
+      state = { type: "lesson", period: p };
+      break;
+    }
+    if (i < periods.length - 1 && nowMinutes >= p.end && nowMinutes < periods[i + 1].start) {
+      state = { type: "break", from: p, to: periods[i + 1] };
+      break;
+    }
+  }
+
+  if (!state) {
+    liveStatusEl.innerHTML = `<div class="live-status-row live-status-idle">${t("noActiveLesson")}</div>`;
+    return;
+  }
+
+  if (state.type === "lesson") {
+    const remaining = state.period.end - nowMinutes;
+    const subjectId = dayIds[state.period.r];
+    const subjectName = subjectId ? getSubjectName(subjectId) : t("liveNoSubject");
+    liveStatusEl.innerHTML = `
+      <div class="live-status-row live-status-lesson">
+        <span class="live-status-dot"></span>
+        <span class="live-status-text">
+          <span class="live-status-label">${t("liveLessonLabel")}</span>
+          <span class="live-status-subject">${escapeHtml(subjectName)}</span>
+        </span>
+        <span class="live-status-minutes">${t("minutesLeft")(remaining)}</span>
+      </div>`;
+  } else {
+    const remaining = state.to.start - nowMinutes;
+    const nextSubjectId = dayIds[state.to.r];
+    const nextName = nextSubjectId ? getSubjectName(nextSubjectId) : "";
+    liveStatusEl.innerHTML = `
+      <div class="live-status-row live-status-break">
+        <span class="live-status-dot"></span>
+        <span class="live-status-text">
+          <span class="live-status-label">${t("liveBreakLabel")}</span>
+          ${nextName ? `<span class="live-status-subject">${t("nextLessonLabel")}: ${escapeHtml(nextName)}</span>` : ""}
+        </span>
+        <span class="live-status-minutes">${t("minutesLeft")(remaining)}</span>
+      </div>`;
+  }
 }
 
 // ---------- Lessons (уроки) ----------
