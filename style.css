@@ -544,3 +544,17 @@ select {
   flex-direction: column;
   gap: 10px;
 }
+
+/* Картка розкладу розширюється симетрично в обидва боки */
+.card-wide {
+  width: min(1000px, 100vw - 32px);
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Якщо екран вузький (мобільний), робимо адаптивний відступ */
+@media (max-width: 480px) {
+  .card-wide {
+    width: min(1000px, 100vw - 24px);
+  }
+}
