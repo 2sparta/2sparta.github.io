@@ -696,14 +696,14 @@ function renderSchedule() {
 
     const savedTime = periodTimes[r] || periodTimes[String(r)] || {};
 
-    const startInput = document.createElement("input");
+       const startInput = document.createElement("input");
     startInput.type = "time";
     startInput.className = "schedule-period-time-input";
     startInput.value = savedTime.start || "";
     startInput.setAttribute("aria-label", t("periodStartLabel"));
     startInput.onblur = async () => {
       const newStart = startInput.value || null;
-      if (newStart === (savedTime.start || null)) return; // Не оновлюємо, якщо значення не змінилося
+      if (newStart === (savedTime.start || null)) return;
 
       try {
         await setDoc(
@@ -716,10 +716,14 @@ function renderSchedule() {
       }
     };
 
-    // Для endInput:
+    const endInput = document.createElement("input");
+    endInput.type = "time";
+    endInput.className = "schedule-period-time-input";
+    endInput.value = savedTime.end || "";
+    endInput.setAttribute("aria-label", t("periodEndLabel"));
     endInput.onblur = async () => {
       const newEnd = endInput.value || null;
-      if (newEnd === (savedTime.end || null)) return; // Не оновлюємо, якщо значення не змінилося
+      if (newEnd === (savedTime.end || null)) return;
 
       try {
         await setDoc(
@@ -731,6 +735,7 @@ function renderSchedule() {
         reportSaveError(e, "Не вдалося зберегти час уроку", "Failed to save the lesson time");
       }
     };
+
     timesWrap.append(startInput, endInput);
     rowTh.appendChild(timesWrap);
     tr.appendChild(rowTh);
