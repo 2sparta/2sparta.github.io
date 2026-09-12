@@ -293,14 +293,26 @@ code {
 }
 .subject-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 0;
   border-bottom: 1px solid #eee;
 }
 .subject-item:last-child { border-bottom: none; }
+.subject-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 .subject-item-name { font-weight: 600; }
+.subject-item-link {
+  margin-bottom: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #555;
+}
+.subject-item-link::placeholder { color: #bbb; }
 
 /* ---------- Schedule (table) ---------- */
 /* Розтягуємо обгортку розкладу за межі внутрішніх паддінгів картки */
@@ -599,6 +611,16 @@ select {
   gap: 4px;
   justify-content: center;
 }
+
+/* ---------- Кнопка приєднання до зустрічі (Zoom/Meet) ---------- */
+.join-meeting-wrap {
+  margin-top: 14px;
+}
+.join-meeting-btn {
+  width: 100%;
+  background: #16a34a;
+}
+.join-meeting-btn:hover { background: #15803d; }
 
 /* Картка розкладу розширюється симетрично в обидва боки */
 .card-wide {
