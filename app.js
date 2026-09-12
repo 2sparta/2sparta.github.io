@@ -104,8 +104,11 @@ const translations = {
     viewToday: "Сьогодні",
     viewTomorrow: "Завтра",
     viewAll: "Всі",
+    viewTypeLessons: "Уроки",
+    viewTypeHomework: "ДЗ",
     noLessonForDay: "Урок на цю дату ще не додано.",
     noScheduleForDay: "На цей день розклад ще не задано.",
+    noHomeworkForDay: "На цю дату дз ще не задано.",
 
     registerSuccess: (uid) =>
       "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
@@ -180,8 +183,11 @@ const translations = {
     viewToday: "Today",
     viewTomorrow: "Tomorrow",
     viewAll: "All",
+    viewTypeLessons: "Lessons",
+    viewTypeHomework: "Homework",
     noLessonForDay: "No lesson added for this date yet.",
     noScheduleForDay: "No schedule set for this day yet.",
+    noHomeworkForDay: "No homework due on this date yet.",
 
     registerSuccess: (uid) =>
       "Account created. Now in Firebase Console → Firestore → users → " +
@@ -291,6 +297,8 @@ const noLessonsMsg = document.getElementById("no-lessons-msg");
 const viewTodayBtn = document.getElementById("view-today-btn");
 const viewTomorrowBtn = document.getElementById("view-tomorrow-btn");
 const viewAllBtn = document.getElementById("view-all-btn");
+const typeLessonsBtn = document.getElementById("type-lessons-btn");
+const typeHomeworkBtn = document.getElementById("type-homework-btn");
 
 // Стан розгортання (щоб не губився при перемальовуванні через onSnapshot)
 const expandedLessons = new Set();
@@ -307,6 +315,7 @@ let lastLessons = []; // [{id, data}]
 let lastSubjects = []; // [{id, data}]
 let scheduleData = emptySchedule();
 let currentView = "today"; // "today" | "tomorrow" | "all"
+let currentType = "lessons"; // "lessons" | "homework"
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 // getDay(): 0=Sun..6=Sat
@@ -606,74 +615,42 @@ function listenToSchedule() {
 function renderSchedule() {
   scheduleDaysEl.innerHTML = "";
 
+  const maxPeriods = Math.max(0, ...WEEKDAYS.map((d) => (scheduleData[d] || []).length));
+  const rowCount = maxPeriods + 1; // +1 = завжди лишити рядок для додавання наступного уроку
+
+  const table = document.createElement("table");
+  table.className = "schedule-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const cornerTh = document.createElement("th");
+  cornerTh.className = "schedule-table-corner";
+  headRow.appendChild(cornerTh);
   WEEKDAYS.forEach((dayKey) => {
-    const dayBlock = document.createElement("div");
-    dayBlock.className = "schedule-day";
+    const th = document.createElement("th");
+    th.textContent = t("weekdays")[dayKey];
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
 
-    const header = document.createElement("div");
-    header.className = "schedule-day-header";
+  const tbody = document.createElement("tbody");
 
-    const label = document.createElement("span");
-    label.className = "schedule-day-label";
-    label.textContent = t("weekdays")[dayKey];
-    header.appendChild(label);
+  for (let r = 0; r < rowCount; r++) {
+    const tr = document.createElement("tr");
 
-    const addRow = document.createElement("div");
-    addRow.className = "schedule-day-add";
+    const rowTh = document.createElement("th");
+    rowTh.className = "schedule-table-period";
+    rowTh.textContent = String(r + 1);
+    tr.appendChild(rowTh);
 
-    const select = document.createElement("select");
-    const alreadyAdded = new Set(scheduleData[dayKey] || []);
-    const availableSubjects = lastSubjects.filter((s) => !alreadyAdded.has(s.id));
+    WEEKDAYS.forEach((dayKey) => {
+      const dayIds = scheduleData[dayKey] || [];
+      const td = document.createElement("td");
+      td.className = "schedule-table-cell";
 
-    if (availableSubjects.length === 0) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = lastSubjects.length === 0 ? t("addSubjectFirstHint") : t("selectSubjectPlaceholder");
-      opt.disabled = true;
-      opt.selected = true;
-      select.appendChild(opt);
-      select.disabled = true;
-    } else {
-      const placeholderOpt = document.createElement("option");
-      placeholderOpt.value = "";
-      placeholderOpt.textContent = t("selectSubjectPlaceholder");
-      placeholderOpt.disabled = true;
-      placeholderOpt.selected = true;
-      select.appendChild(placeholderOpt);
-      availableSubjects.forEach((s) => {
-        const opt = document.createElement("option");
-        opt.value = s.id;
-        opt.textContent = s.data.name;
-        select.appendChild(opt);
-      });
-    }
-
-    const addBtn = document.createElement("button");
-    addBtn.textContent = t("addToScheduleBtn");
-    addBtn.onclick = async () => {
-      const subjectId = select.value;
-      if (!subjectId) return;
-      try {
-        await setDoc(doc(db, "schedule", "week"), { [dayKey]: arrayUnion(subjectId) }, { merge: true });
-      } catch (e) {
-        reportSaveError(e, "Не вдалося оновити розклад. Перевірте правила Firestore для колекції schedule", "Failed to update the schedule. Check Firestore Rules for the schedule collection");
-      }
-    };
-
-    addRow.append(select, addBtn);
-    header.appendChild(addRow);
-
-    const subjectsRow = document.createElement("div");
-    subjectsRow.className = "schedule-day-subjects";
-    const dayIds = scheduleData[dayKey] || [];
-
-    if (dayIds.length === 0) {
-      const hint = document.createElement("span");
-      hint.className = "empty-day-hint";
-      hint.textContent = t("emptyDayHint");
-      subjectsRow.appendChild(hint);
-    } else {
-      dayIds.forEach((subjectId) => {
+      if (r < dayIds.length) {
+        const subjectId = dayIds[r];
         const chip = document.createElement("span");
         chip.className = "chip";
         chip.textContent = getSubjectName(subjectId);
@@ -690,13 +667,74 @@ function renderSchedule() {
         };
 
         chip.appendChild(removeBtn);
-        subjectsRow.appendChild(chip);
-      });
-    }
+        td.appendChild(chip);
+      } else if (r === dayIds.length) {
+        const alreadyAdded = new Set(dayIds);
+        const availableSubjects = lastSubjects.filter((s) => !alreadyAdded.has(s.id));
 
-    dayBlock.append(header, subjectsRow);
-    scheduleDaysEl.appendChild(dayBlock);
-  });
+        const addWrap = document.createElement("div");
+        addWrap.className = "schedule-cell-add";
+
+        const select = document.createElement("select");
+        select.className = "schedule-cell-select";
+
+        if (availableSubjects.length === 0) {
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = lastSubjects.length === 0 ? t("addSubjectFirstHint") : t("selectSubjectPlaceholder");
+          opt.disabled = true;
+          opt.selected = true;
+          select.appendChild(opt);
+          select.disabled = true;
+        } else {
+          const placeholderOpt = document.createElement("option");
+          placeholderOpt.value = "";
+          placeholderOpt.textContent = t("selectSubjectPlaceholder");
+          placeholderOpt.disabled = true;
+          placeholderOpt.selected = true;
+          select.appendChild(placeholderOpt);
+          availableSubjects.forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            opt.textContent = s.data.name;
+            select.appendChild(opt);
+          });
+        }
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "schedule-cell-add-btn";
+        addBtn.textContent = "+";
+        addBtn.title = t("addToScheduleBtn");
+        addBtn.disabled = availableSubjects.length === 0;
+        addBtn.onclick = async () => {
+          const subjectId = select.value;
+          if (!subjectId) return;
+          try {
+            await setDoc(doc(db, "schedule", "week"), { [dayKey]: arrayUnion(subjectId) }, { merge: true });
+          } catch (e) {
+            reportSaveError(e, "Не вдалося оновити розклад. Перевірте правила Firestore для колекції schedule", "Failed to update the schedule. Check Firestore Rules for the schedule collection");
+          }
+        };
+
+        addWrap.append(select, addBtn);
+        td.appendChild(addWrap);
+      } else {
+        td.classList.add("schedule-table-empty");
+        td.textContent = "–";
+      }
+
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  }
+
+  table.appendChild(tbody);
+
+  const wrap = document.createElement("div");
+  wrap.className = "schedule-table-wrap";
+  wrap.appendChild(table);
+  scheduleDaysEl.appendChild(wrap);
 }
 
 // ---------- Lessons (уроки) ----------
@@ -747,6 +785,20 @@ addLessonBtn.onclick = async () => {
   };
 });
 
+[typeLessonsBtn, typeHomeworkBtn].forEach((btn) => {
+  btn.onclick = () => {
+    currentType = btn.dataset.type;
+    [typeLessonsBtn, typeHomeworkBtn].forEach((b) => b.classList.toggle("active", b === btn));
+    renderLessonsContainer();
+  };
+});
+
+function getFilteredAllLessons() {
+  return currentType === "homework"
+    ? lastLessons.filter((l) => !!l.data.homeworkDate)
+    : lastLessons;
+}
+
 function renderLessonsContainer() {
   lessonsContainer.innerHTML = "";
 
@@ -758,8 +810,8 @@ function renderLessonsContainer() {
 
   const nothingToShow =
     currentView === "all"
-      ? lastLessons.length === 0
-      : false; // day views always render their own "no lesson" hints
+      ? getFilteredAllLessons().length === 0
+      : false; // day views always render their own "no lesson/homework" hints
   noLessonsMsg.classList.toggle("hidden", !nothingToShow);
 }
 
@@ -767,6 +819,15 @@ function renderDayView(dayOffset) {
   const target = new Date();
   target.setDate(target.getDate() + dayOffset);
   const targetDateStr = formatDateLocal(target);
+
+  if (currentType === "homework") {
+    renderDayHomework(targetDateStr);
+  } else {
+    renderDayLessons(target, targetDateStr);
+  }
+}
+
+function renderDayLessons(target, targetDateStr) {
   const weekdayKey = WEEKDAY_BY_JS_INDEX[target.getDay()];
   const subjectIdsForDay = scheduleData[weekdayKey] || [];
 
@@ -806,12 +867,55 @@ function renderDayView(dayOffset) {
   });
 }
 
+function renderDayHomework(targetDateStr) {
+  // ДЗ прив'язане до дати здачі, а не до розкладу дня — тож шукаємо серед
+  // усіх уроків незалежно від того, чи предмет стоїть у розкладі на targetDateStr
+  const matching = lastLessons.filter((l) => l.data.homeworkDate === targetDateStr);
+
+  if (matching.length === 0) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = t("noHomeworkForDay");
+    lessonsContainer.appendChild(hint);
+    return;
+  }
+
+  const bySubject = new Map();
+  matching.forEach((lesson) => {
+    const key = lesson.data.subjectId || "__none__";
+    if (!bySubject.has(key)) bySubject.set(key, []);
+    bySubject.get(key).push(lesson);
+  });
+
+  const subjectOrder = lastSubjects.map((s) => s.id).filter((id) => bySubject.has(id));
+  Array.from(bySubject.keys())
+    .filter((id) => !subjectOrder.includes(id))
+    .forEach((id) => subjectOrder.push(id));
+
+  subjectOrder.forEach((subjectId) => {
+    const block = document.createElement("div");
+    block.className = "today-subject-block";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "today-subject-name";
+    nameEl.textContent = subjectId === "__none__" ? t("deletedSubjectLabel") : getSubjectName(subjectId);
+    block.appendChild(nameEl);
+
+    bySubject.get(subjectId).forEach(({ id, data }) => {
+      block.appendChild(renderLessonCard(id, data));
+    });
+
+    lessonsContainer.appendChild(block);
+  });
+}
+
 function renderAllView() {
-  if (lastLessons.length === 0) return;
+  const sourceLessons = getFilteredAllLessons();
+  if (sourceLessons.length === 0) return;
 
   // Групуємо уроки за предметом
   const bySubject = new Map();
-  lastLessons.forEach((lesson) => {
+  sourceLessons.forEach((lesson) => {
     const key = lesson.data.subjectId || "__none__";
     if (!bySubject.has(key)) bySubject.set(key, []);
     bySubject.get(key).push(lesson);
@@ -823,10 +927,12 @@ function renderAllView() {
     .filter((id) => !subjectOrder.includes(id))
     .forEach((id) => subjectOrder.push(id));
 
+  const dateField = currentType === "homework" ? "homeworkDate" : "lessonDate";
+
   subjectOrder.forEach((subjectId) => {
     const lessons = bySubject.get(subjectId).slice().sort((a, b) => {
-      const dateA = a.data.lessonDate || "";
-      const dateB = b.data.lessonDate || "";
+      const dateA = a.data[dateField] || "";
+      const dateB = b.data[dateField] || "";
       if (dateA !== dateB) return dateB.localeCompare(dateA); // новіші дати спершу
       return (b.data.createdAt || 0) - (a.data.createdAt || 0);
     });

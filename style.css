@@ -222,48 +222,67 @@ code {
 .subject-item:last-child { border-bottom: none; }
 .subject-item-name { font-weight: 600; }
 
-/* ---------- Schedule ---------- */
-.schedule-days {
+/* ---------- Schedule (table) ---------- */
+.schedule-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.schedule-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid #eee;
+  padding: 8px 6px;
+  text-align: center;
+  vertical-align: middle;
+}
+.schedule-table thead th {
+  background: #f7f8fa;
+  color: #444;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.schedule-table-corner {
+  background: #f7f8fa;
+}
+.schedule-table-period {
+  background: #f7f8fa;
+  color: #999;
+  font-size: 12px;
+  font-weight: 700;
+  width: 30px;
+}
+.schedule-table-cell {
+  min-width: 120px;
+}
+.schedule-table-empty {
+  color: #ddd;
+}
+.schedule-cell-add {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 4px;
+  align-items: stretch;
 }
-.schedule-day {
-  border: 1px solid #eee;
-  border-radius: 10px;
-  padding: 12px 14px;
+.schedule-cell-select {
+  margin-bottom: 0;
+  padding: 4px 6px;
+  font-size: 12px;
+  border-radius: 6px;
 }
-.schedule-day-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+.schedule-cell-add-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  align-self: center;
 }
-.schedule-day-label {
-  font-weight: 700;
-  color: #2563eb;
-  font-size: 14px;
-}
-.schedule-day-add {
-  display: flex;
-  gap: 8px;
-}
-.schedule-day-add select {
-  flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 13px;
-}
-.schedule-day-add button {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-.schedule-day-subjects {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.schedule-table-cell .chip {
+  width: 100%;
+  justify-content: center;
 }
 .chip {
   display: inline-flex;
@@ -326,6 +345,11 @@ select {
   margin-bottom: 12px;
 }
 .lessons-view-header h2 { margin-bottom: 0; }
+.view-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .view-switch {
   display: flex;
   gap: 6px;

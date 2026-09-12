@@ -116,10 +116,16 @@
       <section class="card">
         <div class="lessons-view-header">
           <h2 data-i18n="lessonsHeading">Список уроків</h2>
-          <div class="view-switch">
-            <button id="view-today-btn" class="view-btn active" data-view="today" data-i18n="viewToday">Сьогодні</button>
-            <button id="view-tomorrow-btn" class="view-btn" data-view="tomorrow" data-i18n="viewTomorrow">Завтра</button>
-            <button id="view-all-btn" class="view-btn" data-view="all" data-i18n="viewAll">Всі</button>
+          <div class="view-switches">
+            <div class="view-switch">
+              <button id="view-today-btn" class="view-btn active" data-view="today" data-i18n="viewToday">Сьогодні</button>
+              <button id="view-tomorrow-btn" class="view-btn" data-view="tomorrow" data-i18n="viewTomorrow">Завтра</button>
+              <button id="view-all-btn" class="view-btn" data-view="all" data-i18n="viewAll">Всі</button>
+            </div>
+            <div class="view-switch">
+              <button id="type-lessons-btn" class="view-btn active" data-type="lessons" data-i18n="viewTypeLessons">Уроки</button>
+              <button id="type-homework-btn" class="view-btn" data-type="homework" data-i18n="viewTypeHomework">ДЗ</button>
+            </div>
           </div>
         </div>
         <div id="lessons-container"></div>
