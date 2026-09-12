@@ -270,9 +270,22 @@ code {
 .subject-item-name { font-weight: 600; }
 
 /* ---------- Schedule (table) ---------- */
+/* Розтягуємо обгортку розкладу за межі внутрішніх паддінгів картки */
 .schedule-table-wrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  margin-left: -24px;
+  margin-right: -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Для мобільних пристроїв коригуємо під їхні паддінги */
+@media (max-width: 480px) {
+  .schedule-table-wrap {
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }
 .schedule-table {
   width: 100%;
