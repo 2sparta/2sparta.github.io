@@ -73,20 +73,59 @@
     </div>
 
     <div id="tasks-panel" class="tab-panel hidden">
+
+      <section class="card">
+        <h2 data-i18n="addSubjectHeading">Додати предмет</h2>
+        <div class="row">
+          <input id="new-subject-name" type="text" data-i18n-placeholder="subjectNamePlaceholder" placeholder="Назва предмета" />
+          <button id="add-subject-btn" data-i18n="addBtn">Додати</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="subjectsListHeading">Список предметів</h2>
+        <ul id="subjects-list" class="subjects-list"></ul>
+        <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="scheduleHeading">Розклад</h2>
+        <div id="schedule-days" class="schedule-days"></div>
+      </section>
+
       <section class="card">
         <h2 data-i18n="addLessonHeading">Додати урок</h2>
         <div class="lesson-form">
+          <select id="new-lesson-subject"></select>
           <input id="new-lesson-title" type="text" data-i18n-placeholder="lessonTitlePlaceholder" placeholder="Назва уроку" />
           <textarea id="new-lesson-content" data-i18n-placeholder="lessonContentPlaceholder" placeholder="Зміст уроку / завдання"></textarea>
+          <div class="date-row">
+            <label class="date-field">
+              <span data-i18n="lessonDateLabel">Дата уроку</span>
+              <input id="new-lesson-date" type="date" />
+            </label>
+            <label class="date-field">
+              <span data-i18n="homeworkDateLabel">Дата дз (до)</span>
+              <input id="new-lesson-hw-date" type="date" />
+            </label>
+          </div>
           <button id="add-lesson-btn" data-i18n="addBtn">Додати</button>
         </div>
       </section>
 
       <section class="card">
-        <h2 data-i18n="lessonsHeading">Список уроків</h2>
-        <ul id="lessons-list" class="lessons-list"></ul>
+        <div class="lessons-view-header">
+          <h2 data-i18n="lessonsHeading">Список уроків</h2>
+          <div class="view-switch">
+            <button id="view-today-btn" class="view-btn active" data-view="today" data-i18n="viewToday">Сьогодні</button>
+            <button id="view-tomorrow-btn" class="view-btn" data-view="tomorrow" data-i18n="viewTomorrow">Завтра</button>
+            <button id="view-all-btn" class="view-btn" data-view="all" data-i18n="viewAll">Всі</button>
+          </div>
+        </div>
+        <div id="lessons-container"></div>
         <p id="no-lessons-msg" class="hint hidden" data-i18n="noLessons">Уроків ще немає.</p>
       </section>
+
     </div>
   </div>
 

@@ -204,3 +204,221 @@ code {
   white-space: pre-wrap;
   color: #333;
 }
+
+/* ---------- Subjects ---------- */
+.subjects-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.subject-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+.subject-item:last-child { border-bottom: none; }
+.subject-item-name { font-weight: 600; }
+
+/* ---------- Schedule ---------- */
+.schedule-days {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.schedule-day {
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.schedule-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.schedule-day-label {
+  font-weight: 700;
+  color: #2563eb;
+  font-size: 14px;
+}
+.schedule-day-add {
+  display: flex;
+  gap: 8px;
+}
+.schedule-day-add select {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.schedule-day-add button {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.schedule-day-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eef2ff;
+  color: #2563eb;
+  padding: 5px 6px 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.chip-remove {
+  background: transparent;
+  color: #2563eb;
+  border: none;
+  padding: 0 6px;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+}
+.chip-remove:hover { background: transparent; color: #dc2626; }
+.empty-day-hint { font-size: 12px; color: #999; }
+
+/* ---------- Lesson form date row ---------- */
+.date-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.date-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #555;
+}
+.date-field input { margin-bottom: 0; }
+
+select {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: white;
+}
+
+/* ---------- Lessons view switch ---------- */
+.lessons-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.lessons-view-header h2 { margin-bottom: 0; }
+.view-switch {
+  display: flex;
+  gap: 6px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.view-btn {
+  background: white;
+  color: #555;
+  border: none;
+  border-radius: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.view-btn:hover { background: #eef2ff; color: #2563eb; }
+.view-btn.active { background: #2563eb; color: white; }
+
+/* ---------- Today / tomorrow view ---------- */
+.today-subject-block {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+.today-subject-block:last-child { border-bottom: none; }
+.today-subject-name {
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.no-lesson-hint {
+  font-size: 13px;
+  color: #999;
+  font-style: italic;
+}
+.lesson-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.date-badge {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #f1f1f1;
+  color: #555;
+}
+.date-badge.hw {
+  background: #fef3c7;
+  color: #92400e;
+}
+.lesson-body-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* ---------- Subject groups (Всі view) ---------- */
+.subject-group {
+  border-bottom: 1px solid #eee;
+  padding: 10px 0;
+}
+.subject-group:last-child { border-bottom: none; }
+.subject-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.subject-group-toggle {
+  background: transparent;
+  color: #2563eb;
+  border: none;
+  padding: 0;
+  width: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.subject-group-toggle:hover { background: transparent; color: #1d4ed8; }
+.subject-group-title { font-weight: 700; color: #222; }
+.subject-group-count {
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
+}
+.subject-lessons {
+  margin: 10px 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

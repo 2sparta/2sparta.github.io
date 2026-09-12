@@ -32,6 +32,8 @@ import {
   onSnapshot,
   orderBy,
   query,
+  arrayUnion,
+  arrayRemove,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
@@ -71,14 +73,40 @@ const translations = {
     notLinked: "Очікує",
     deleteBtn: "Видалити",
     deleteConfirm: (name) => `Видалити ${name}?`,
+
+    addSubjectHeading: "Додати предмет",
+    subjectNamePlaceholder: "Назва предмета",
+    subjectsListHeading: "Список предметів",
+    noSubjectsMsg: "Предметів ще немає.",
+    deleteSubjectConfirm: (name) => `Видалити предмет "${name}"? Уроки цього предмета залишаться, але без прив'язки.`,
+    selectSubjectPlaceholder: "Оберіть предмет",
+    addSubjectFirstHint: "Спочатку додайте хоча б один предмет.",
+
+    scheduleHeading: "Розклад",
+    weekdays: { mon: "Понеділок", tue: "Вівторок", wed: "Середа", thu: "Четвер", fri: "П'ятниця", sat: "Субота", sun: "Неділя" },
+    addToScheduleBtn: "Додати",
+    emptyDayHint: "На цей день предметів ще не додано.",
+
     addLessonHeading: "Додати урок",
     lessonTitlePlaceholder: "Назва уроку",
     lessonContentPlaceholder: "Зміст уроку / завдання",
+    lessonDateLabel: "Дата уроку",
+    homeworkDateLabel: "Дата дз (до)",
     lessonsHeading: "Список уроків",
     noLessons: "Уроків ще немає.",
     expandBtn: "Показати",
     collapseBtn: "Згорнути",
     deleteLessonConfirm: (title) => `Видалити урок «${title}»?`,
+    lessonDateShort: "Урок:",
+    homeworkDateShort: "ДЗ до:",
+    deletedSubjectLabel: "Видалений предмет",
+
+    viewToday: "Сьогодні",
+    viewTomorrow: "Завтра",
+    viewAll: "Всі",
+    noLessonForDay: "Урок на цю дату ще не додано.",
+    noScheduleForDay: "На цей день розклад ще не задано.",
+
     registerSuccess: (uid) =>
       "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
       uid + " встановіть role = teacher, після чого увійдіть знову.",
@@ -121,14 +149,40 @@ const translations = {
     notLinked: "Pending",
     deleteBtn: "Delete",
     deleteConfirm: (name) => `Delete ${name}?`,
+
+    addSubjectHeading: "Add a Subject",
+    subjectNamePlaceholder: "Subject name",
+    subjectsListHeading: "Subject List",
+    noSubjectsMsg: "No subjects yet.",
+    deleteSubjectConfirm: (name) => `Delete subject "${name}"? Its lessons will remain but unlinked.`,
+    selectSubjectPlaceholder: "Choose a subject",
+    addSubjectFirstHint: "Add at least one subject first.",
+
+    scheduleHeading: "Schedule",
+    weekdays: { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" },
+    addToScheduleBtn: "Add",
+    emptyDayHint: "No subjects added for this day yet.",
+
     addLessonHeading: "Add a Lesson",
     lessonTitlePlaceholder: "Lesson title",
     lessonContentPlaceholder: "Lesson content / assignment",
+    lessonDateLabel: "Lesson date",
+    homeworkDateLabel: "Homework due date",
     lessonsHeading: "Lesson List",
     noLessons: "No lessons yet.",
     expandBtn: "Show",
     collapseBtn: "Hide",
     deleteLessonConfirm: (title) => `Delete lesson "${title}"?`,
+    lessonDateShort: "Lesson:",
+    homeworkDateShort: "HW due:",
+    deletedSubjectLabel: "Deleted subject",
+
+    viewToday: "Today",
+    viewTomorrow: "Tomorrow",
+    viewAll: "All",
+    noLessonForDay: "No lesson added for this date yet.",
+    noScheduleForDay: "No schedule set for this day yet.",
+
     registerSuccess: (uid) =>
       "Account created. Now in Firebase Console → Firestore → users → " +
       uid + " set role = teacher, then sign in again.",
@@ -188,7 +242,10 @@ function setLanguage(lang) {
   localStorage.setItem(LANG_STORAGE_KEY, currentLang);
   applyStaticTranslations();
   renderStudentsTable();
-  renderLessonsList();
+  renderSubjectsList();
+  renderSubjectSelects();
+  renderSchedule();
+  renderLessonsContainer();
 }
 
 document.querySelectorAll(".lang-btn").forEach((btn) => {
@@ -215,23 +272,56 @@ const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const pointsPanel = document.getElementById("points-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 
+const newSubjectName = document.getElementById("new-subject-name");
+const addSubjectBtn = document.getElementById("add-subject-btn");
+const subjectsList = document.getElementById("subjects-list");
+const noSubjectsMsg = document.getElementById("no-subjects-msg");
+
+const scheduleDaysEl = document.getElementById("schedule-days");
+
+const newLessonSubject = document.getElementById("new-lesson-subject");
 const newLessonTitle = document.getElementById("new-lesson-title");
 const newLessonContent = document.getElementById("new-lesson-content");
+const newLessonDate = document.getElementById("new-lesson-date");
+const newLessonHwDate = document.getElementById("new-lesson-hw-date");
 const addLessonBtn = document.getElementById("add-lesson-btn");
-const lessonsList = document.getElementById("lessons-list");
+const lessonsContainer = document.getElementById("lessons-container");
 const noLessonsMsg = document.getElementById("no-lessons-msg");
 
-// Зберігаємо, які уроки розгорнуті, щоб стан не губився при
-// перемальовуванні списку (onSnapshot оновлює дані в реальному часі).
+const viewTodayBtn = document.getElementById("view-today-btn");
+const viewTomorrowBtn = document.getElementById("view-tomorrow-btn");
+const viewAllBtn = document.getElementById("view-all-btn");
+
+// Стан розгортання (щоб не губився при перемальовуванні через onSnapshot)
 const expandedLessons = new Set();
+const expandedSubjectGroups = new Set();
 
 let unsubscribeStudents = null;
 let unsubscribeLessons = null;
+let unsubscribeSubjects = null;
+let unsubscribeSchedule = null;
 
-// Кешуємо останні дані зі Firestore, щоб мати змогу
-// перемалювати таблиці/списки при зміні мови без нового запиту.
+// Кешуємо останні дані зі Firestore
 let lastStudents = []; // [{id, data}]
 let lastLessons = []; // [{id, data}]
+let lastSubjects = []; // [{id, data}]
+let scheduleData = emptySchedule();
+let currentView = "today"; // "today" | "tomorrow" | "all"
+
+const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+// getDay(): 0=Sun..6=Sat
+const WEEKDAY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function emptySchedule() {
+  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+}
+
+function formatDateLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 // ---------- Tabs ----------
 function showTab(tab) {
@@ -265,8 +355,6 @@ registerBtn.onclick = async () => {
       emailInput.value.trim(),
       passwordInput.value
     );
-    // Создаём профиль. Роль по умолчанию НЕ teacher - её нужно выставить
-    // вручную в консоли Firebase для первого учителя (см. подсказку на экране).
     await setDoc(doc(db, "users", cred.user.uid), {
       role: "pending-teacher",
       email: cred.user.email,
@@ -284,9 +372,6 @@ registerBtn.onclick = async () => {
 logoutBtn.onclick = () => signOut(auth);
 
 onAuthStateChanged(auth, async (user) => {
-  // Пока идёт процесс регистрации, не даём этому обработчику
-  // вмешаться (он бы разлогинил только что созданного пользователя
-  // раньше, чем setDoc успеет записать его профиль).
   if (isRegistering) return;
 
   if (!user) {
@@ -304,6 +389,8 @@ onAuthStateChanged(auth, async (user) => {
 
   showAppScreen();
   listenToStudents();
+  listenToSubjects();
+  listenToSchedule();
   listenToLessons();
 });
 
@@ -312,6 +399,8 @@ function showAuthScreen() {
   appScreen.classList.add("hidden");
   if (unsubscribeStudents) unsubscribeStudents();
   if (unsubscribeLessons) unsubscribeLessons();
+  if (unsubscribeSubjects) unsubscribeSubjects();
+  if (unsubscribeSchedule) unsubscribeSchedule();
 }
 
 function showAppScreen() {
@@ -322,6 +411,11 @@ function showAppScreen() {
 
 function errorText(e) {
   return translations[currentLang].errors[e.code] || e.message;
+}
+
+function reportSaveError(e, contextUk, contextEn) {
+  console.error(contextUk, e);
+  alert(currentLang === "uk" ? `${contextUk}: ${e.message}` : `${contextEn}: ${e.message}`);
 }
 
 // ---------- Students ----------
@@ -354,7 +448,7 @@ addStudentBtn.onclick = async () => {
 };
 
 function generateInviteCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // без похожих символов
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
@@ -429,52 +523,362 @@ async function changePoints(id, currentPoints, delta) {
   await updateDoc(doc(db, "students", id), { points: newValue });
 }
 
-// ---------- Lessons (завдання) ----------
+// ---------- Subjects (предмети) ----------
+function listenToSubjects() {
+  const q = query(collection(db, "subjects"), orderBy("name"));
+  unsubscribeSubjects = onSnapshot(q, (snap) => {
+    lastSubjects = snap.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+    renderSubjectsList();
+    renderSubjectSelects();
+    renderSchedule();
+    renderLessonsContainer();
+  });
+}
+
+function getSubjectName(subjectId) {
+  const found = lastSubjects.find((s) => s.id === subjectId);
+  return found ? found.data.name : t("deletedSubjectLabel");
+}
+
+function renderSubjectsList() {
+  subjectsList.innerHTML = "";
+  lastSubjects.forEach(({ id, data }) => {
+    const li = document.createElement("li");
+    li.className = "subject-item";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "subject-item-name";
+    nameSpan.textContent = data.name;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = t("deleteBtn");
+    deleteBtn.className = "secondary small";
+    deleteBtn.onclick = () => {
+      if (confirm(t("deleteSubjectConfirm")(data.name))) deleteDoc(doc(db, "subjects", id));
+    };
+
+    li.append(nameSpan, deleteBtn);
+    subjectsList.appendChild(li);
+  });
+  noSubjectsMsg.classList.toggle("hidden", lastSubjects.length > 0);
+}
+
+addSubjectBtn.onclick = async () => {
+  const name = newSubjectName.value.trim();
+  if (!name) return;
+  try {
+    await addDoc(collection(db, "subjects"), { name, createdAt: Date.now() });
+    newSubjectName.value = "";
+  } catch (e) {
+    reportSaveError(e, "Не вдалося додати предмет. Перевірте правила Firestore для колекції subjects", "Failed to add the subject. Check Firestore Rules for the subjects collection");
+  }
+};
+
+function renderSubjectSelects() {
+  const options = lastSubjects.map((s) => `<option value="${s.id}">${escapeHtml(s.data.name)}</option>`).join("");
+  const placeholder = `<option value="" disabled ${lastSubjects.length ? "" : "selected"}>${t("selectSubjectPlaceholder")}</option>`;
+
+  // Форма додавання уроку
+  const prevLessonSelectValue = newLessonSubject.value;
+  newLessonSubject.innerHTML = placeholder + options;
+  if (lastSubjects.some((s) => s.id === prevLessonSelectValue)) {
+    newLessonSubject.value = prevLessonSelectValue;
+  }
+
+  // Селекти в розкладі (перебудовуються разом з блоками днів)
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ---------- Schedule (розклад) ----------
+function listenToSchedule() {
+  unsubscribeSchedule = onSnapshot(doc(db, "schedule", "week"), (snap) => {
+    scheduleData = snap.exists() ? { ...emptySchedule(), ...snap.data() } : emptySchedule();
+    renderSchedule();
+    renderLessonsContainer();
+  });
+}
+
+function renderSchedule() {
+  scheduleDaysEl.innerHTML = "";
+
+  WEEKDAYS.forEach((dayKey) => {
+    const dayBlock = document.createElement("div");
+    dayBlock.className = "schedule-day";
+
+    const header = document.createElement("div");
+    header.className = "schedule-day-header";
+
+    const label = document.createElement("span");
+    label.className = "schedule-day-label";
+    label.textContent = t("weekdays")[dayKey];
+    header.appendChild(label);
+
+    const addRow = document.createElement("div");
+    addRow.className = "schedule-day-add";
+
+    const select = document.createElement("select");
+    const alreadyAdded = new Set(scheduleData[dayKey] || []);
+    const availableSubjects = lastSubjects.filter((s) => !alreadyAdded.has(s.id));
+
+    if (availableSubjects.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = lastSubjects.length === 0 ? t("addSubjectFirstHint") : t("selectSubjectPlaceholder");
+      opt.disabled = true;
+      opt.selected = true;
+      select.appendChild(opt);
+      select.disabled = true;
+    } else {
+      const placeholderOpt = document.createElement("option");
+      placeholderOpt.value = "";
+      placeholderOpt.textContent = t("selectSubjectPlaceholder");
+      placeholderOpt.disabled = true;
+      placeholderOpt.selected = true;
+      select.appendChild(placeholderOpt);
+      availableSubjects.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.data.name;
+        select.appendChild(opt);
+      });
+    }
+
+    const addBtn = document.createElement("button");
+    addBtn.textContent = t("addToScheduleBtn");
+    addBtn.onclick = async () => {
+      const subjectId = select.value;
+      if (!subjectId) return;
+      try {
+        await setDoc(doc(db, "schedule", "week"), { [dayKey]: arrayUnion(subjectId) }, { merge: true });
+      } catch (e) {
+        reportSaveError(e, "Не вдалося оновити розклад. Перевірте правила Firestore для колекції schedule", "Failed to update the schedule. Check Firestore Rules for the schedule collection");
+      }
+    };
+
+    addRow.append(select, addBtn);
+    header.appendChild(addRow);
+
+    const subjectsRow = document.createElement("div");
+    subjectsRow.className = "schedule-day-subjects";
+    const dayIds = scheduleData[dayKey] || [];
+
+    if (dayIds.length === 0) {
+      const hint = document.createElement("span");
+      hint.className = "empty-day-hint";
+      hint.textContent = t("emptyDayHint");
+      subjectsRow.appendChild(hint);
+    } else {
+      dayIds.forEach((subjectId) => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = getSubjectName(subjectId);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "chip-remove";
+        removeBtn.textContent = "×";
+        removeBtn.onclick = async () => {
+          try {
+            await updateDoc(doc(db, "schedule", "week"), { [dayKey]: arrayRemove(subjectId) });
+          } catch (e) {
+            reportSaveError(e, "Не вдалося оновити розклад", "Failed to update the schedule");
+          }
+        };
+
+        chip.appendChild(removeBtn);
+        subjectsRow.appendChild(chip);
+      });
+    }
+
+    dayBlock.append(header, subjectsRow);
+    scheduleDaysEl.appendChild(dayBlock);
+  });
+}
+
+// ---------- Lessons (уроки) ----------
 function listenToLessons() {
   const q = query(collection(db, "lessons"), orderBy("createdAt", "desc"));
   unsubscribeLessons = onSnapshot(q, (snap) => {
     lastLessons = snap.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
-    renderLessonsList();
+    renderLessonsContainer();
   });
-}
-
-function renderLessonsList() {
-  lessonsList.innerHTML = "";
-  lastLessons.forEach(({ id, data }) => {
-    lessonsList.appendChild(renderLessonRow(id, data));
-  });
-  noLessonsMsg.classList.toggle("hidden", lastLessons.length > 0);
 }
 
 addLessonBtn.onclick = async () => {
+  const subjectId = newLessonSubject.value;
   const title = newLessonTitle.value.trim();
   const content = newLessonContent.value.trim();
+  const lessonDate = newLessonDate.value || null;
+  const homeworkDate = newLessonHwDate.value || null;
+
+  if (!subjectId) {
+    alert(t("selectSubjectPlaceholder"));
+    return;
+  }
   if (!title) return;
+
   try {
     await addDoc(collection(db, "lessons"), {
+      subjectId,
       title,
       content: content || "",
+      lessonDate,
+      homeworkDate,
       createdAt: Date.now(),
     });
     newLessonTitle.value = "";
     newLessonContent.value = "";
+    newLessonDate.value = "";
+    newLessonHwDate.value = "";
   } catch (e) {
-    console.error("Не вдалося додати урок:", e);
-    alert(
-      currentLang === "uk"
-        ? "Не вдалося додати урок. Перевірте правила Firestore (Rules) для колекції lessons: " + e.message
-        : "Failed to add the lesson. Check Firestore Rules for the lessons collection: " + e.message
-    );
+    reportSaveError(e, "Не вдалося додати урок. Перевірте правила Firestore для колекції lessons", "Failed to add the lesson. Check Firestore Rules for the lessons collection");
   }
 };
 
-function renderLessonRow(id, data) {
-  const li = document.createElement("li");
+[viewTodayBtn, viewTomorrowBtn, viewAllBtn].forEach((btn) => {
+  btn.onclick = () => {
+    currentView = btn.dataset.view;
+    [viewTodayBtn, viewTomorrowBtn, viewAllBtn].forEach((b) => b.classList.toggle("active", b === btn));
+    renderLessonsContainer();
+  };
+});
+
+function renderLessonsContainer() {
+  lessonsContainer.innerHTML = "";
+
+  if (currentView === "all") {
+    renderAllView();
+  } else {
+    renderDayView(currentView === "today" ? 0 : 1);
+  }
+
+  const nothingToShow =
+    currentView === "all"
+      ? lastLessons.length === 0
+      : false; // day views always render their own "no lesson" hints
+  noLessonsMsg.classList.toggle("hidden", !nothingToShow);
+}
+
+function renderDayView(dayOffset) {
+  const target = new Date();
+  target.setDate(target.getDate() + dayOffset);
+  const targetDateStr = formatDateLocal(target);
+  const weekdayKey = WEEKDAY_BY_JS_INDEX[target.getDay()];
+  const subjectIdsForDay = scheduleData[weekdayKey] || [];
+
+  if (subjectIdsForDay.length === 0) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = t("noScheduleForDay");
+    lessonsContainer.appendChild(hint);
+    return;
+  }
+
+  subjectIdsForDay.forEach((subjectId) => {
+    const block = document.createElement("div");
+    block.className = "today-subject-block";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "today-subject-name";
+    nameEl.textContent = getSubjectName(subjectId);
+    block.appendChild(nameEl);
+
+    const matchingLessons = lastLessons.filter(
+      (l) => l.data.subjectId === subjectId && l.data.lessonDate === targetDateStr
+    );
+
+    if (matchingLessons.length === 0) {
+      const hint = document.createElement("div");
+      hint.className = "no-lesson-hint";
+      hint.textContent = t("noLessonForDay");
+      block.appendChild(hint);
+    } else {
+      matchingLessons.forEach(({ id, data }) => {
+        block.appendChild(renderLessonCard(id, data));
+      });
+    }
+
+    lessonsContainer.appendChild(block);
+  });
+}
+
+function renderAllView() {
+  if (lastLessons.length === 0) return;
+
+  // Групуємо уроки за предметом
+  const bySubject = new Map();
+  lastLessons.forEach((lesson) => {
+    const key = lesson.data.subjectId || "__none__";
+    if (!bySubject.has(key)) bySubject.set(key, []);
+    bySubject.get(key).push(lesson);
+  });
+
+  // Порядок предметів: спочатку існуючі (за алфавітом), потім видалені
+  const subjectOrder = lastSubjects.map((s) => s.id).filter((id) => bySubject.has(id));
+  Array.from(bySubject.keys())
+    .filter((id) => !subjectOrder.includes(id))
+    .forEach((id) => subjectOrder.push(id));
+
+  subjectOrder.forEach((subjectId) => {
+    const lessons = bySubject.get(subjectId).slice().sort((a, b) => {
+      const dateA = a.data.lessonDate || "";
+      const dateB = b.data.lessonDate || "";
+      if (dateA !== dateB) return dateB.localeCompare(dateA); // новіші дати спершу
+      return (b.data.createdAt || 0) - (a.data.createdAt || 0);
+    });
+
+    const group = document.createElement("div");
+    group.className = "subject-group";
+
+    const isExpanded = expandedSubjectGroups.has(subjectId);
+
+    const header = document.createElement("div");
+    header.className = "subject-group-header";
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "subject-group-toggle";
+    toggleBtn.textContent = isExpanded ? "▾" : "▸";
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "subject-group-title";
+    titleSpan.textContent = subjectId === "__none__" ? t("deletedSubjectLabel") : getSubjectName(subjectId);
+
+    const countSpan = document.createElement("span");
+    countSpan.className = "subject-group-count";
+    countSpan.textContent = ` (${lessons.length})`;
+    titleSpan.appendChild(countSpan);
+
+    header.append(toggleBtn, titleSpan);
+
+    const lessonsWrap = document.createElement("div");
+    lessonsWrap.className = "subject-lessons" + (isExpanded ? "" : " hidden");
+    lessons.forEach(({ id, data }) => {
+      lessonsWrap.appendChild(renderLessonCard(id, data));
+    });
+
+    header.onclick = () => {
+      const nowExpanded = !expandedSubjectGroups.has(subjectId);
+      if (nowExpanded) expandedSubjectGroups.add(subjectId);
+      else expandedSubjectGroups.delete(subjectId);
+      lessonsWrap.classList.toggle("hidden", !nowExpanded);
+      toggleBtn.textContent = nowExpanded ? "▾" : "▸";
+    };
+
+    group.append(header, lessonsWrap);
+    lessonsContainer.appendChild(group);
+  });
+}
+
+function renderLessonCard(id, data) {
+  const li = document.createElement("div");
   li.className = "lesson-item";
 
   const isExpanded = expandedLessons.has(id);
 
-  // ---- Верхній рядок: заголовок + кнопки ----
   const header = document.createElement("div");
   header.className = "lesson-header";
 
@@ -501,18 +905,29 @@ function renderLessonRow(id, data) {
 
   header.append(headerMain, deleteBtn);
 
-  // ---- Контент, що згортається/розгортається ----
+  const datesRow = document.createElement("div");
+  datesRow.className = "lesson-dates";
+  if (data.lessonDate) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge";
+    badge.textContent = `${t("lessonDateShort")} ${data.lessonDate}`;
+    datesRow.appendChild(badge);
+  }
+  if (data.homeworkDate) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge hw";
+    badge.textContent = `${t("homeworkDateShort")} ${data.homeworkDate}`;
+    datesRow.appendChild(badge);
+  }
+
   const contentDiv = document.createElement("div");
   contentDiv.className = "lesson-content" + (isExpanded ? "" : " hidden");
   contentDiv.textContent = data.content || "";
 
   function toggle() {
     const nowExpanded = !expandedLessons.has(id);
-    if (nowExpanded) {
-      expandedLessons.add(id);
-    } else {
-      expandedLessons.delete(id);
-    }
+    if (nowExpanded) expandedLessons.add(id);
+    else expandedLessons.delete(id);
     contentDiv.classList.toggle("hidden", !nowExpanded);
     toggleBtn.textContent = nowExpanded ? "▾" : "▸";
     toggleBtn.setAttribute("aria-label", nowExpanded ? t("collapseBtn") : t("expandBtn"));
@@ -520,6 +935,6 @@ function renderLessonRow(id, data) {
 
   headerMain.onclick = toggle;
 
-  li.append(header, contentDiv);
+  li.append(header, datesRow, contentDiv);
   return li;
 }
