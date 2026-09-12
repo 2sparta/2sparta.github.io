@@ -34,6 +34,7 @@ import {
   query,
   arrayUnion,
   arrayRemove,
+  deleteField,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
@@ -92,6 +93,13 @@ const translations = {
     emptyDayHint: "На цей день предметів ще не додано.",
     periodStartLabel: "Початок уроку",
     periodEndLabel: "Кінець уроку",
+    scheduleApplyBtn: "Застосувати розклад",
+    scheduleEditBtn: "Змінити розклад",
+    scheduleEmptyMsg: "Розклад порожній.",
+    oneTimeChangeTitle: "Разова заміна (на цей тиждень)",
+    removeOverrideTitle: "Скасувати разову заміну",
+    confirmOverrideTitle: "Підтвердити заміну",
+    cancelOverrideTitle: "Скасувати",
 
     liveLessonLabel: "Йде урок:",
     liveBreakLabel: "Перерва",
@@ -184,6 +192,13 @@ const translations = {
     emptyDayHint: "No subjects added for this day yet.",
     periodStartLabel: "Lesson start",
     periodEndLabel: "Lesson end",
+    scheduleApplyBtn: "Apply schedule",
+    scheduleEditBtn: "Change schedule",
+    scheduleEmptyMsg: "The schedule is empty.",
+    oneTimeChangeTitle: "One-time change (this week only)",
+    removeOverrideTitle: "Cancel one-time change",
+    confirmOverrideTitle: "Confirm change",
+    cancelOverrideTitle: "Cancel",
 
     liveLessonLabel: "Lesson in progress:",
     liveBreakLabel: "Break",
@@ -336,6 +351,7 @@ const subjectsList = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
 
 const scheduleDaysEl = document.getElementById("schedule-days");
+const scheduleToggleBtn = document.getElementById("schedule-toggle-btn");
 const liveStatusCard = document.getElementById("live-status-card");
 const liveStatusEl = document.getElementById("live-status");
 const group1Btn = document.getElementById("group-1-btn");
@@ -345,6 +361,22 @@ const group2Btn = document.getElementById("group-2-btn");
   if (btn) btn.onclick = () => setGroup(btn.dataset.group);
 });
 updateGroupButtons();
+
+if (scheduleToggleBtn) {
+  scheduleToggleBtn.onclick = async () => {
+    const groupSchedule = scheduleData[currentGroup];
+    const newApplied = !groupSchedule.applied;
+    try {
+      await setDoc(
+        doc(db, "schedule", "week"),
+        { [currentGroup]: { applied: newApplied } },
+        { merge: true }
+      );
+    } catch (e) {
+      reportSaveError(e, "Не вдалося оновити розклад", "Failed to update the schedule");
+    }
+  };
+}
 
 const newLessonSubject = document.getElementById("new-lesson-subject");
 const newLessonTitle = document.getElementById("new-lesson-title");
@@ -384,7 +416,33 @@ const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const WEEKDAY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 function emptyGroupSchedule() {
-  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [], times: {} };
+  return {
+    mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [],
+    times: {},
+    applied: false,
+    overrides: {},
+  };
+}
+
+// Повертає ISO-ключ поточного тижня, напр. "2026-W37".
+// Використовується, щоб разові заміни автоматично "спливали" в кінці тижня.
+function getISOWeekKey(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
+// Повертає активну (не протерміновану) разову заміну для клітинки, якщо є.
+function getActiveOverride(groupSchedule, dayKey, r) {
+  const dayOverrides = groupSchedule.overrides && groupSchedule.overrides[dayKey];
+  if (!dayOverrides) return null;
+  const entry = dayOverrides[r] ?? dayOverrides[String(r)];
+  if (!entry) return null;
+  if (entry.weekKey !== getISOWeekKey(new Date())) return null;
+  return entry;
 }
 
 function emptySchedule() {
@@ -412,6 +470,8 @@ function normalizeGroupData(groupRaw) {
     });
   });
   base.times = groupRaw.times || {};
+  base.applied = !!groupRaw.applied;
+  base.overrides = groupRaw.overrides || {};
   return base;
 }
 
@@ -737,9 +797,30 @@ function renderSchedule() {
   scheduleDaysEl.innerHTML = "";
 
   const groupSchedule = scheduleData[currentGroup];
+  const applied = !!groupSchedule.applied;
 
-  const maxPeriods = Math.max(0, ...WEEKDAYS.map((d) => (groupSchedule[d] || []).length));
-  const rowCount = maxPeriods + 1; // +1 = завжди лишити рядок для додавання наступного уроку
+  if (scheduleToggleBtn) {
+    scheduleToggleBtn.textContent = applied ? t("scheduleEditBtn") : t("scheduleApplyBtn");
+    scheduleToggleBtn.classList.toggle("secondary", applied);
+  }
+
+  // У прийнятому розкладі показуємо лише дні (стовпці), де є хоча б один урок.
+  const visibleDays = applied
+    ? WEEKDAYS.filter((d) => (groupSchedule[d] || []).length > 0)
+    : WEEKDAYS;
+
+  const maxPeriods = Math.max(0, ...visibleDays.map((d) => (groupSchedule[d] || []).length));
+  // У режимі редагування лишаємо +1 рядок для додавання наступного уроку;
+  // у прийнятому розкладі зайвих рядків не показуємо.
+  const rowCount = applied ? maxPeriods : maxPeriods + 1;
+
+  if (applied && rowCount === 0) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = t("scheduleEmptyMsg");
+    scheduleDaysEl.appendChild(hint);
+    return;
+  }
 
   const table = document.createElement("table");
   table.className = "schedule-table";
@@ -749,7 +830,7 @@ function renderSchedule() {
   const cornerTh = document.createElement("th");
   cornerTh.className = "schedule-table-corner";
   headRow.appendChild(cornerTh);
-  WEEKDAYS.forEach((dayKey) => {
+  visibleDays.forEach((dayKey) => {
     const th = document.createElement("th");
     th.textContent = t("weekdaysShort")[dayKey];
     headRow.appendChild(th);
@@ -820,12 +901,56 @@ function renderSchedule() {
     rowTh.appendChild(timesWrap);
     tr.appendChild(rowTh);
 
-    WEEKDAYS.forEach((dayKey) => {
+    visibleDays.forEach((dayKey) => {
       const dayEntries = groupSchedule[dayKey] || [];
       const td = document.createElement("td");
       td.className = "schedule-table-cell";
 
-      if (r < dayEntries.length) {
+      if (applied && r < dayEntries.length) {
+        const entry = dayEntries[r];
+        const override = getActiveOverride(groupSchedule, dayKey, r);
+
+        if (override) {
+          // Активна разова заміна — показуємо на помаранчевому фоні,
+          // з можливістю скасувати й повернути звичайний урок.
+          const chip = document.createElement("span");
+          chip.className = "chip chip-override";
+          chip.textContent = getSubjectName(override.subjectId);
+
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "chip-remove";
+          removeBtn.textContent = "×";
+          removeBtn.title = t("removeOverrideTitle");
+          removeBtn.onclick = async () => {
+            try {
+              await updateDoc(doc(db, "schedule", "week"), {
+                [`${currentGroup}.overrides.${dayKey}.${r}`]: deleteField(),
+              });
+            } catch (e) {
+              reportSaveError(e, "Не вдалося скасувати заміну", "Failed to cancel the change");
+            }
+          };
+
+          chip.appendChild(removeBtn);
+          td.appendChild(chip);
+        } else {
+          const chip = document.createElement("span");
+          chip.className = "chip";
+          chip.textContent = getSubjectName(entry.subjectId);
+
+          const swapBtn = document.createElement("button");
+          swapBtn.className = "chip-remove chip-swap";
+          swapBtn.textContent = "⇄";
+          swapBtn.title = t("oneTimeChangeTitle");
+          swapBtn.onclick = () => renderOverridePicker(td, dayKey, r);
+
+          chip.appendChild(swapBtn);
+          td.appendChild(chip);
+        }
+      } else if (applied) {
+        td.classList.add("schedule-table-empty");
+        td.textContent = "–";
+      } else if (r < dayEntries.length) {
         const entry = dayEntries[r];
         const chip = document.createElement("span");
         chip.className = "chip";
@@ -926,6 +1051,68 @@ function renderSchedule() {
   scheduleDaysEl.appendChild(wrap);
 }
 
+// Показує в клітинці розкладу вибір предмета для разової заміни на цей тиждень.
+function renderOverridePicker(td, dayKey, r) {
+  td.innerHTML = "";
+
+  const addWrap = document.createElement("div");
+  addWrap.className = "schedule-cell-add";
+
+  const select = document.createElement("select");
+  select.className = "schedule-cell-select";
+
+  const placeholderOpt = document.createElement("option");
+  placeholderOpt.value = "";
+  placeholderOpt.textContent = t("selectSubjectPlaceholder");
+  placeholderOpt.disabled = true;
+  placeholderOpt.selected = true;
+  select.appendChild(placeholderOpt);
+
+  lastSubjects.forEach((s) => {
+    const opt = document.createElement("option");
+    opt.value = s.id;
+    opt.textContent = s.data.name;
+    select.appendChild(opt);
+  });
+
+  const btnRow = document.createElement("div");
+  btnRow.className = "schedule-cell-override-actions";
+
+  const confirmBtn = document.createElement("button");
+  confirmBtn.className = "schedule-cell-add-btn";
+  confirmBtn.textContent = "✓";
+  confirmBtn.title = t("confirmOverrideTitle");
+  confirmBtn.onclick = async () => {
+    const subjectId = select.value;
+    if (!subjectId) return;
+    try {
+      await setDoc(
+        doc(db, "schedule", "week"),
+        {
+          [currentGroup]: {
+            overrides: {
+              [dayKey]: { [r]: { subjectId, weekKey: getISOWeekKey(new Date()) } },
+            },
+          },
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      reportSaveError(e, "Не вдалося зберегти разову заміну", "Failed to save the one-time change");
+    }
+  };
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.className = "schedule-cell-add-btn";
+  cancelBtn.textContent = "×";
+  cancelBtn.title = t("cancelOverrideTitle");
+  cancelBtn.onclick = () => renderSchedule();
+
+  btnRow.append(confirmBtn, cancelBtn);
+  addWrap.append(select, btnRow);
+  td.appendChild(addWrap);
+}
+
 // ---------- Live status (зараз урок / перерва) ----------
 function updateLiveStatus() {
   if (!liveStatusEl) return;
@@ -980,7 +1167,10 @@ function updateLiveStatus() {
 
   if (state.type === "lesson") {
     const remaining = state.period.end - nowMinutes;
-    const subjectId = dayEntries[state.period.r] ? dayEntries[state.period.r].subjectId : null;
+    const override = getActiveOverride(groupSchedule, weekdayKey, state.period.r);
+    const subjectId = override
+      ? override.subjectId
+      : dayEntries[state.period.r] ? dayEntries[state.period.r].subjectId : null;
     const subjectName = subjectId ? getSubjectName(subjectId) : t("liveNoSubject");
     liveStatusEl.innerHTML = `
       <div class="live-status-row live-status-lesson">
@@ -993,7 +1183,10 @@ function updateLiveStatus() {
       </div>`;
   } else {
     const remaining = state.to.start - nowMinutes;
-    const nextSubjectId = dayEntries[state.to.r] ? dayEntries[state.to.r].subjectId : null;
+    const nextOverride = getActiveOverride(groupSchedule, weekdayKey, state.to.r);
+    const nextSubjectId = nextOverride
+      ? nextOverride.subjectId
+      : dayEntries[state.to.r] ? dayEntries[state.to.r].subjectId : null;
     const nextName = nextSubjectId ? getSubjectName(nextSubjectId) : "";
     liveStatusEl.innerHTML = `
       <div class="live-status-row live-status-break">

@@ -578,6 +578,28 @@ select {
   gap: 10px;
 }
 
+/* ---------- Schedule header (заголовок + кнопка застосувати/змінити) ---------- */
+.schedule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.schedule-header h2 { margin-bottom: 0; }
+
+/* ---------- Разова заміна в розкладі (помаранчева) ---------- */
+.chip-override {
+  background: #ffedd5;
+  color: #c2410c;
+}
+.chip-swap:hover { background: transparent; color: #c2410c; }
+.schedule-cell-override-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
 /* Картка розкладу розширюється симетрично в обидва боки */
 .card-wide {
   width: min(1000px, 100vw - 32px);
