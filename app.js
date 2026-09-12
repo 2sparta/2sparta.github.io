@@ -83,6 +83,9 @@ const translations = {
     addSubjectFirstHint: "Спочатку додайте хоча б один предмет.",
 
     scheduleHeading: "Розклад",
+    groupSwitchLabel: "Група:",
+    group1Label: "Група 1",
+    group2Label: "Група 2",
     weekdays: { mon: "Понеділок", tue: "Вівторок", wed: "Середа", thu: "Четвер", fri: "П'ятниця", sat: "Субота", sun: "Неділя" },
     weekdaysShort: { mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Нд" },
     addToScheduleBtn: "Додати",
@@ -172,6 +175,9 @@ const translations = {
     addSubjectFirstHint: "Add at least one subject first.",
 
     scheduleHeading: "Schedule",
+    groupSwitchLabel: "Group:",
+    group1Label: "Group 1",
+    group2Label: "Group 2",
     weekdays: { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" },
     weekdaysShort: { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" },
     addToScheduleBtn: "Add",
@@ -281,6 +287,31 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
 
 applyStaticTranslations();
 
+// ==========================================================
+// Групи (Група 1 / Група 2) — окремий розклад для кожної
+// ==========================================================
+const GROUP_STORAGE_KEY = "schooleballs-group";
+const GROUPS = ["group1", "group2"];
+
+let currentGroup = localStorage.getItem(GROUP_STORAGE_KEY) || "group1";
+if (!GROUPS.includes(currentGroup)) currentGroup = "group1";
+
+function setGroup(group) {
+  if (!GROUPS.includes(group) || group === currentGroup) return;
+  currentGroup = group;
+  localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+  updateGroupButtons();
+  renderSchedule();
+  renderLessonsContainer();
+  updateLiveStatus();
+}
+
+function updateGroupButtons() {
+  document.querySelectorAll(".group-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.group === currentGroup);
+  });
+}
+
 // ---------- DOM refs ----------
 const authScreen = document.getElementById("auth-screen");
 const appScreen = document.getElementById("app-screen");
@@ -307,6 +338,13 @@ const noSubjectsMsg = document.getElementById("no-subjects-msg");
 const scheduleDaysEl = document.getElementById("schedule-days");
 const liveStatusCard = document.getElementById("live-status-card");
 const liveStatusEl = document.getElementById("live-status");
+const group1Btn = document.getElementById("group-1-btn");
+const group2Btn = document.getElementById("group-2-btn");
+
+[group1Btn, group2Btn].forEach((btn) => {
+  if (btn) btn.onclick = () => setGroup(btn.dataset.group);
+});
+updateGroupButtons();
 
 const newLessonSubject = document.getElementById("new-lesson-subject");
 const newLessonTitle = document.getElementById("new-lesson-title");
@@ -345,8 +383,43 @@ const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 // getDay(): 0=Sun..6=Sat
 const WEEKDAY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
-function emptySchedule() {
+function emptyGroupSchedule() {
   return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [], times: {} };
+}
+
+function emptySchedule() {
+  return { group1: emptyGroupSchedule(), group2: emptyGroupSchedule() };
+}
+
+// Приводить сирі дані одної групи з Firestore до єдиного формату.
+// Підтримує стару структуру (елементи дня — просто subjectId-рядки) для
+// зворотної сумісності зі старим розкладом, який ще не мав груп/дублів.
+function normalizeGroupData(groupRaw) {
+  const base = emptyGroupSchedule();
+  if (!groupRaw) return base;
+  WEEKDAYS.forEach((dayKey) => {
+    const arr = Array.isArray(groupRaw[dayKey]) ? groupRaw[dayKey] : [];
+    base[dayKey] = arr.map((item, idx) => {
+      if (typeof item === "string") {
+        // старий формат: сам рядок subjectId
+        return { eid: `legacy-${dayKey}-${idx}-${item}`, subjectId: item, raw: item };
+      }
+      return {
+        eid: item.eid || `${item.subjectId}-${idx}`,
+        subjectId: item.subjectId,
+        raw: item,
+      };
+    });
+  });
+  base.times = groupRaw.times || {};
+  return base;
+}
+
+function generateEntryId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function parseTimeToMinutes(hhmm) {
@@ -648,7 +721,12 @@ function escapeHtml(str) {
 // ---------- Schedule (розклад) ----------
 function listenToSchedule() {
   unsubscribeSchedule = onSnapshot(doc(db, "schedule", "week"), (snap) => {
-    scheduleData = snap.exists() ? { ...emptySchedule(), ...snap.data() } : emptySchedule();
+    const raw = snap.exists() ? snap.data() : {};
+    const hasGroups = !!raw.group1 || !!raw.group2;
+    scheduleData = hasGroups
+      ? { group1: normalizeGroupData(raw.group1), group2: normalizeGroupData(raw.group2) }
+      // Старий документ без груп — показуємо його як Групу 1, Група 2 порожня
+      : { group1: normalizeGroupData(raw), group2: emptyGroupSchedule() };
     renderSchedule();
     renderLessonsContainer();
     updateLiveStatus();
@@ -658,7 +736,9 @@ function listenToSchedule() {
 function renderSchedule() {
   scheduleDaysEl.innerHTML = "";
 
-  const maxPeriods = Math.max(0, ...WEEKDAYS.map((d) => (scheduleData[d] || []).length));
+  const groupSchedule = scheduleData[currentGroup];
+
+  const maxPeriods = Math.max(0, ...WEEKDAYS.map((d) => (groupSchedule[d] || []).length));
   const rowCount = maxPeriods + 1; // +1 = завжди лишити рядок для додавання наступного уроку
 
   const table = document.createElement("table");
@@ -678,7 +758,7 @@ function renderSchedule() {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  const periodTimes = scheduleData.times || {};
+  const periodTimes = groupSchedule.times || {};
 
   for (let r = 0; r < rowCount; r++) {
     const tr = document.createElement("tr");
@@ -708,7 +788,7 @@ function renderSchedule() {
       try {
         await setDoc(
           doc(db, "schedule", "week"),
-          { times: { [r]: { start: newStart } } },
+          { [currentGroup]: { times: { [r]: { start: newStart } } } },
           { merge: true }
         );
       } catch (e) {
@@ -728,7 +808,7 @@ function renderSchedule() {
       try {
         await setDoc(
           doc(db, "schedule", "week"),
-          { times: { [r]: { end: newEnd } } },
+          { [currentGroup]: { times: { [r]: { end: newEnd } } } },
           { merge: true }
         );
       } catch (e) {
@@ -741,22 +821,29 @@ function renderSchedule() {
     tr.appendChild(rowTh);
 
     WEEKDAYS.forEach((dayKey) => {
-      const dayIds = scheduleData[dayKey] || [];
+      const dayEntries = groupSchedule[dayKey] || [];
       const td = document.createElement("td");
       td.className = "schedule-table-cell";
 
-      if (r < dayIds.length) {
-        const subjectId = dayIds[r];
+      if (r < dayEntries.length) {
+        const entry = dayEntries[r];
         const chip = document.createElement("span");
         chip.className = "chip";
-        chip.textContent = getSubjectName(subjectId);
+        chip.textContent = getSubjectName(entry.subjectId);
 
         const removeBtn = document.createElement("button");
         removeBtn.className = "chip-remove";
         removeBtn.textContent = "×";
         removeBtn.onclick = async () => {
           try {
-            await updateDoc(doc(db, "schedule", "week"), { [dayKey]: arrayRemove(subjectId) });
+            // Видаляємо саме цей конкретний запис (entry.raw), а не всі уроки
+            // цього предмета в цей день — так можна тримати кілька однакових
+            // уроків підряд і видаляти їх по одному.
+            await setDoc(
+              doc(db, "schedule", "week"),
+              { [currentGroup]: { [dayKey]: arrayRemove(entry.raw) } },
+              { merge: true }
+            );
           } catch (e) {
             reportSaveError(e, "Не вдалося оновити розклад", "Failed to update the schedule");
           }
@@ -764,9 +851,10 @@ function renderSchedule() {
 
         chip.appendChild(removeBtn);
         td.appendChild(chip);
-      } else if (r === dayIds.length) {
-        const alreadyAdded = new Set(dayIds);
-        const availableSubjects = lastSubjects.filter((s) => !alreadyAdded.has(s.id));
+      } else if (r === dayEntries.length) {
+        // Тут навмисно НЕ виключаємо вже додані на цей день предмети —
+        // це дозволяє додати той самий предмет кілька разів за день.
+        const availableSubjects = lastSubjects;
 
         const addWrap = document.createElement("div");
         addWrap.className = "schedule-cell-add";
@@ -777,7 +865,7 @@ function renderSchedule() {
         if (availableSubjects.length === 0) {
           const opt = document.createElement("option");
           opt.value = "";
-          opt.textContent = lastSubjects.length === 0 ? t("addSubjectFirstHint") : t("selectSubjectPlaceholder");
+          opt.textContent = t("addSubjectFirstHint");
           opt.disabled = true;
           opt.selected = true;
           select.appendChild(opt);
@@ -805,8 +893,13 @@ function renderSchedule() {
         addBtn.onclick = async () => {
           const subjectId = select.value;
           if (!subjectId) return;
+          const newEntry = { eid: generateEntryId(), subjectId };
           try {
-            await setDoc(doc(db, "schedule", "week"), { [dayKey]: arrayUnion(subjectId) }, { merge: true });
+            await setDoc(
+              doc(db, "schedule", "week"),
+              { [currentGroup]: { [dayKey]: arrayUnion(newEntry) } },
+              { merge: true }
+            );
           } catch (e) {
             reportSaveError(e, "Не вдалося оновити розклад. Перевірте правила Firestore для колекції schedule", "Failed to update the schedule. Check Firestore Rules for the schedule collection");
           }
@@ -838,14 +931,15 @@ function updateLiveStatus() {
   if (!liveStatusEl) return;
 
   const now = new Date();
+  const groupSchedule = scheduleData[currentGroup];
   const weekdayKey = WEEKDAY_BY_JS_INDEX[now.getDay()];
-  const dayIds = scheduleData[weekdayKey] || [];
-  const periodTimes = scheduleData.times || {};
+  const dayEntries = groupSchedule[weekdayKey] || [];
+  const periodTimes = groupSchedule.times || {};
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   const maxPeriodIndex = Math.max(
     0,
-    ...WEEKDAYS.map((d) => (scheduleData[d] || []).length),
+    ...WEEKDAYS.map((d) => (groupSchedule[d] || []).length),
     ...Object.keys(periodTimes).map((k) => parseInt(k, 10) + 1)
   );
 
@@ -886,7 +980,7 @@ function updateLiveStatus() {
 
   if (state.type === "lesson") {
     const remaining = state.period.end - nowMinutes;
-    const subjectId = dayIds[state.period.r];
+    const subjectId = dayEntries[state.period.r] ? dayEntries[state.period.r].subjectId : null;
     const subjectName = subjectId ? getSubjectName(subjectId) : t("liveNoSubject");
     liveStatusEl.innerHTML = `
       <div class="live-status-row live-status-lesson">
@@ -899,7 +993,7 @@ function updateLiveStatus() {
       </div>`;
   } else {
     const remaining = state.to.start - nowMinutes;
-    const nextSubjectId = dayIds[state.to.r];
+    const nextSubjectId = dayEntries[state.to.r] ? dayEntries[state.to.r].subjectId : null;
     const nextName = nextSubjectId ? getSubjectName(nextSubjectId) : "";
     liveStatusEl.innerHTML = `
       <div class="live-status-row live-status-break">
@@ -1005,9 +1099,9 @@ function renderDayView(dayOffset) {
 
 function renderDayLessons(target, targetDateStr) {
   const weekdayKey = WEEKDAY_BY_JS_INDEX[target.getDay()];
-  const subjectIdsForDay = scheduleData[weekdayKey] || [];
+  const dayEntries = scheduleData[currentGroup][weekdayKey] || [];
 
-  if (subjectIdsForDay.length === 0) {
+  if (dayEntries.length === 0) {
     const hint = document.createElement("p");
     hint.className = "hint";
     hint.textContent = t("noScheduleForDay");
@@ -1015,7 +1109,7 @@ function renderDayLessons(target, targetDateStr) {
     return;
   }
 
-  subjectIdsForDay.forEach((subjectId) => {
+  dayEntries.forEach(({ subjectId }) => {
     const block = document.createElement("div");
     block.className = "today-subject-block";
 

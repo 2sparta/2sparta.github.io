@@ -126,6 +126,39 @@ code {
   color: white;
 }
 
+/* ---------- Group switch (Група 1 / Група 2) ---------- */
+.group-switch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.group-switch-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+.group-switch {
+  display: flex;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.group-btn {
+  background: white;
+  color: #555;
+  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 0;
+}
+.group-btn:hover { background: #f1f1f1; }
+.group-btn.active {
+  background: #2563eb;
+  color: white;
+}
+
 /* ---------- Tabs ---------- */
 .tabs {
   display: flex;
