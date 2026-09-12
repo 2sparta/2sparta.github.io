@@ -701,11 +701,14 @@ function renderSchedule() {
     startInput.className = "schedule-period-time-input";
     startInput.value = savedTime.start || "";
     startInput.setAttribute("aria-label", t("periodStartLabel"));
-    startInput.onchange = async () => {
+    startInput.onblur = async () => {
+      const newStart = startInput.value || null;
+      if (newStart === (savedTime.start || null)) return; // Не оновлюємо, якщо значення не змінилося
+
       try {
         await setDoc(
           doc(db, "schedule", "week"),
-          { times: { [r]: { start: startInput.value || null } } },
+          { times: { [r]: { start: newStart } } },
           { merge: true }
         );
       } catch (e) {
@@ -713,23 +716,21 @@ function renderSchedule() {
       }
     };
 
-    const endInput = document.createElement("input");
-    endInput.type = "time";
-    endInput.className = "schedule-period-time-input";
-    endInput.value = savedTime.end || "";
-    endInput.setAttribute("aria-label", t("periodEndLabel"));
-    endInput.onchange = async () => {
+    // Для endInput:
+    endInput.onblur = async () => {
+      const newEnd = endInput.value || null;
+      if (newEnd === (savedTime.end || null)) return; // Не оновлюємо, якщо значення не змінилося
+
       try {
         await setDoc(
           doc(db, "schedule", "week"),
-          { times: { [r]: { end: endInput.value || null } } },
+          { times: { [r]: { end: newEnd } } },
           { merge: true }
         );
       } catch (e) {
         reportSaveError(e, "Не вдалося зберегти час уроку", "Failed to save the lesson time");
       }
     };
-
     timesWrap.append(startInput, endInput);
     rowTh.appendChild(timesWrap);
     tr.appendChild(rowTh);
