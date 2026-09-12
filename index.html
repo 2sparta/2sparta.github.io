@@ -84,13 +84,24 @@
       </section>
 
       <section class="card">
-        <h2 data-i18n="subjectsListHeading">Список предметів</h2>
-        <ul id="subjects-list" class="subjects-list"></ul>
-        <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
+        <div class="subjects-header">
+          <h2 data-i18n="subjectsListHeading">Список предметів</h2>
+          <button id="subjects-toggle-btn" class="secondary small" type="button"></button>
+        </div>
+        <div id="subjects-body">
+          <ul id="subjects-list" class="subjects-list"></ul>
+          <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
+        </div>
       </section>
 
       <section class="card hidden" id="live-status-card">
         <div id="live-status" class="live-status"></div>
+      </section>
+
+      <section class="card hidden" id="join-meeting-card">
+        <div id="join-meeting-wrap" class="join-meeting-wrap">
+          <button id="join-meeting-btn" class="join-meeting-btn" type="button"></button>
+        </div>
       </section>
 
       <!-- Перемикач груп переміщено сюди -->
@@ -108,9 +119,6 @@
           <button id="schedule-toggle-btn" class="secondary small" data-i18n="scheduleApplyBtn">Застосувати розклад</button>
         </div>
         <div id="schedule-days" class="schedule-days"></div>
-        <div id="join-meeting-wrap" class="join-meeting-wrap hidden">
-          <button id="join-meeting-btn" class="join-meeting-btn" type="button"></button>
-        </div>
       </section>
 
       <section class="card">

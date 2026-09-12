@@ -77,6 +77,8 @@ const translations = {
     subjectNamePlaceholder: "Назва предмета",
     subjectLinkPlaceholder: "Посилання на Zoom/Meet (необов'язково)",
     subjectsListHeading: "Список предметів",
+    subjectsCollapseBtn: "Згорнути",
+    subjectsExpandBtn: "Розгорнути",
     noSubjectsMsg: "Предметів ще немає.",
     deleteSubjectConfirm: (name) => `Видалити предмет "${name}"? Уроки цього предмета залишаться, але без прив'язки.`,
     selectSubjectPlaceholder: "Оберіть предмет",
@@ -144,6 +146,7 @@ const translations = {
       "auth/email-already-in-use": "Цей email вже зареєстрований.",
       "auth/weak-password": "Пароль занадто простий (мінімум 6 символів).",
       "auth/invalid-credential": "Невірний email або пароль.",
+      "permission-denied": "Firestore відхилив запис (перевірте правила безпеки).",
     },
   },
   en: {
@@ -178,6 +181,8 @@ const translations = {
     subjectNamePlaceholder: "Subject name",
     subjectLinkPlaceholder: "Zoom/Meet link (optional)",
     subjectsListHeading: "Subject List",
+    subjectsCollapseBtn: "Collapse",
+    subjectsExpandBtn: "Expand",
     noSubjectsMsg: "No subjects yet.",
     deleteSubjectConfirm: (name) => `Delete subject "${name}"? Its lessons will remain but unlinked.`,
     selectSubjectPlaceholder: "Choose a subject",
@@ -245,6 +250,7 @@ const translations = {
       "auth/email-already-in-use": "This email is already registered.",
       "auth/weak-password": "Password is too weak (min 6 characters).",
       "auth/invalid-credential": "Invalid email or password.",
+      "permission-denied": "Firestore rejected the write (check security rules).",
     },
   },
 };
@@ -290,6 +296,7 @@ function setLanguage(lang) {
   currentLang = lang;
   localStorage.setItem(LANG_STORAGE_KEY, currentLang);
   applyStaticTranslations();
+  updateSubjectsToggleBtn();
   renderStudentsTable();
   renderSubjectsList();
   renderSubjectSelects();
@@ -352,9 +359,12 @@ const newSubjectLink = document.getElementById("new-subject-link");
 const addSubjectBtn = document.getElementById("add-subject-btn");
 const subjectsList = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
+const subjectsBody = document.getElementById("subjects-body");
+const subjectsToggleBtn = document.getElementById("subjects-toggle-btn");
 
 const scheduleDaysEl = document.getElementById("schedule-days");
 const scheduleToggleBtn = document.getElementById("schedule-toggle-btn");
+const joinMeetingCard = document.getElementById("join-meeting-card");
 const joinMeetingWrap = document.getElementById("join-meeting-wrap");
 const joinMeetingBtn = document.getElementById("join-meeting-btn");
 const liveStatusCard = document.getElementById("live-status-card");
@@ -366,6 +376,23 @@ const group2Btn = document.getElementById("group-2-btn");
   if (btn) btn.onclick = () => setGroup(btn.dataset.group);
 });
 updateGroupButtons();
+
+// ---------- Згортання списку предметів ----------
+let subjectsCollapsed = false;
+
+function updateSubjectsToggleBtn() {
+  if (!subjectsToggleBtn) return;
+  subjectsToggleBtn.textContent = subjectsCollapsed ? t("subjectsExpandBtn") : t("subjectsCollapseBtn");
+}
+
+if (subjectsToggleBtn) {
+  subjectsToggleBtn.onclick = () => {
+    subjectsCollapsed = !subjectsCollapsed;
+    if (subjectsBody) subjectsBody.classList.toggle("hidden", subjectsCollapsed);
+    updateSubjectsToggleBtn();
+  };
+  updateSubjectsToggleBtn();
+}
 
 if (scheduleToggleBtn) {
   scheduleToggleBtn.onclick = async () => {
@@ -1167,18 +1194,18 @@ function renderOverridePicker(td, dayKey, r) {
 // Показує кнопку лише тоді, коли зараз реально йде урок і в його предмета
 // є збережене посилання на зустріч.
 function updateJoinMeetingButton(subjectId) {
-  if (!joinMeetingWrap || !joinMeetingBtn) return;
+  if (!joinMeetingCard || !joinMeetingBtn) return;
 
   const subject = subjectId ? lastSubjects.find((s) => s.id === subjectId) : null;
   const link = subject && subject.data.meetingLink ? subject.data.meetingLink.trim() : "";
 
   if (!link) {
-    joinMeetingWrap.classList.add("hidden");
+    joinMeetingCard.classList.add("hidden");
     joinMeetingBtn.onclick = null;
     return;
   }
 
-  joinMeetingWrap.classList.remove("hidden");
+  joinMeetingCard.classList.remove("hidden");
   joinMeetingBtn.textContent = `${t("joinMeetingBtn")} — ${subject.data.name}`;
   joinMeetingBtn.onclick = () => window.open(link, "_blank", "noopener");
 }

@@ -600,6 +600,20 @@ select {
 }
 .schedule-header h2 { margin-bottom: 0; }
 
+/* ---------- Subjects header (заголовок + кнопка згорнути/розгорнути) ---------- */
+.subjects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.subjects-header h2 { margin-bottom: 0; }
+
+/* ---------- Окрема картка кнопки приєднання до зустрічі ---------- */
+#join-meeting-card { padding: 14px 18px; }
+#join-meeting-card .join-meeting-wrap { margin-top: 0; }
+
 /* ---------- Разова заміна в розкладі (помаранчева) ---------- */
 .chip-override {
   background: #ffedd5;
