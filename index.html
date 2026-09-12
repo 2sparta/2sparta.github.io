@@ -74,14 +74,6 @@
 
     <div id="tasks-panel" class="tab-panel hidden">
 
-      <div class="group-switch-bar">
-        <span class="group-switch-label" data-i18n="groupSwitchLabel">Група:</span>
-        <div class="group-switch">
-          <button id="group-1-btn" class="group-btn active" data-group="group1" data-i18n="group1Label">Група 1</button>
-          <button id="group-2-btn" class="group-btn" data-group="group2" data-i18n="group2Label">Група 2</button>
-        </div>
-      </div>
-
       <section class="card">
         <h2 data-i18n="addSubjectHeading">Додати предмет</h2>
         <div class="row">
@@ -99,6 +91,15 @@
       <section class="card hidden" id="live-status-card">
         <div id="live-status" class="live-status"></div>
       </section>
+
+      <!-- Перемикач груп переміщено сюди -->
+      <div class="group-switch-bar">
+        <span class="group-switch-label" data-i18n="groupSwitchLabel">Група:</span>
+        <div class="group-switch">
+          <button id="group-1-btn" class="group-btn active" data-group="group1" data-i18n="group1Label">Група 1</button>
+          <button id="group-2-btn" class="group-btn" data-group="group2" data-i18n="group2Label">Група 2</button>
+        </div>
+      </div>
 
       <section class="card card-wide">
         <h2 data-i18n="scheduleHeading">Розклад</h2>
