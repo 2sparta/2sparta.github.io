@@ -44,6 +44,14 @@ const db = getFirestore(app);
 // ==========================================================
 const LANG_STORAGE_KEY = "schooleballs-lang";
 
+function pluralUk(n, one, few, many) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
 const translations = {
   uk: {
     authTitle: "Вхід для вчителя",
@@ -57,17 +65,29 @@ const translations = {
       "<code>role</code> на <b>teacher</b>. Інакше доступ до панелі буде закрито.",
     appTitle: "Бали учнів",
     logout: "Вийти",
+    greetingTitle: "Доброго дня!",
+    greetingSubtitle: (n) =>
+      n === 0
+        ? "Сьогодні уроків у розкладі не заплановано."
+        : `Сьогодні у вас ${n} ${pluralUk(n, "урок", "уроки", "уроків")} за розкладом.`,
+    statStudents: "Учнів",
+    statSubjects: "Предметів",
+    statLessonsToday: "Уроків сьогодні",
+    statLinked: "Прив'язано",
     tabPoints: "Бали",
     tabTasks: "Завдання",
     addStudentHeading: "Додати учня",
     studentNamePlaceholder: "Ім'я учня",
     addBtn: "Додати",
     studentsListHeading: "Список учнів",
+    noStudentsMsg: "Учнів ще немає.",
     thName: "Ім'я",
     thPoints: "Бали",
     thChange: "Змінити",
     thCode: "Код-запрошення",
     thLinked: "Прив'язаний",
+    pointsLabel: "балів",
+    codeLabel: "Код-запрошення",
     linked: "Прив'язаний",
     notLinked: "Очікує",
     deleteBtn: "Видалити",
@@ -161,17 +181,29 @@ const translations = {
       "<code>role</code> field to <b>teacher</b>. Otherwise access to the panel will stay closed.",
     appTitle: "Student Points",
     logout: "Sign Out",
+    greetingTitle: "Good day!",
+    greetingSubtitle: (n) =>
+      n === 0
+        ? "No lessons are scheduled for today."
+        : `You have ${n} lesson${n === 1 ? "" : "s"} scheduled today.`,
+    statStudents: "Students",
+    statSubjects: "Subjects",
+    statLessonsToday: "Lessons today",
+    statLinked: "Linked",
     tabPoints: "Points",
     tabTasks: "Tasks",
     addStudentHeading: "Add a Student",
     studentNamePlaceholder: "Student name",
     addBtn: "Add",
     studentsListHeading: "Student List",
+    noStudentsMsg: "No students yet.",
     thName: "Name",
     thPoints: "Points",
     thChange: "Change",
     thCode: "Invite Code",
     thLinked: "Linked",
+    pointsLabel: "points",
+    codeLabel: "Invite code",
     linked: "Linked",
     notLinked: "Pending",
     deleteBtn: "Delete",
@@ -303,6 +335,8 @@ function setLanguage(lang) {
   renderSchedule();
   renderLessonsContainer();
   updateLiveStatus();
+  updateGreetingDate();
+  updateDashboardStats();
 }
 
 document.querySelectorAll(".lang-btn").forEach((btn) => {
@@ -339,6 +373,15 @@ function updateGroupButtons() {
 // ---------- DOM refs ----------
 const authScreen = document.getElementById("auth-screen");
 const appScreen = document.getElementById("app-screen");
+const avatarEl = document.getElementById("avatar");
+const greetingDateEl = document.getElementById("greeting-date");
+const greetingSubtitleEl = document.getElementById("greeting-subtitle");
+const quickAddLessonBtn = document.getElementById("quick-add-lesson-btn");
+const statStudentsEl = document.getElementById("stat-students");
+const statSubjectsEl = document.getElementById("stat-subjects");
+const statLessonsTodayEl = document.getElementById("stat-lessons-today");
+const statLinkedEl = document.getElementById("stat-linked");
+const noStudentsMsg = document.getElementById("no-students-msg");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const loginBtn = document.getElementById("login-btn");
@@ -560,6 +603,47 @@ function formatDateLocal(d) {
 }
 
 // ---------- Tabs ----------
+// ---------- Dashboard header (привітання, дата, показники) ----------
+function updateGreetingDate() {
+  if (!greetingDateEl) return;
+  const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+  const text = new Date().toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  greetingDateEl.textContent = text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function updateAvatar(user) {
+  if (!avatarEl || !user) return;
+  const source = user.email || "?";
+  avatarEl.textContent = source.charAt(0).toUpperCase();
+  avatarEl.title = user.email || "";
+}
+
+function updateDashboardStats() {
+  if (statStudentsEl) statStudentsEl.textContent = String(lastStudents.length);
+  if (statSubjectsEl) statSubjectsEl.textContent = String(lastSubjects.length);
+
+  const todayStr = formatDateLocal(new Date());
+  const lessonsToday = lastLessons.filter((l) => l.data.lessonDate === todayStr).length;
+  if (statLessonsTodayEl) statLessonsTodayEl.textContent = String(lessonsToday);
+  if (greetingSubtitleEl) greetingSubtitleEl.textContent = t("greetingSubtitle")(lessonsToday);
+
+  const linkedCount = lastStudents.filter((s) => !!s.data.authUid).length;
+  if (statLinkedEl) statLinkedEl.textContent = `${linkedCount}/${lastStudents.length}`;
+}
+
+if (quickAddLessonBtn) {
+  quickAddLessonBtn.onclick = () => {
+    showTab("tasks");
+    const titleInput = document.getElementById("new-lesson-title");
+    if (titleInput) titleInput.focus();
+  };
+}
+
+// ---------- Tabs ----------
 function showTab(tab) {
   const isPoints = tab === "points";
   tabPointsBtn.classList.toggle("active", isPoints);
@@ -624,6 +708,8 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   showAppScreen();
+  updateAvatar(user);
+  updateGreetingDate();
   listenToStudents();
   listenToSubjects();
   listenToSchedule();
@@ -675,6 +761,8 @@ function renderStudentsTable() {
   lastStudents.forEach(({ id, data }) => {
     studentsTbody.appendChild(renderStudentRow(id, data));
   });
+  if (noStudentsMsg) noStudentsMsg.classList.toggle("hidden", lastStudents.length > 0);
+  updateDashboardStats();
 }
 
 addStudentBtn.onclick = async () => {
@@ -698,24 +786,63 @@ function generateInviteCode() {
 }
 
 function renderStudentRow(id, data) {
-  const tr = document.createElement("tr");
+  const row = document.createElement("div");
+  row.className = "student-row";
 
-  const nameTd = document.createElement("td");
-  nameTd.textContent = data.name;
+  // Аватар з першою літерою імені
+  const avatar = document.createElement("span");
+  avatar.className = "student-avatar";
+  avatar.textContent = (data.name || "?").trim().charAt(0).toUpperCase() || "?";
 
-  const pointsTd = document.createElement("td");
-  pointsTd.className = "points";
-  pointsTd.textContent = data.points ?? 0;
+  // Ім'я + бейдж прив'язки
+  const identity = document.createElement("div");
+  identity.className = "student-identity";
 
-  const controlsTd = document.createElement("td");
+  const nameEl = document.createElement("span");
+  nameEl.className = "student-name";
+  nameEl.textContent = data.name;
+
+  const linkedBadge = document.createElement("span");
+  if (data.authUid) {
+    linkedBadge.textContent = t("linked");
+    linkedBadge.className = "linked-badge linked";
+  } else {
+    linkedBadge.textContent = t("notLinked");
+    linkedBadge.className = "linked-badge not-linked";
+  }
+
+  const codeChip = document.createElement("code");
+  codeChip.className = "invite-code";
+  codeChip.textContent = data.inviteCode || "—";
+
+  const metaRow = document.createElement("div");
+  metaRow.className = "student-meta";
+  metaRow.append(linkedBadge, codeChip);
+
+  identity.append(nameEl, metaRow);
+
+  // Бали
+  const pointsBlock = document.createElement("div");
+  pointsBlock.className = "student-points-block";
+  const pointsValue = document.createElement("span");
+  pointsValue.className = "points";
+  pointsValue.textContent = data.points ?? 0;
+  const pointsCaption = document.createElement("span");
+  pointsCaption.className = "points-caption";
+  pointsCaption.textContent = t("pointsLabel");
+  pointsBlock.append(pointsValue, pointsCaption);
+
+  // Контроли зміни балів
   const controls = document.createElement("div");
   controls.className = "point-controls";
 
   const minusBtn = document.createElement("button");
+  minusBtn.type = "button";
   minusBtn.textContent = "-1";
   minusBtn.onclick = () => changePoints(id, data.points, -1);
 
   const plusBtn = document.createElement("button");
+  plusBtn.type = "button";
   plusBtn.textContent = "+1";
   plusBtn.onclick = () => changePoints(id, data.points, +1);
 
@@ -724,6 +851,8 @@ function renderStudentRow(id, data) {
   customInput.placeholder = "±N";
 
   const applyBtn = document.createElement("button");
+  applyBtn.type = "button";
+  applyBtn.className = "secondary";
   applyBtn.textContent = "OK";
   applyBtn.onclick = () => {
     const delta = parseInt(customInput.value, 10);
@@ -734,31 +863,19 @@ function renderStudentRow(id, data) {
   };
 
   controls.append(minusBtn, plusBtn, customInput, applyBtn);
-  controlsTd.appendChild(controls);
 
-  const codeTd = document.createElement("td");
-  codeTd.innerHTML = `<code>${data.inviteCode || "-"}</code>`;
-
-  const linkedTd = document.createElement("td");
-  if (data.authUid) {
-    linkedTd.textContent = t("linked");
-    linkedTd.className = "linked";
-  } else {
-    linkedTd.textContent = t("notLinked");
-    linkedTd.className = "not-linked";
-  }
-
-  const deleteTd = document.createElement("td");
   const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = t("deleteBtn");
-  deleteBtn.className = "secondary small";
+  deleteBtn.type = "button";
+  deleteBtn.className = "student-delete-btn";
+  deleteBtn.setAttribute("aria-label", t("deleteBtn"));
+  deleteBtn.title = t("deleteBtn");
+  deleteBtn.textContent = "✕";
   deleteBtn.onclick = () => {
     if (confirm(t("deleteConfirm")(data.name))) deleteDoc(doc(db, "students", id));
   };
-  deleteTd.appendChild(deleteBtn);
 
-  tr.append(nameTd, pointsTd, controlsTd, codeTd, linkedTd, deleteTd);
-  return tr;
+  row.append(avatar, identity, pointsBlock, controls, deleteBtn);
+  return row;
 }
 
 async function changePoints(id, currentPoints, delta) {
@@ -776,6 +893,7 @@ function listenToSubjects() {
     renderSchedule();
     renderLessonsContainer();
     updateLiveStatus();
+    updateDashboardStats();
   });
 }
 
@@ -1307,6 +1425,7 @@ function listenToLessons() {
   unsubscribeLessons = onSnapshot(q, (snap) => {
     lastLessons = snap.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
     renderLessonsContainer();
+    updateDashboardStats();
   });
 }
 

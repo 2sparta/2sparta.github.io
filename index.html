@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Шкільні бали — панель учителя</title>
+<title>Класний простір — панель учителя</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
@@ -12,7 +12,13 @@
 <body>
 
   <div id="auth-screen" class="screen">
-    <div class="card">
+    <div class="card auth-card">
+      <div class="auth-brand">
+        <span class="brand-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19V7a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 5v4a1 1 0 0 0 1 1h4" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-name">Класний простір</span>
+      </div>
       <div class="lang-switch lang-switch--auth">
         <button id="lang-uk" class="lang-btn active" data-lang="uk">UA</button>
         <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
@@ -32,16 +38,51 @@
   </div>
 
   <div id="app-screen" class="screen hidden">
-    <header>
-      <h1 data-i18n="appTitle">Бали учнів</h1>
+
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19V7a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 5v4a1 1 0 0 0 1 1h4" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-name">Класний простір</span>
+      </div>
       <div class="header-actions">
         <div class="lang-switch">
           <button id="lang-uk-app" class="lang-btn active" data-lang="uk">UA</button>
           <button id="lang-en-app" class="lang-btn" data-lang="en">EN</button>
         </div>
+        <span id="avatar" class="avatar" title=""></span>
         <button id="logout-btn" class="secondary small" data-i18n="logout">Вийти</button>
       </div>
     </header>
+
+    <section class="greeting-card">
+      <div class="greeting-text">
+        <p id="greeting-date" class="greeting-date"></p>
+        <h1 id="greeting-title" class="greeting-title" data-i18n="greetingTitle">Доброго дня!</h1>
+        <p id="greeting-subtitle" class="greeting-subtitle"></p>
+      </div>
+      <button id="quick-add-lesson-btn" class="quick-action-btn" data-i18n="addLessonHeading">Додати урок</button>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label" data-i18n="statStudents">Учнів</span>
+        <span id="stat-students" class="stat-value">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label" data-i18n="statSubjects">Предметів</span>
+        <span id="stat-subjects" class="stat-value">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label" data-i18n="statLessonsToday">Уроків сьогодні</span>
+        <span id="stat-lessons-today" class="stat-value">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label" data-i18n="statLinked">Прив'язано</span>
+        <span id="stat-linked" class="stat-value">0/0</span>
+      </div>
+    </section>
 
     <nav class="tabs">
       <button id="tab-points-btn" class="tab-btn active" data-i18n="tabPoints">Бали</button>
@@ -59,43 +100,12 @@
 
       <section class="card">
         <h2 data-i18n="studentsListHeading">Список учнів</h2>
-        <table id="students-table">
-          <thead>
-            <tr>
-              <th data-i18n="thName">Ім'я</th>
-              <th data-i18n="thPoints">Бали</th>
-              <th data-i18n="thChange">Змінити</th>
-              <th data-i18n="thCode">Код-запрошення</th>
-              <th data-i18n="thLinked">Прив'язаний</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="students-tbody"></tbody>
-        </table>
+        <div id="students-tbody" class="students-list"></div>
+        <p id="no-students-msg" class="hint hidden" data-i18n="noStudentsMsg">Учнів ще немає.</p>
       </section>
     </div>
 
     <div id="tasks-panel" class="tab-panel hidden">
-
-      <section class="card">
-        <h2 data-i18n="addSubjectHeading">Додати предмет</h2>
-        <div class="row">
-          <input id="new-subject-name" type="text" data-i18n-placeholder="subjectNamePlaceholder" placeholder="Назва предмета" />
-          <button id="add-subject-btn" data-i18n="addBtn">Додати</button>
-        </div>
-        <input id="new-subject-link" type="url" data-i18n-placeholder="subjectLinkPlaceholder" placeholder="Посилання на Zoom/Meet (необов'язково)" />
-      </section>
-
-      <section class="card">
-        <div class="subjects-header">
-          <h2 data-i18n="subjectsListHeading">Список предметів</h2>
-          <button id="subjects-toggle-btn" class="secondary small" type="button"></button>
-        </div>
-        <div id="subjects-body">
-          <ul id="subjects-list" class="subjects-list"></ul>
-          <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
-        </div>
-      </section>
 
       <section class="card hidden" id="live-status-card">
         <div id="live-status" class="live-status"></div>
@@ -107,7 +117,6 @@
         </div>
       </section>
 
-      <!-- Перемикач груп переміщено сюди -->
       <div class="group-switch-bar">
         <span class="group-switch-label" data-i18n="groupSwitchLabel">Група:</span>
         <div class="group-switch">
@@ -161,6 +170,26 @@
         </div>
         <div id="lessons-container"></div>
         <p id="no-lessons-msg" class="hint hidden" data-i18n="noLessons">Уроків ще немає.</p>
+      </section>
+
+      <section class="card">
+        <div class="subjects-header">
+          <h2 data-i18n="subjectsListHeading">Список предметів</h2>
+          <button id="subjects-toggle-btn" class="secondary small" type="button"></button>
+        </div>
+        <div id="subjects-body">
+          <ul id="subjects-list" class="subjects-list"></ul>
+          <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="addSubjectHeading">Додати предмет</h2>
+        <div class="row">
+          <input id="new-subject-name" type="text" data-i18n-placeholder="subjectNamePlaceholder" placeholder="Назва предмета" />
+          <button id="add-subject-btn" data-i18n="addBtn">Додати</button>
+        </div>
+        <input id="new-subject-link" type="url" data-i18n-placeholder="subjectLinkPlaceholder" placeholder="Посилання на Zoom/Meet (необов'язково)" />
       </section>
 
     </div>

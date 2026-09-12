@@ -35,6 +35,7 @@ body {
 }
 .hidden { display: none !important; }
 .screen { max-width: 720px; margin: 0 auto; }
+#app-screen.screen { max-width: 860px; }
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -42,6 +43,153 @@ body {
   padding: 20px 24px;
   margin-bottom: 20px;
   box-shadow: 0 1px 2px rgba(23, 53, 44, 0.04);
+}
+
+/* ---------- Brand (логотип "Класний простір") ---------- */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+.brand-badge svg { width: 18px; height: 18px; }
+.brand-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+/* ---------- App header ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-avatar-bg);
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ---------- Auth screen brand ---------- */
+.auth-card { position: relative; }
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+/* ---------- Greeting card ---------- */
+.greeting-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(23, 53, 44, 0.04);
+}
+.greeting-text { min-width: 0; }
+.greeting-date {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-secondary);
+  margin: 0 0 4px;
+}
+.greeting-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--color-primary);
+  margin: 0 0 4px;
+}
+.greeting-subtitle {
+  font-size: 14px;
+  color: var(--color-secondary);
+  margin: 0;
+}
+.quick-action-btn {
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.quick-action-btn:hover { background: var(--color-accent-hover); }
+
+/* ---------- Stats grid (показники) ---------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.stat-label {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+}
+.stat-value {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--color-primary);
+}
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .greeting-card { padding: 16px; }
+  .quick-action-btn { width: 100%; }
 }
 h1 { font-family: var(--font-heading); font-weight: 800; font-size: 22px; margin: 0 0 12px; color: var(--color-primary); }
 h2 { font-family: var(--font-heading); font-weight: 800; font-size: 16px; margin: 0 0 12px; color: var(--color-primary); }
@@ -111,18 +259,6 @@ header {
 }
 .row { display: flex; gap: 10px; }
 .row input { margin-bottom: 0; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--color-border); }
-th { color: var(--color-secondary); font-family: var(--font-heading); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; }
-td.points { font-weight: 700; font-size: 16px; color: var(--color-primary); }
-.point-controls { display: flex; align-items: center; gap: 6px; }
-.point-controls button { padding: 4px 10px; font-size: 14px; }
-.point-controls input {
-  width: 60px;
-  margin: 0;
-  text-align: center;
-  padding: 6px;
-}
 code {
   background: var(--color-surface-tint);
   color: var(--color-accent);
@@ -132,6 +268,99 @@ code {
 }
 .linked { color: var(--color-accent); font-weight: 600; }
 .not-linked { color: var(--color-secondary); }
+
+/* ---------- Students (картки замість таблиці) ---------- */
+.students-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.student-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.student-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--color-avatar-bg);
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.student-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+  flex: 1;
+}
+.student-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-primary);
+  overflow-wrap: anywhere;
+}
+.student-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.linked-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+.linked-badge.linked { background: var(--color-surface-tint); color: var(--color-accent); }
+.linked-badge.not-linked { background: var(--color-border); color: var(--color-secondary); }
+.invite-code { background: var(--color-surface); border: 1px solid var(--color-border); }
+.student-points-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 56px;
+}
+.student-points-block .points { font-weight: 800; font-size: 20px; color: var(--color-primary); font-family: var(--font-heading); }
+.points-caption { font-size: 11px; color: var(--color-secondary); }
+.point-controls { display: flex; align-items: center; gap: 6px; }
+.point-controls button { padding: 6px 10px; font-size: 14px; }
+.point-controls input {
+  width: 56px;
+  margin: 0;
+  text-align: center;
+  padding: 6px;
+}
+.student-delete-btn {
+  background: transparent;
+  color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.student-delete-btn:hover { background: var(--color-warning-bg); color: var(--color-danger); border-color: var(--color-danger); }
+
+@media (max-width: 480px) {
+  .student-row { padding: 10px; }
+  .student-identity { min-width: 100%; order: -1; }
+  .student-points-block { margin-left: 52px; }
+}
 
 /* ---------- Language switch ---------- */
 .lang-switch {
