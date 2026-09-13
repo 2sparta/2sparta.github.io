@@ -499,26 +499,29 @@ code {
 
 .app-body {
   display: grid;
-  /* Перша колонка — віджети (фіксовані 180px), друга — центр (до 900px), третя — пустий простір для балансу */
-  grid-template-columns: 180px minmax(0, 900px);
-  justify-content: center; /* Центрує всю сітку посередині екрана */
-  gap: 24px;
+  /* Центруємо сітку так, щоб центральна колонка (900px) була ідеально посередині екрана */
+  grid-template-columns: 1fr 900px 1fr;
+  align-items: start;
   width: 100%;
   padding: 24px;
+  box-sizing: border-box;
 }
 
+/* Ліве меню ставимо у ліву частину, але притискаємо до правого краю цієї частини (ближче до центру) */
 .tabs {
-  grid-column: 1; /* Сайдбар чітко в першій колонці */
+  grid-column: 1;
+  justify-self: end;  /* Притискає меню впритул ліворуч від центрального блоку */
+  margin-right: 32px; /* Відступ між меню та центральним блоком */
   position: sticky;
   top: 24px;
-  width: 180px;
+  width: 200px;       /* Ширина вашого меню */
 }
 
+/* Основний контент (обведений червоним) стає чітко у середню колонку */
 .app-main {
-  grid-column: 2; /* Основний контент у другій колонці (по центру) */
-  width: 100%;
-  max-width: 900px;
-  min-width: 0;
+  grid-column: 2;
+  width: 900px;       /* Фіксована ширина, яка була у вас */
+  max-width: 100%;
 }
 
 .app-main > .greeting-card,
