@@ -78,21 +78,14 @@ body {
   gap: 12px;
   margin-bottom: 20px;
   padding-bottom: 16px;
+  
+  /* Змініть значення width, щоб скоротити довжину лінії (наприклад, 800px або 90%) */
+  width: 900px; 
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  
   border-bottom: 1px solid var(--color-border);
-}
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-pill);
-  background: var(--color-avatar-bg);
-  color: var(--color-accent);
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 14px;
-  flex-shrink: 0;
 }
 
 /* ---------- Auth screen brand ---------- */
