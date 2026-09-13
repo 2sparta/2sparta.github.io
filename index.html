@@ -34,6 +34,7 @@
         <code>role</code> на <b>teacher</b>. Інакше доступ до панелі буде закрито.
       </p>
       <p id="auth-error" class="error"></p>
+      <p class="hint"><a href="student.html" class="role-switch-link" data-i18n="studentLinkText">Я учень →</a></p>
     </div>
   </div>
 
@@ -86,6 +87,7 @@
 
     <nav class="tabs">
       <button id="tab-points-btn" class="tab-btn active" data-i18n="tabPoints">Бали</button>
+      <button id="tab-schedule-btn" class="tab-btn" data-i18n="tabSchedule">Розклад</button>
       <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
     </nav>
 
@@ -94,6 +96,10 @@
         <h2 data-i18n="addStudentHeading">Додати учня</h2>
         <div class="row">
           <input id="new-student-name" type="text" data-i18n-placeholder="studentNamePlaceholder" placeholder="Ім'я учня" />
+          <select id="new-student-group">
+            <option value="group1" data-i18n="group1Label">Група 1</option>
+            <option value="group2" data-i18n="group2Label">Група 2</option>
+          </select>
           <button id="add-student-btn" data-i18n="addBtn">Додати</button>
         </div>
       </section>
@@ -105,18 +111,7 @@
       </section>
     </div>
 
-    <div id="tasks-panel" class="tab-panel hidden">
-
-      <section class="card hidden" id="live-status-card">
-        <div id="live-status" class="live-status"></div>
-      </section>
-
-      <section class="card hidden" id="join-meeting-card">
-        <div id="join-meeting-wrap" class="join-meeting-wrap">
-          <button id="join-meeting-btn" class="join-meeting-btn" type="button"></button>
-        </div>
-      </section>
-
+    <div id="schedule-panel" class="tab-panel hidden">
       <div class="group-switch-bar">
         <span class="group-switch-label" data-i18n="groupSwitchLabel">Група:</span>
         <div class="group-switch">
@@ -131,6 +126,19 @@
           <button id="schedule-toggle-btn" class="secondary small" data-i18n="scheduleApplyBtn">Застосувати розклад</button>
         </div>
         <div id="schedule-days" class="schedule-days"></div>
+      </section>
+    </div>
+
+    <div id="tasks-panel" class="tab-panel hidden">
+
+      <section class="card hidden" id="live-status-card">
+        <div id="live-status" class="live-status"></div>
+      </section>
+
+      <section class="card hidden" id="join-meeting-card">
+        <div id="join-meeting-wrap" class="join-meeting-wrap">
+          <button id="join-meeting-btn" class="join-meeting-btn" type="button"></button>
+        </div>
       </section>
 
       <section class="card">

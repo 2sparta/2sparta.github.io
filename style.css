@@ -154,6 +154,31 @@ body {
 }
 .quick-action-btn:hover { background: var(--color-accent-hover); }
 
+/* ---------- Points hero (кабінет учня) ---------- */
+.points-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  padding: 10px 20px;
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+.points-hero-value {
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 32px;
+  color: var(--color-accent);
+  line-height: 1;
+}
+.points-hero-caption {
+  font-size: 12px;
+  color: var(--color-secondary);
+  margin-top: 2px;
+}
+
 /* ---------- Stats grid (показники) ---------- */
 .stats-grid {
   display: grid;
@@ -245,6 +270,12 @@ button.secondary:hover { background: var(--color-surface-tint); }
 button.small { padding: 6px 10px; font-size: 12px; }
 .hint { font-size: 12px; color: var(--color-secondary); margin-top: 12px; line-height: 1.5; }
 .error { color: var(--color-danger); font-size: 13px; min-height: 18px; }
+.role-switch-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.role-switch-link:hover { text-decoration: underline; }
 header {
   display: flex;
   justify-content: space-between;
@@ -259,6 +290,22 @@ header {
 }
 .row { display: flex; gap: 10px; }
 .row input { margin-bottom: 0; }
+.row select {
+  margin-bottom: 0;
+  width: auto;
+  flex-shrink: 0;
+}
+.student-group-select {
+  margin-bottom: 0;
+  width: auto;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  color: var(--color-secondary);
+  background: var(--color-surface);
+}
 code {
   background: var(--color-surface-tint);
   color: var(--color-accent);

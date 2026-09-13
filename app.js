@@ -1,16 +1,6 @@
 // ==========================================================
-// Конфиг проекта Firebase (schooleballs)
+// Конфіг Firebase та спільні хелпери — див. common.js
 // ==========================================================
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyALxxd9W3RH4g17Ygdcy3qlBR4Um6CIQ3g",
-  authDomain: "schooleballs.firebaseapp.com",
-  projectId: "schooleballs",
-  storageBucket: "schooleballs.firebasestorage.app",
-  messagingSenderId: "816513463350",
-  appId: "1:816513463350:web:d419b07188f9c36ff79497",
-  measurementId: "G-K8HGF284FX"
-};
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
@@ -34,6 +24,23 @@ import {
   query,
   deleteField,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  firebaseConfig,
+  WEEKDAYS,
+  WEEKDAY_BY_JS_INDEX,
+  pluralUk,
+  emptyGroupSchedule,
+  emptySchedule,
+  getISOWeekKey,
+  getActiveOverride,
+  getDayMaxPeriodIndex,
+  getDayEntriesList,
+  normalizeGroupData,
+  generateEntryId,
+  parseTimeToMinutes,
+  formatDateLocal,
+  escapeHtml,
+} from "./common.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -43,14 +50,6 @@ const db = getFirestore(app);
 // Локалізація (i18n)
 // ==========================================================
 const LANG_STORAGE_KEY = "schooleballs-lang";
-
-function pluralUk(n, one, few, many) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
 
 const translations = {
   uk: {
@@ -75,7 +74,9 @@ const translations = {
     statLessonsToday: "Уроків сьогодні",
     statLinked: "Прив'язано",
     tabPoints: "Бали",
+    tabSchedule: "Розклад",
     tabTasks: "Завдання",
+    studentLinkText: "Я учень →",
     addStudentHeading: "Додати учня",
     studentNamePlaceholder: "Ім'я учня",
     addBtn: "Додати",
@@ -191,7 +192,9 @@ const translations = {
     statLessonsToday: "Lessons today",
     statLinked: "Linked",
     tabPoints: "Points",
+    tabSchedule: "Schedule",
     tabTasks: "Tasks",
+    studentLinkText: "I'm a student →",
     addStudentHeading: "Add a Student",
     studentNamePlaceholder: "Student name",
     addBtn: "Add",
@@ -389,12 +392,15 @@ const registerBtn = document.getElementById("register-btn");
 const authError = document.getElementById("auth-error");
 const logoutBtn = document.getElementById("logout-btn");
 const newStudentName = document.getElementById("new-student-name");
+const newStudentGroup = document.getElementById("new-student-group");
 const addStudentBtn = document.getElementById("add-student-btn");
 const studentsTbody = document.getElementById("students-tbody");
 
 const tabPointsBtn = document.getElementById("tab-points-btn");
+const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const pointsPanel = document.getElementById("points-panel");
+const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 
 const newSubjectName = document.getElementById("new-subject-name");
@@ -486,122 +492,6 @@ let scheduleData = emptySchedule();
 let currentView = "today"; // "today" | "tomorrow" | "all"
 let currentType = "lessons"; // "lessons" | "homework"
 
-const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-// getDay(): 0=Sun..6=Sat
-const WEEKDAY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-function emptyGroupSchedule() {
-  return {
-    // Кожен день — мапа "номер уроку" → запис {eid, subjectId}.
-    // Це дозволяє видаляти/додавати урок у конкретній клітинці, не зсуваючи інші.
-    mon: {}, tue: {}, wed: {}, thu: {}, fri: {}, sat: {}, sun: {},
-    times: {},
-    applied: false,
-    overrides: {},
-  };
-}
-
-// Повертає ISO-ключ поточного тижня, напр. "2026-W37".
-// Використовується, щоб разові заміни автоматично "спливали" в кінці тижня.
-function getISOWeekKey(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
-}
-
-// Повертає активну (не протерміновану) разову заміну для клітинки, якщо є.
-function getActiveOverride(groupSchedule, dayKey, r) {
-  const dayOverrides = groupSchedule.overrides && groupSchedule.overrides[dayKey];
-  if (!dayOverrides) return null;
-  const entry = dayOverrides[r] ?? dayOverrides[String(r)];
-  if (!entry) return null;
-  if (entry.weekKey !== getISOWeekKey(new Date())) return null;
-  return entry;
-}
-
-// Найбільший заповнений номер уроку (період) для дня, або -1 якщо день порожній.
-function getDayMaxPeriodIndex(dayMap) {
-  if (!dayMap) return -1;
-  const keys = Object.keys(dayMap);
-  if (keys.length === 0) return -1;
-  return Math.max(...keys.map((k) => parseInt(k, 10)));
-}
-
-// Впорядкований список уроків дня як масив {period, subjectId, eid} —
-// зручно там, де потрібен просто перелік уроків дня (без прив'язки до клітинок таблиці).
-function getDayEntriesList(groupSchedule, dayKey) {
-  const dayMap = groupSchedule[dayKey] || {};
-  return Object.keys(dayMap)
-    .map((k) => ({ period: parseInt(k, 10), ...dayMap[k] }))
-    .sort((a, b) => a.period - b.period);
-}
-
-function emptySchedule() {
-  return { group1: emptyGroupSchedule(), group2: emptyGroupSchedule() };
-}
-
-// Приводить сирі дані одної групи з Firestore до єдиного формату.
-// Підтримує стару структуру дня-масиву (як позиційний список, так і зовсім
-// старий формат — рядки subjectId) для зворотної сумісності зі старими даними,
-// а також поточний формат — мапу "номер уроку" → запис.
-function normalizeGroupData(groupRaw) {
-  const base = emptyGroupSchedule();
-  if (!groupRaw) return base;
-  WEEKDAYS.forEach((dayKey) => {
-    const raw = groupRaw[dayKey];
-    const dayMap = {};
-    if (Array.isArray(raw)) {
-      // Старий формат: позиція в масиві = номер уроку.
-      raw.forEach((item, idx) => {
-        if (typeof item === "string") {
-          dayMap[idx] = { eid: `legacy-${dayKey}-${idx}-${item}`, subjectId: item };
-        } else if (item && item.subjectId) {
-          dayMap[idx] = { eid: item.eid || `${item.subjectId}-${idx}`, subjectId: item.subjectId };
-        }
-      });
-    } else if (raw && typeof raw === "object") {
-      Object.keys(raw).forEach((periodKey) => {
-        const item = raw[periodKey];
-        if (item && item.subjectId) {
-          dayMap[periodKey] = { eid: item.eid || `${item.subjectId}-${periodKey}`, subjectId: item.subjectId };
-        }
-      });
-    }
-    base[dayKey] = dayMap;
-  });
-  base.times = groupRaw.times || {};
-  base.applied = !!groupRaw.applied;
-  base.overrides = groupRaw.overrides || {};
-  return base;
-}
-
-function generateEntryId() {
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function parseTimeToMinutes(hhmm) {
-  if (!hhmm) return null;
-  const parts = hhmm.split(":");
-  if (parts.length < 2) return null;
-  const h = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  if (isNaN(h) || isNaN(m)) return null;
-  return h * 60 + m;
-}
-
-function formatDateLocal(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 // ---------- Tabs ----------
 // ---------- Dashboard header (привітання, дата, показники) ----------
 function updateGreetingDate() {
@@ -645,13 +535,15 @@ if (quickAddLessonBtn) {
 
 // ---------- Tabs ----------
 function showTab(tab) {
-  const isPoints = tab === "points";
-  tabPointsBtn.classList.toggle("active", isPoints);
-  tabTasksBtn.classList.toggle("active", !isPoints);
-  pointsPanel.classList.toggle("hidden", !isPoints);
-  tasksPanel.classList.toggle("hidden", isPoints);
+  tabPointsBtn.classList.toggle("active", tab === "points");
+  tabScheduleBtn.classList.toggle("active", tab === "schedule");
+  tabTasksBtn.classList.toggle("active", tab === "tasks");
+  pointsPanel.classList.toggle("hidden", tab !== "points");
+  schedulePanel.classList.toggle("hidden", tab !== "schedule");
+  tasksPanel.classList.toggle("hidden", tab !== "tasks");
 }
 tabPointsBtn.onclick = () => showTab("points");
+tabScheduleBtn.onclick = () => showTab("schedule");
 tabTasksBtn.onclick = () => showTab("tasks");
 
 // ---------- Auth ----------
@@ -771,6 +663,7 @@ addStudentBtn.onclick = async () => {
   await addDoc(collection(db, "students"), {
     name,
     points: 0,
+    group: newStudentGroup ? newStudentGroup.value : "group1",
     inviteCode: generateInviteCode(),
     authUid: null,
     createdAt: Date.now(),
@@ -815,9 +708,21 @@ function renderStudentRow(id, data) {
   codeChip.className = "invite-code";
   codeChip.textContent = data.inviteCode || "—";
 
+  const groupSelect = document.createElement("select");
+  groupSelect.className = "student-group-select";
+  groupSelect.innerHTML = `
+    <option value="group1">${t("group1Label")}</option>
+    <option value="group2">${t("group2Label")}</option>`;
+  groupSelect.value = data.group === "group2" ? "group2" : "group1";
+  groupSelect.onchange = () => {
+    updateDoc(doc(db, "students", id), { group: groupSelect.value }).catch((e) =>
+      reportSaveError(e, "Не вдалося змінити групу", "Failed to change the group")
+    );
+  };
+
   const metaRow = document.createElement("div");
   metaRow.className = "student-meta";
-  metaRow.append(linkedBadge, codeChip);
+  metaRow.append(linkedBadge, groupSelect, codeChip);
 
   identity.append(nameEl, metaRow);
 
@@ -970,12 +875,6 @@ function renderSubjectSelects() {
   }
 
   // Селекти в розкладі (перебудовуються разом з блоками днів)
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 // ---------- Schedule (розклад) ----------
