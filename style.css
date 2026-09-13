@@ -491,39 +491,45 @@ code {
   color: white;
 }
 
-/* ---------- App body layout (sidebar + centered 900px content) ---------- */
+/* ---------- App body layout ---------- */
+
 #app-screen.screen {
   max-width: 1160px;
   margin: 0 auto;
 }
 
 .app-body {
-  position: relative; /* Робимо контейнер базою для абсолютного позиціонування */
+  position: relative;
   width: 100%;
   padding: 24px;
   box-sizing: border-box;
 }
 
-/* Центральний блок стає ідеально по центру завдяки auto марджинам */
+/* Центральний контент */
 .app-main {
   width: 900px;
   max-width: 100%;
-  margin: 0 auto;     /* Ідеальне центрування блоку, обведеного червоним */
+  margin: 0 auto;
 }
 
-/* Ліве меню прив'язується до лівого краю центрального блоку */
+/* Ліве меню */
 .tabs {
-  position: sticky;
+  position: fixed;
+
+  /* Ліва границя 900px блоку - ширина меню - відступ */
+  left: max(
+    16px,
+    calc(50% - 450px - 200px - 32px)
+  );
+
   top: 24px;
 
   width: 200px;
 
-  /* Горизонтальное положение относительно .app-body */
-  margin-left: calc(50% - 450px - 200px - 32px);
-
-  align-self: flex-start;
+  z-index: 10;
 }
 
+/* Контент */
 .app-main > .greeting-card,
 .app-main > .stats-grid,
 .app-main > .tab-panel {
@@ -564,27 +570,33 @@ code {
   }
 
   .app-body {
-    flex-direction: column;
     padding: 0;
   }
 
   .tabs {
-    flex: none;
-    flex-direction: row;
-    width: 100%;
     position: sticky;
     top: 0;
-    z-index: 5;
-    background: var(--color-bg);
-    padding: 10px 0;
+
+    width: 100%;
     margin: 0 0 8px;
+
+    display: flex;
+    flex-direction: row;
+
+    padding: 10px 0;
+
+    background: var(--color-bg);
     border-bottom: 1px solid var(--color-border);
+
     overflow-x: auto;
+
+    z-index: 10;
   }
 
   .tab-btn {
     text-align: center;
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .app-main,
@@ -593,7 +605,6 @@ code {
   .app-main > .tab-panel {
     width: 100%;
     max-width: 900px;
-    flex-basis: auto;
   }
 }
 
