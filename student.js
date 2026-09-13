@@ -1,16 +1,17 @@
 // ==========================================================
 // Кабінет учня. Читає ті самі колекції Firestore, що й панель
-// вчителя (app.js), але нічого не редагує, крім прив'язки свого
-// профілю за кодом-запрошенням.
+// вчителя (app.js), але сам нічого не редагує, крім прив'язки
+// свого профілю за кодом-запрошення (students/{id}.authUid) і
+// власного users/{uid} (role: "student" — створюється автоматично
+// при першому вході/реєстрації, так само як role: "pending-teacher"
+// створюється в app.js).
 //
-// ВАЖЛИВО (Firestore Rules): щоб ця сторінка запрацювала, авторизованим
-// користувачам (не лише вчителю) потрібен дозвіл:
-//   - read: subjects, lessons, schedule/week
-//   - read: students (бодай за власним authUid і за inviteCode)
-//   - update: students/{id} — ТІЛЬКИ поле authUid, і тільки якщо воно
-//     зараз null і дорівнюватиме request.auth.uid. Поле points учень
-//     змінювати не повинен.
-// Без цих правил Firestore просто відхилить запити нижче.
+// Під поточні Firestore Rules (read/write students, lessons, subjects,
+// schedule дозволено будь-якому автентифікованому користувачу) усе це
+// вже працює без додаткових налаштувань. Майте на увазі: такі правила
+// також дозволяють учневі технічно записати будь-що в ці колекції
+// (наприклад, змінити свої ж бали) напряму через консоль браузера —
+// цей файл сам такого не робить, але правила це не забороняють.
 // ==========================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
@@ -24,6 +25,8 @@ import {
 import {
   getFirestore,
   doc,
+  getDoc,
+  setDoc,
   updateDoc,
   collection,
   query,
@@ -67,6 +70,7 @@ const translations = {
     teacherLinkText: "Я вчитель →",
     codeNotFound: "Код не знайдено. Перевірте, чи правильно він введений.",
     codeAlreadyUsed: "Цей код вже використано. Зверніться до вчителя.",
+    notStudentRole: "Цей акаунт зареєстровано як вчительський. Скористайтеся панеллю вчителя (посилання нижче).",
     greeting: (name) => `Привіт, ${name}!`,
     pointsLabel: "балів",
     scheduleHeading: "Розклад",
@@ -113,6 +117,7 @@ const translations = {
     teacherLinkText: "I'm a teacher →",
     codeNotFound: "Code not found. Check that it's typed correctly.",
     codeAlreadyUsed: "This code has already been used. Contact your teacher.",
+    notStudentRole: "This account is registered as a teacher account. Use the teacher panel (link below).",
     greeting: (name) => `Hi, ${name}!`,
     pointsLabel: "points",
     scheduleHeading: "Schedule",
@@ -289,29 +294,46 @@ loginBtn.onclick = async () => {
   }
 };
 
-let isRegistering = false;
 registerBtn.onclick = async () => {
   authError.textContent = "";
-  isRegistering = true;
   try {
+    // На відміну від вчителя, учневі не потрібне ручне підтвердження ролі —
+    // users/{uid} з role: "student" створюється одразу в onAuthStateChanged
+    // нижче (ensureStudentRoleDoc), і onAuthStateChanged сам поведе далі,
+    // на екран прив'язки коду.
     await createUserWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
   } catch (e) {
     authError.textContent = errorText(e);
-  } finally {
-    isRegistering = false;
   }
 };
 
 logoutBtn.onclick = () => signOut(auth);
 linkLogoutBtn.onclick = () => signOut(auth);
 
+// Гарантує документ users/{uid} з role: "student" (як того вимагають
+// Firestore Rules при create) і повертає поточну роль акаунта. Якщо
+// документ уже існує (наприклад, акаунт зареєстровано на панелі вчителя
+// як pending-teacher/teacher), роль не змінюємо — просто повертаємо її.
+async function ensureStudentRoleDoc(user) {
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return snap.data().role;
+  await setDoc(ref, { role: "student", email: user.email, createdAt: Date.now() });
+  return "student";
+}
+
 onAuthStateChanged(auth, async (user) => {
-  if (isRegistering) return;
   if (!user) {
     showAuthScreen();
     return;
   }
   try {
+    const role = await ensureStudentRoleDoc(user);
+    if (role !== "student") {
+      authError.textContent = t("notStudentRole");
+      await signOut(auth);
+      return;
+    }
     const found = await findLinkedStudent(user.uid);
     if (found) {
       studentId = found.id;
