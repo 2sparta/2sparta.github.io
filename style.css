@@ -317,6 +317,22 @@ code {
 .not-linked { color: var(--color-secondary); }
 
 /* ---------- Students (картки замість таблиці) ---------- */
+.students-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.students-list-header h2 { margin-bottom: 0; }
+.students-search {
+  margin: 0;
+  width: auto;
+  min-width: 200px;
+  flex: 1;
+  max-width: 260px;
+}
 .students-list {
   display: flex;
   flex-direction: column;
@@ -475,19 +491,40 @@ code {
   color: white;
 }
 
-/* ---------- Tabs ---------- */
+/* ---------- App body layout (sidebar + main content) ---------- */
+.app-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+.app-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Tabs ----------
+   Desktop: sticky sidebar on the left, so switching tabs never requires
+   scrolling back to the top. Below the 860px breakpoint there isn't
+   room for a sidebar, so it collapses back into a sticky bar pinned to
+   the top of the viewport (see media query below). */
 .tabs {
   display: flex;
-  gap: 6px;
-  margin-bottom: 18px;
-  border-bottom: 1px solid var(--color-border);
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 180px;
+  position: sticky;
+  top: 24px;
+  align-self: flex-start;
 }
 .tab-btn {
   background: transparent;
   color: var(--color-secondary);
-  border: none;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  width: 100%;
+  text-align: left;
   font-family: var(--font-heading);
   font-size: 14px;
   font-weight: 700;
@@ -497,10 +534,25 @@ code {
 .tab-btn.active {
   color: var(--color-accent);
   background: var(--color-surface);
-  box-shadow: 0 -1px 3px rgba(23, 53, 44, 0.05);
   border: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-surface);
-  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(23, 53, 44, 0.05);
+}
+
+@media (max-width: 860px) {
+  .app-body { flex-direction: column; }
+  .tabs {
+    flex-direction: row;
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--color-bg);
+    padding: 10px 0;
+    margin: -10px 0 8px;
+    border-bottom: 1px solid var(--color-border);
+    overflow-x: auto;
+  }
+  .tab-btn { text-align: center; white-space: nowrap; }
 }
 
 /* ---------- Live status ---------- */
@@ -800,6 +852,62 @@ select {
   color: var(--color-primary);
 }
 
+/* ---------- Homework sort/filter (кабінет учня) ---------- */
+.hw-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.hw-control-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+.hw-control-field select {
+  margin: 0;
+  width: auto;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.hw-hide-done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.hw-hide-done-toggle input { width: auto; margin: 0; cursor: pointer; }
+@media (max-width: 480px) {
+  .hw-controls { flex-direction: column; align-items: stretch; }
+}
+
+/* ---------- Homework: done state ---------- */
+.today-subject-block.hw-done { opacity: 0.6; }
+.today-subject-block.hw-done .today-subject-name,
+.today-subject-block.hw-done .lesson-title { text-decoration: line-through; }
+.hw-done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.hw-done-toggle input { width: auto; margin: 0; cursor: pointer; }
+
 /* ---------- Lessons view switch ---------- */
 .lessons-view-header {
   display: flex;
@@ -960,11 +1068,17 @@ select {
 }
 .join-meeting-btn:hover { background: var(--color-accent-hover); }
 
-/* Картка розкладу розширюється симетрично в обидва боки */
-.card-wide {
-  width: min(1000px, 100vw - 32px);
-  margin-left: 50%;
-  transform: translateX(-50%);
+/* Картка розкладу розширюється симетрично в обидва боки — але лише
+   там, де бокова навігація вже згорнута в горизонтальну (мобільний
+   макет, див. медіа-запит .tabs нижче). На десктопі поруч є липкий
+   сайдбар з вкладками, тому "розширення на весь екран" перекривало б
+   його; там картка просто займає ширину основної колонки. */
+@media (max-width: 860px) {
+  .card-wide {
+    width: min(1000px, 100vw - 32px);
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
 }
 
 /* Якщо екран вузький (мобільний), робимо адаптивний відступ */

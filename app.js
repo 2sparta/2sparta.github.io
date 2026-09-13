@@ -82,6 +82,8 @@ const translations = {
     addBtn: "Додати",
     studentsListHeading: "Список учнів",
     noStudentsMsg: "Учнів ще немає.",
+    studentsSearchPlaceholder: "Пошук за іменем...",
+    noStudentsSearchMsg: "Нікого не знайдено.",
     thName: "Ім'я",
     thPoints: "Бали",
     thChange: "Змінити",
@@ -200,6 +202,8 @@ const translations = {
     addBtn: "Add",
     studentsListHeading: "Student List",
     noStudentsMsg: "No students yet.",
+    studentsSearchPlaceholder: "Search by name...",
+    noStudentsSearchMsg: "No matches found.",
     thName: "Name",
     thPoints: "Points",
     thChange: "Change",
@@ -395,6 +399,8 @@ const newStudentName = document.getElementById("new-student-name");
 const newStudentGroup = document.getElementById("new-student-group");
 const addStudentBtn = document.getElementById("add-student-btn");
 const studentsTbody = document.getElementById("students-tbody");
+const studentsSearchInput = document.getElementById("students-search-input");
+const noStudentsSearchMsg = document.getElementById("no-students-search-msg");
 
 const tabPointsBtn = document.getElementById("tab-points-btn");
 const tabScheduleBtn = document.getElementById("tab-schedule-btn");
@@ -491,6 +497,7 @@ let lastSubjects = []; // [{id, data}]
 let scheduleData = emptySchedule();
 let currentView = "today"; // "today" | "tomorrow" | "all"
 let currentType = "lessons"; // "lessons" | "homework"
+let studentsSearchQuery = "";
 
 // ---------- Tabs ----------
 // ---------- Dashboard header (привітання, дата, показники) ----------
@@ -648,12 +655,25 @@ function listenToStudents() {
   });
 }
 
+if (studentsSearchInput) {
+  studentsSearchInput.oninput = () => {
+    studentsSearchQuery = studentsSearchInput.value.trim().toLowerCase();
+    renderStudentsTable();
+  };
+}
+
 function renderStudentsTable() {
   studentsTbody.innerHTML = "";
-  lastStudents.forEach(({ id, data }) => {
+  const filtered = studentsSearchQuery
+    ? lastStudents.filter(({ data }) => (data.name || "").toLowerCase().includes(studentsSearchQuery))
+    : lastStudents;
+  filtered.forEach(({ id, data }) => {
     studentsTbody.appendChild(renderStudentRow(id, data));
   });
   if (noStudentsMsg) noStudentsMsg.classList.toggle("hidden", lastStudents.length > 0);
+  if (noStudentsSearchMsg) {
+    noStudentsSearchMsg.classList.toggle("hidden", !(lastStudents.length > 0 && filtered.length === 0));
+  }
   updateDashboardStats();
 }
 

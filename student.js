@@ -92,6 +92,9 @@ const scheduleContainer = document.getElementById("schedule-container");
 
 const homeworkContainer = document.getElementById("homework-container");
 const noHomeworkMsg = document.getElementById("no-homework-msg");
+const hwSortSelect = document.getElementById("hw-sort-select");
+const hwSubjectFilter = document.getElementById("hw-subject-filter");
+const hwHideDoneCheckbox = document.getElementById("hw-hide-done-checkbox");
 
 const subjectsListEl = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
@@ -106,11 +109,65 @@ let lastSubjects = [];
 let lastLessons = [];
 let scheduleData = emptySchedule();
 let currentView = "today"; // "today" | "tomorrow"
+let hwSortMode = "date"; // "date" | "subject"
+let hwSubjectFilterId = "";
+let hwHideDone = false;
 let liveStatusInterval = null;
 let unsubscribeStudentDoc = null;
 let unsubscribeSubjects = null;
 let unsubscribeLessons = null;
 let unsubscribeSchedule = null;
+let hwDoneIds = new Set();
+
+// ---------- Homework prefs / "done" marks (збережено локально на пристрої) ----------
+// Позначки "виконано" — суто локальна зручність для учня (немає окремого
+// поля в Firestore під це і не хочеться додавати запис прав на students/
+// lessons заради чекбокса). Тому зберігаємо в localStorage, окремо на
+// кожного прив'язаного учня, щоб не змішувалось при вході різних акаунтів
+// на одному пристрої.
+function hwDoneStorageKey() {
+  return `schooleballs-hw-done-${studentId}`;
+}
+function hwPrefsStorageKey() {
+  return `schooleballs-hw-prefs-${studentId}`;
+}
+function loadHwDoneSet() {
+  try {
+    const raw = localStorage.getItem(hwDoneStorageKey());
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch (e) {
+    return new Set();
+  }
+}
+function saveHwDoneSet(set) {
+  try {
+    localStorage.setItem(hwDoneStorageKey(), JSON.stringify([...set]));
+  } catch (e) {
+    /* localStorage недоступний (приватний режим тощо) — просто ігноруємо */
+  }
+}
+function loadHwPrefs() {
+  try {
+    const raw = localStorage.getItem(hwPrefsStorageKey());
+    if (!raw) return;
+    const prefs = JSON.parse(raw);
+    if (prefs.sort === "date" || prefs.sort === "subject") hwSortMode = prefs.sort;
+    if (typeof prefs.subjectId === "string") hwSubjectFilterId = prefs.subjectId;
+    if (typeof prefs.hideDone === "boolean") hwHideDone = prefs.hideDone;
+  } catch (e) {
+    /* ігноруємо биті/відсутні дані */
+  }
+}
+function saveHwPrefs() {
+  try {
+    localStorage.setItem(
+      hwPrefsStorageKey(),
+      JSON.stringify({ sort: hwSortMode, subjectId: hwSubjectFilterId, hideDone: hwHideDone })
+    );
+  } catch (e) {
+    /* ігноруємо */
+  }
+}
 
 // ---------- i18n ----------
 const LANG_STORAGE_KEY = "schooleballs-lang";
@@ -138,6 +195,13 @@ const translations = {
     viewTomorrow: "Завтра",
     homeworkHeading: "Найближчі домашні завдання",
     noHomeworkMsg: "Найближчим часом дз не заплановано.",
+    hwSortLabel: "Сортувати:",
+    hwSortDate: "За датою",
+    hwSortSubject: "За предметом",
+    hwFilterSubjectLabel: "Предмет:",
+    hwFilterAllSubjects: "Усі предмети",
+    hwHideDoneLabel: "Приховати виконані",
+    hwMarkDoneLabel: "Виконано",
     subjectsListHeading: "Мої предмети",
     noSubjectsMsg: "Предметів ще немає.",
     joinMeetingBtn: "Приєднатися до зустрічі",
@@ -185,6 +249,13 @@ const translations = {
     viewTomorrow: "Tomorrow",
     homeworkHeading: "Upcoming homework",
     noHomeworkMsg: "No homework due soon.",
+    hwSortLabel: "Sort:",
+    hwSortDate: "By date",
+    hwSortSubject: "By subject",
+    hwFilterSubjectLabel: "Subject:",
+    hwFilterAllSubjects: "All subjects",
+    hwHideDoneLabel: "Hide completed",
+    hwMarkDoneLabel: "Done",
     subjectsListHeading: "My subjects",
     noSubjectsMsg: "No subjects yet.",
     joinMeetingBtn: "Join the meeting",
@@ -291,6 +362,10 @@ function teardownListeners() {
   }
   studentId = null;
   studentData = null;
+  hwDoneIds = new Set();
+  hwSortMode = "date";
+  hwSubjectFilterId = "";
+  hwHideDone = false;
 }
 
 // ---------- Auth ----------
@@ -396,6 +471,8 @@ linkBtn.onclick = async () => {
 
 // ---------- Dashboard bootstrap ----------
 function startDashboard(user) {
+  loadHwPrefs();
+  hwDoneIds = loadHwDoneSet();
   showAppScreen();
   if (avatarEl) {
     avatarEl.textContent = (studentData.name || user.email || "?").trim().charAt(0).toUpperCase();
@@ -685,20 +762,82 @@ function renderLessonView(data) {
   return wrap;
 }
 
-// ---------- Homework (найближчі, за датою здачі) ----------
+// ---------- Homework (найближчі, з сортуванням/фільтром/позначками) ----------
+if (hwSortSelect) {
+  hwSortSelect.onchange = () => {
+    hwSortMode = hwSortSelect.value === "subject" ? "subject" : "date";
+    if (studentId) saveHwPrefs();
+    renderHomeworkContainer();
+  };
+}
+if (hwSubjectFilter) {
+  hwSubjectFilter.onchange = () => {
+    hwSubjectFilterId = hwSubjectFilter.value;
+    if (studentId) saveHwPrefs();
+    renderHomeworkContainer();
+  };
+}
+if (hwHideDoneCheckbox) {
+  hwHideDoneCheckbox.onchange = () => {
+    hwHideDone = hwHideDoneCheckbox.checked;
+    if (studentId) saveHwPrefs();
+    renderHomeworkContainer();
+  };
+}
+
+// Перебудовує список опцій фільтра за предметом, намагаючись зберегти
+// поточний вибір, якщо цей предмет ще існує.
+function updateHwSubjectFilterOptions() {
+  if (!hwSubjectFilter) return;
+  hwSubjectFilter.innerHTML = "";
+  const allOpt = document.createElement("option");
+  allOpt.value = "";
+  allOpt.textContent = t("hwFilterAllSubjects");
+  hwSubjectFilter.appendChild(allOpt);
+  lastSubjects.forEach(({ id, data }) => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = data.name;
+    hwSubjectFilter.appendChild(opt);
+  });
+  const stillValid = hwSubjectFilterId && lastSubjects.some((s) => s.id === hwSubjectFilterId);
+  hwSubjectFilter.value = stillValid ? hwSubjectFilterId : "";
+  if (!stillValid) hwSubjectFilterId = "";
+}
+
 function renderHomeworkContainer() {
   if (!homeworkContainer) return;
+  updateHwSubjectFilterOptions();
+  if (hwSortSelect) hwSortSelect.value = hwSortMode;
+  if (hwHideDoneCheckbox) hwHideDoneCheckbox.checked = hwHideDone;
   homeworkContainer.innerHTML = "";
 
   const todayStr = formatDateLocal(new Date());
-  const upcoming = lastLessons
-    .filter((l) => !!l.data.homeworkDate && l.data.homeworkDate >= todayStr)
-    .sort((a, b) => a.data.homeworkDate.localeCompare(b.data.homeworkDate))
-    .slice(0, 10);
+  let upcoming = lastLessons.filter((l) => !!l.data.homeworkDate && l.data.homeworkDate >= todayStr);
 
-  upcoming.forEach(({ data }) => {
+  if (hwSubjectFilterId) {
+    upcoming = upcoming.filter((l) => l.data.subjectId === hwSubjectFilterId);
+  }
+  if (hwHideDone) {
+    upcoming = upcoming.filter((l) => !hwDoneIds.has(l.id));
+  }
+
+  if (hwSortMode === "subject") {
+    const locale = currentLang === "uk" ? "uk" : "en";
+    upcoming = upcoming.slice().sort((a, b) => {
+      const cmp = getSubjectName(a.data.subjectId).localeCompare(getSubjectName(b.data.subjectId), locale);
+      return cmp !== 0 ? cmp : a.data.homeworkDate.localeCompare(b.data.homeworkDate);
+    });
+  } else {
+    upcoming = upcoming.slice().sort((a, b) => a.data.homeworkDate.localeCompare(b.data.homeworkDate));
+  }
+
+  upcoming = upcoming.slice(0, 20);
+
+  upcoming.forEach(({ id, data }) => {
     const block = document.createElement("div");
     block.className = "today-subject-block";
+    if (hwDoneIds.has(id)) block.classList.add("hw-done");
 
     const nameEl = document.createElement("div");
     nameEl.className = "today-subject-name";
@@ -706,6 +845,24 @@ function renderHomeworkContainer() {
     block.appendChild(nameEl);
 
     block.appendChild(renderLessonView(data));
+
+    const doneLabel = document.createElement("label");
+    doneLabel.className = "hw-done-toggle";
+    const doneCheckbox = document.createElement("input");
+    doneCheckbox.type = "checkbox";
+    doneCheckbox.checked = hwDoneIds.has(id);
+    doneCheckbox.onchange = () => {
+      if (doneCheckbox.checked) hwDoneIds.add(id);
+      else hwDoneIds.delete(id);
+      saveHwDoneSet(hwDoneIds);
+      renderHomeworkContainer();
+    };
+    const doneText = document.createElement("span");
+    doneText.textContent = t("hwMarkDoneLabel");
+    doneLabel.appendChild(doneCheckbox);
+    doneLabel.appendChild(doneText);
+    block.appendChild(doneLabel);
+
     homeworkContainer.appendChild(block);
   });
 

@@ -107,6 +107,25 @@
 
     <section class="card">
       <h2 data-i18n="homeworkHeading">Найближчі домашні завдання</h2>
+      <div class="hw-controls">
+        <label class="hw-control-field">
+          <span data-i18n="hwSortLabel">Сортувати:</span>
+          <select id="hw-sort-select">
+            <option value="date" data-i18n="hwSortDate">За датою</option>
+            <option value="subject" data-i18n="hwSortSubject">За предметом</option>
+          </select>
+        </label>
+        <label class="hw-control-field">
+          <span data-i18n="hwFilterSubjectLabel">Предмет:</span>
+          <select id="hw-subject-filter">
+            <option value="" data-i18n="hwFilterAllSubjects">Усі предмети</option>
+          </select>
+        </label>
+        <label class="hw-hide-done-toggle">
+          <input type="checkbox" id="hw-hide-done-checkbox" />
+          <span data-i18n="hwHideDoneLabel">Приховати виконані</span>
+        </label>
+      </div>
       <div id="homework-container"></div>
       <p id="no-homework-msg" class="hint hidden" data-i18n="noHomeworkMsg">Найближчим часом дз не заплановано.</p>
     </section>
