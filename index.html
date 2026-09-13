@@ -57,19 +57,19 @@
       </div>
     </header>
 
-    <div class="app-body" style="display: flex; gap: 24px; align-items: flex-start; max-width: 1200px; margin: 0 auto; padding: 24px;">
+    <div class="app-body">
 
       <!-- Вкладки зліва, не відцентровані -->
-      <nav class="tabs" style="display: flex; flex-direction: column; width: 220px; flex-shrink: 0; gap: 8px;">
+      <nav class="tabs">
         <button id="tab-points-btn" class="tab-btn active" data-i18n="tabPoints">Бали</button>
         <button id="tab-schedule-btn" class="tab-btn" data-i18n="tabSchedule">Розклад</button>
         <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
       </nav>
 
       <!-- Віджети та контент: відцентровані та широкі -->
-      <div class="app-main" style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; width: 100%;">
+      <div class="app-main">
 
-        <section class="greeting-card" style="width: 100%;">
+        <section class="greeting-card">
           <div class="greeting-text">
             <p id="greeting-date" class="greeting-date"></p>
             <h1 id="greeting-title" class="greeting-title" data-i18n="greetingTitle">Доброго дня!</h1>
@@ -78,7 +78,7 @@
           <button id="quick-add-lesson-btn" class="quick-action-btn" data-i18n="addLessonHeading">Додати урок</button>
         </section>
 
-        <section class="stats-grid" style="width: 100%;">
+        <section class="stats-grid">
           <div class="stat-card">
             <span class="stat-label" data-i18n="statStudents">Учнів</span>
             <span id="stat-students" class="stat-value">0</span>
@@ -97,8 +97,8 @@
           </div>
         </section>
 
-        <div id="points-panel" class="tab-panel" style="width: 100%;">
-          <section class="card" style="width: 100%;">
+        <div id="points-panel" class="tab-panel">
+          <section class="card">
             <h2 data-i18n="addStudentHeading">Додати учня</h2>
             <div class="row">
               <input id="new-student-name" type="text" data-i18n-placeholder="studentNamePlaceholder" placeholder="Ім'я учня" />
@@ -110,7 +110,7 @@
             </div>
           </section>
 
-          <section class="card" style="width: 100%;">
+          <section class="card">
             <div class="students-list-header">
               <h2 data-i18n="studentsListHeading">Список учнів</h2>
               <input id="students-search-input" type="search" class="students-search" data-i18n-placeholder="studentsSearchPlaceholder" placeholder="Пошук за іменем..." />
@@ -121,7 +121,7 @@
           </section>
         </div>
 
-        <div id="schedule-panel" class="tab-panel hidden" style="width: 100%;">
+        <div id="schedule-panel" class="tab-panel hidden">
           <div class="group-switch-bar">
             <span class="group-switch-label" data-i18n="groupSwitchLabel">Група:</span>
             <div class="group-switch">
@@ -130,7 +130,7 @@
             </div>
           </div>
 
-          <section class="card card-wide" style="width: 100%;">
+          <section class="card card-wide">
             <div class="schedule-header">
               <h2 data-i18n="scheduleHeading">Розклад</h2>
               <button id="schedule-toggle-btn" class="secondary small" data-i18n="scheduleApplyBtn">Застосувати розклад</button>
@@ -139,19 +139,19 @@
           </section>
         </div>
 
-        <div id="tasks-panel" class="tab-panel hidden" style="width: 100%;">
+        <div id="tasks-panel" class="tab-panel hidden">
 
-          <section class="card hidden" id="live-status-card" style="width: 100%;">
+          <section class="card hidden" id="live-status-card">
             <div id="live-status" class="live-status"></div>
           </section>
 
-          <section class="card hidden" id="join-meeting-card" style="width: 100%;">
+          <section class="card hidden" id="join-meeting-card">
             <div id="join-meeting-wrap" class="join-meeting-wrap">
               <button id="join-meeting-btn" class="join-meeting-btn" type="button"></button>
             </div>
           </section>
 
-          <section class="card" style="width: 100%;">
+          <section class="card">
             <h2 data-i18n="addLessonHeading">Додати урок</h2>
             <div class="lesson-form">
               <select id="new-lesson-subject"></select>
@@ -171,7 +171,7 @@
             </div>
           </section>
 
-          <section class="card" style="width: 100%;">
+          <section class="card">
             <div class="lessons-view-header">
               <h2 data-i18n="lessonsHeading">Список уроків</h2>
               <div class="view-switches">
@@ -190,7 +190,7 @@
             <p id="no-lessons-msg" class="hint hidden" data-i18n="noLessons">Уроків ще немає.</p>
           </section>
 
-          <section class="card" style="width: 100%;">
+          <section class="card">
             <div class="subjects-header">
               <h2 data-i18n="subjectsListHeading">Список предметів</h2>
               <button id="subjects-toggle-btn" class="secondary small" type="button"></button>
@@ -201,7 +201,7 @@
             </div>
           </section>
 
-          <section class="card" style="width: 100%;">
+          <section class="card">
             <h2 data-i18n="addSubjectHeading">Додати предмет</h2>
             <div class="row">
               <input id="new-subject-name" type="text" data-i18n-placeholder="subjectNamePlaceholder" placeholder="Назва предмета" />

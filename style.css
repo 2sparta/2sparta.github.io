@@ -491,32 +491,51 @@ code {
   color: white;
 }
 
-/* ---------- App body layout (sidebar + main content) ---------- */
+/* ---------- App body layout (sidebar + centered 900px content) ---------- */
+#app-screen.screen {
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
 .app-body {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1104px;
+  margin: 0 auto;
+  padding: 24px;
 }
+
 .app-main {
-  flex: 1;
+  flex: 0 0 900px;
+  width: 900px;
+  max-width: 900px;
   min-width: 0;
 }
 
+.app-main > .greeting-card,
+.app-main > .stats-grid,
+.app-main > .tab-panel {
+  width: 900px;
+  max-width: 900px;
+}
+
 /* ---------- Tabs ----------
-   Desktop: sticky sidebar on the left, so switching tabs never requires
-   scrolling back to the top. Below the 860px breakpoint there isn't
-   room for a sidebar, so it collapses back into a sticky bar pinned to
-   the top of the viewport (see media query below). */
+   На десктопі вкладки знаходяться ліворуч від основного
+   900px контенту. */
 .tabs {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  flex-shrink: 0;
+  flex: 0 0 180px;
   width: 180px;
   position: sticky;
   top: 24px;
   align-self: flex-start;
 }
+
 .tab-btn {
   background: transparent;
   color: var(--color-secondary);
@@ -530,7 +549,12 @@ code {
   font-weight: 700;
   cursor: pointer;
 }
-.tab-btn:hover { background: var(--color-surface-tint); color: var(--color-accent); }
+
+.tab-btn:hover {
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+}
+
 .tab-btn.active {
   color: var(--color-accent);
   background: var(--color-surface);
@@ -538,9 +562,19 @@ code {
   box-shadow: 0 1px 2px rgba(23, 53, 44, 0.05);
 }
 
-@media (max-width: 860px) {
-  .app-body { flex-direction: column; }
+/* На вузьких екранах вкладки переходять зверху. */
+@media (max-width: 1120px) {
+  #app-screen.screen {
+    max-width: 100%;
+  }
+
+  .app-body {
+    flex-direction: column;
+    padding: 0;
+  }
+
   .tabs {
+    flex: none;
     flex-direction: row;
     width: 100%;
     position: sticky;
@@ -548,11 +582,24 @@ code {
     z-index: 5;
     background: var(--color-bg);
     padding: 10px 0;
-    margin: -10px 0 8px;
+    margin: 0 0 8px;
     border-bottom: 1px solid var(--color-border);
     overflow-x: auto;
   }
-  .tab-btn { text-align: center; white-space: nowrap; }
+
+  .tab-btn {
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .app-main,
+  .app-main > .greeting-card,
+  .app-main > .stats-grid,
+  .app-main > .tab-panel {
+    width: 100%;
+    max-width: 900px;
+    flex-basis: auto;
+  }
 }
 
 /* ---------- Live status ---------- */
