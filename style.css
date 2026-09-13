@@ -532,20 +532,6 @@ code {
   max-width: 900px;
 }
 
-/* ---------- Tabs ----------
-   На десктопі вкладки знаходяться ліворуч від основного
-   900px контенту. */
-.tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 0 0 180px;
-  width: 180px;
-  position: sticky;
-  top: 24px;
-  align-self: flex-start;
-}
-
 .tab-btn {
   background: transparent;
   color: var(--color-secondary);
