@@ -498,19 +498,25 @@ code {
 }
 
 .app-body {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  display: grid;
+  /* Перша колонка — віджети (фіксовані 180px), друга — центр (до 900px), третя — пустий простір для балансу */
+  grid-template-columns: 180px minmax(0, 900px);
+  justify-content: center; /* Центрує всю сітку посередині екрана */
   gap: 24px;
   width: 100%;
-  max-width: 1104px;
-  margin: 0 auto;
   padding: 24px;
 }
 
+.tabs {
+  grid-column: 1; /* Сайдбар чітко в першій колонці */
+  position: sticky;
+  top: 24px;
+  width: 180px;
+}
+
 .app-main {
-  flex: 0 0 900px;
-  width: 900px;
+  grid-column: 2; /* Основний контент у другій колонці (по центру) */
+  width: 100%;
   max-width: 900px;
   min-width: 0;
 }
@@ -518,7 +524,7 @@ code {
 .app-main > .greeting-card,
 .app-main > .stats-grid,
 .app-main > .tab-panel {
-  width: 900px;
+  width: 100%;
   max-width: 900px;
 }
 
