@@ -96,6 +96,22 @@ const noHomeworkMsg = document.getElementById("no-homework-msg");
 const subjectsListEl = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
 
+// ---------- State ----------
+// Так само як DOM-блок вище: винесено ДО i18n, бо updateGreeting() /
+// renderScheduleContainer() / updateLiveStatus() читають ці змінні вже
+// під час першого виклику applyStaticTranslations() нижче.
+let studentId = null;
+let studentData = null;
+let lastSubjects = [];
+let lastLessons = [];
+let scheduleData = emptySchedule();
+let currentView = "today"; // "today" | "tomorrow"
+let liveStatusInterval = null;
+let unsubscribeStudentDoc = null;
+let unsubscribeSubjects = null;
+let unsubscribeLessons = null;
+let unsubscribeSchedule = null;
+
 // ---------- i18n ----------
 const LANG_STORAGE_KEY = "schooleballs-lang";
 
@@ -238,19 +254,6 @@ applyStaticTranslations();
 function errorText(e) {
   return translations[currentLang].errors[e.code] || e.message;
 }
-
-// ---------- State ----------
-let studentId = null;
-let studentData = null;
-let lastSubjects = [];
-let lastLessons = [];
-let scheduleData = emptySchedule();
-let currentView = "today"; // "today" | "tomorrow"
-let liveStatusInterval = null;
-let unsubscribeStudentDoc = null;
-let unsubscribeSubjects = null;
-let unsubscribeLessons = null;
-let unsubscribeSchedule = null;
 
 function myGroup() {
   return studentData && studentData.group === "group2" ? "group2" : "group1";
