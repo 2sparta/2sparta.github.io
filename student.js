@@ -52,6 +52,50 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// ---------- DOM ----------
+// Винесено ДО i18n: applyStaticTranslations() нижче одразу викликає
+// updateGreeting()/renderScheduleContainer()/... , яким ці елементи
+// потрібні вже під час першого виклику. Якщо оголосити їх нижче,
+// це кине ReferenceError (temporal dead zone) ще до того, як скрипт
+// дійде до прив'язки кнопок логіну/реєстрації — і сторінка виглядає
+// так, ніби кнопки взагалі нічого не роблять.
+const authScreen = document.getElementById("auth-screen");
+const linkScreen = document.getElementById("link-screen");
+const appScreen = document.getElementById("app-screen");
+
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const loginBtn = document.getElementById("login-btn");
+const registerBtn = document.getElementById("register-btn");
+const authError = document.getElementById("auth-error");
+const logoutBtn = document.getElementById("logout-btn");
+
+const inviteCodeInput = document.getElementById("invite-code-input");
+const linkBtn = document.getElementById("link-btn");
+const linkLogoutBtn = document.getElementById("link-logout-btn");
+const linkError = document.getElementById("link-error");
+
+const avatarEl = document.getElementById("avatar");
+const greetingDateEl = document.getElementById("greeting-date");
+const greetingTitleEl = document.getElementById("greeting-title");
+const greetingSubtitleEl = document.getElementById("greeting-subtitle");
+const pointsHeroValueEl = document.getElementById("points-hero-value");
+
+const liveStatusCard = document.getElementById("live-status-card");
+const liveStatusEl = document.getElementById("live-status");
+const joinMeetingCard = document.getElementById("join-meeting-card");
+const joinMeetingBtn = document.getElementById("join-meeting-btn");
+
+const viewTodayBtn = document.getElementById("view-today-btn");
+const viewTomorrowBtn = document.getElementById("view-tomorrow-btn");
+const scheduleContainer = document.getElementById("schedule-container");
+
+const homeworkContainer = document.getElementById("homework-container");
+const noHomeworkMsg = document.getElementById("no-homework-msg");
+
+const subjectsListEl = document.getElementById("subjects-list");
+const noSubjectsMsg = document.getElementById("no-subjects-msg");
+
 // ---------- i18n ----------
 const LANG_STORAGE_KEY = "schooleballs-lang";
 
@@ -194,44 +238,6 @@ applyStaticTranslations();
 function errorText(e) {
   return translations[currentLang].errors[e.code] || e.message;
 }
-
-// ---------- DOM ----------
-const authScreen = document.getElementById("auth-screen");
-const linkScreen = document.getElementById("link-screen");
-const appScreen = document.getElementById("app-screen");
-
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const loginBtn = document.getElementById("login-btn");
-const registerBtn = document.getElementById("register-btn");
-const authError = document.getElementById("auth-error");
-const logoutBtn = document.getElementById("logout-btn");
-
-const inviteCodeInput = document.getElementById("invite-code-input");
-const linkBtn = document.getElementById("link-btn");
-const linkLogoutBtn = document.getElementById("link-logout-btn");
-const linkError = document.getElementById("link-error");
-
-const avatarEl = document.getElementById("avatar");
-const greetingDateEl = document.getElementById("greeting-date");
-const greetingTitleEl = document.getElementById("greeting-title");
-const greetingSubtitleEl = document.getElementById("greeting-subtitle");
-const pointsHeroValueEl = document.getElementById("points-hero-value");
-
-const liveStatusCard = document.getElementById("live-status-card");
-const liveStatusEl = document.getElementById("live-status");
-const joinMeetingCard = document.getElementById("join-meeting-card");
-const joinMeetingBtn = document.getElementById("join-meeting-btn");
-
-const viewTodayBtn = document.getElementById("view-today-btn");
-const viewTomorrowBtn = document.getElementById("view-tomorrow-btn");
-const scheduleContainer = document.getElementById("schedule-container");
-
-const homeworkContainer = document.getElementById("homework-container");
-const noHomeworkMsg = document.getElementById("no-homework-msg");
-
-const subjectsListEl = document.getElementById("subjects-list");
-const noSubjectsMsg = document.getElementById("no-subjects-msg");
 
 // ---------- State ----------
 let studentId = null;
