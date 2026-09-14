@@ -39,6 +39,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   firebaseConfig,
+  WEEKDAYS,
   WEEKDAY_BY_JS_INDEX,
   getActiveOverride,
   getDayEntriesList,
@@ -96,6 +97,7 @@ const joinMeetingBtn = document.getElementById("join-meeting-btn");
 const viewTodayBtn = document.getElementById("view-today-btn");
 const viewTomorrowBtn = document.getElementById("view-tomorrow-btn");
 const scheduleContainer = document.getElementById("schedule-container");
+const weeklyScheduleContainer = document.getElementById("weekly-schedule-container");
 
 const homeworkContainer = document.getElementById("homework-container");
 const noHomeworkMsg = document.getElementById("no-homework-msg");
@@ -209,6 +211,10 @@ const translations = {
     scheduleHeading: "Розклад",
     viewToday: "Сьогодні",
     viewTomorrow: "Завтра",
+    weeklyScheduleHeading: "Тижневий розклад",
+    weeklyScheduleHint: "Лише перегляд — розклад редагує вчитель.",
+    scheduleEmptyMsg: "Розклад порожній.",
+    weekdaysShort: { mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Нд" },
     homeworkHeading: "Найближчі домашні завдання",
     noHomeworkMsg: "Найближчим часом дз не заплановано.",
     hwSortLabel: "Сортувати:",
@@ -271,6 +277,10 @@ const translations = {
     scheduleHeading: "Schedule",
     viewToday: "Today",
     viewTomorrow: "Tomorrow",
+    weeklyScheduleHeading: "Weekly schedule",
+    weeklyScheduleHint: "View only — your teacher edits the schedule.",
+    scheduleEmptyMsg: "The schedule is empty.",
+    weekdaysShort: { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" },
     homeworkHeading: "Upcoming homework",
     noHomeworkMsg: "No homework due soon.",
     hwSortLabel: "Sort:",
@@ -335,6 +345,7 @@ function applyStaticTranslations() {
   });
   updateGreeting();
   renderScheduleContainer();
+  renderWeeklyScheduleTable();
   renderHomeworkContainer();
   renderSubjectsList();
   updateLiveStatus();
@@ -526,6 +537,7 @@ function startDashboard(user) {
     updateGreeting();
     updateLiveStatus();
     renderScheduleContainer();
+    renderWeeklyScheduleTable();
   });
 
   unsubscribeSubjects = onSnapshot(
@@ -534,6 +546,7 @@ function startDashboard(user) {
       lastSubjects = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
       renderSubjectsList();
       renderScheduleContainer();
+      renderWeeklyScheduleTable();
       renderHomeworkContainer();
       updateLiveStatus();
     }
@@ -551,6 +564,7 @@ function startDashboard(user) {
   unsubscribeSchedule = onSnapshot(doc(db, "schedule", "week"), (snap) => {
     lastScheduleRaw = snap.exists() ? snap.data() : {};
     renderScheduleContainer();
+    renderWeeklyScheduleTable();
     updateLiveStatus();
   });
 
@@ -775,6 +789,105 @@ function renderScheduleContainer() {
 
     scheduleContainer.appendChild(block);
   });
+}
+
+// ---------- Тижневий розклад (табличка, лише перегляд) ----------
+// На відміну від renderScheduleContainer() (день сьогодні/завтра), тут
+// показуємо всю таблицю на тиждень одразу — без можливості редагування,
+// адже розклад веде тільки вчитель (student.js нічого сюди не записує).
+// Для кожного дня беремо ефективний час уроку через getDayEffectiveTimes():
+// якщо вчитель задав окремий ("унікальний") розклад дзвінків саме для
+// цього дня тижня (dayTimes), покажемо саме його, а не спільний times.
+function renderWeeklyScheduleTable() {
+  if (!weeklyScheduleContainer || !studentData) return;
+  weeklyScheduleContainer.innerHTML = "";
+
+  const groupSchedule = getGroupSchedule(myGroup());
+  const visibleDays = WEEKDAYS.filter((d) => getDayMaxPeriodIndex(groupSchedule[d]) >= 0);
+
+  if (visibleDays.length === 0) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = t("scheduleEmptyMsg");
+    weeklyScheduleContainer.appendChild(hint);
+    return;
+  }
+
+  const rowCount = Math.max(-1, ...visibleDays.map((d) => getDayMaxPeriodIndex(groupSchedule[d]))) + 1;
+
+  const table = document.createElement("table");
+  table.className = "schedule-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const cornerTh = document.createElement("th");
+  cornerTh.className = "schedule-table-corner";
+  headRow.appendChild(cornerTh);
+  const todayWeekdayKey = WEEKDAY_BY_JS_INDEX[new Date().getDay()];
+  visibleDays.forEach((dayKey) => {
+    const th = document.createElement("th");
+    th.textContent = t("weekdaysShort")[dayKey];
+    if (dayKey === todayWeekdayKey) th.classList.add("schedule-table-today");
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  for (let r = 0; r < rowCount; r++) {
+    const tr = document.createElement("tr");
+
+    const rowTh = document.createElement("th");
+    rowTh.className = "schedule-table-period";
+    const numberEl = document.createElement("div");
+    numberEl.className = "schedule-period-number";
+    numberEl.textContent = String(r + 1);
+    rowTh.appendChild(numberEl);
+    tr.appendChild(rowTh);
+
+    visibleDays.forEach((dayKey) => {
+      const dayMap = groupSchedule[dayKey] || {};
+      const baseEntry = dayMap[r];
+      const td = document.createElement("td");
+      td.className = "schedule-table-cell";
+      if (dayKey === todayWeekdayKey) td.classList.add("schedule-table-today");
+
+      const override = baseEntry ? getActiveOverride(groupSchedule, dayKey, r) : null;
+      const subjectId = override ? override.subjectId : baseEntry ? baseEntry.subjectId : null;
+
+      if (subjectId) {
+        const chip = document.createElement("span");
+        chip.className = override ? "chip chip-override" : "chip";
+        chip.textContent = getSubjectName(subjectId);
+        td.appendChild(chip);
+
+        // Ефективний (можливо, унікальний саме для цього дня) час уроку.
+        const dayTimes = getDayEffectiveTimes(groupSchedule, dayKey);
+        const time = dayTimes[r] || dayTimes[String(r)];
+        if (time && (time.start || time.end)) {
+          const timeEl = document.createElement("div");
+          timeEl.className = "schedule-cell-time";
+          timeEl.textContent = `${time.start || "?"}–${time.end || "?"}`;
+          td.appendChild(timeEl);
+        }
+      } else {
+        td.classList.add("schedule-table-empty");
+        td.textContent = "–";
+      }
+
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  }
+
+  table.appendChild(tbody);
+
+  const wrap = document.createElement("div");
+  wrap.className = "schedule-table-wrap";
+  wrap.appendChild(table);
+  weeklyScheduleContainer.appendChild(wrap);
 }
 
 function renderLessonView(data) {

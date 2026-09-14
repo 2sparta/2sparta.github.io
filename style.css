@@ -961,6 +961,18 @@ code {
   font-size: 11px;
   padding: 4px 4px 4px 8px;
 }
+.schedule-cell-time {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+.schedule-table-today {
+  background: var(--color-surface-tint);
+}
+th.schedule-table-today {
+  color: var(--color-accent);
+}
 
 @media (max-width: 480px) {
   body { padding: 12px; }
@@ -971,6 +983,7 @@ code {
   .schedule-period-time-input { font-size: 9px; }
   .schedule-table-cell .chip { font-size: 9px; padding: 3px 3px 3px 6px; }
   .schedule-cell-select { font-size: 9px; }
+  .schedule-cell-time { font-size: 8px; }
 }
 
 .chip {
