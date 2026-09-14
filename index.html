@@ -110,7 +110,18 @@
           <section class="card">
             <div class="students-list-header">
               <h2 data-i18n="studentsListHeading">Список учнів</h2>
-              <input id="students-search-input" type="search" class="students-search" data-i18n-placeholder="studentsSearchPlaceholder" placeholder="Пошук за іменем..." />
+              <div class="students-list-controls">
+                <label class="students-sort-field">
+                  <span data-i18n="studentsSortLabel">Сортувати:</span>
+                  <select id="students-sort-select">
+                    <option value="name" data-i18n="studentsSortName">За іменем</option>
+                    <option value="points" data-i18n="studentsSortPoints">За балами</option>
+                    <option value="linked" data-i18n="studentsSortLinked">За прив'язкою</option>
+                    <option value="group" data-i18n="studentsSortGroup">За групою</option>
+                  </select>
+                </label>
+                <input id="students-search-input" type="search" class="students-search" data-i18n-placeholder="studentsSearchPlaceholder" placeholder="Пошук за іменем..." />
+              </div>
             </div>
             <div id="students-tbody" class="students-list"></div>
             <p id="no-students-msg" class="hint hidden" data-i18n="noStudentsMsg">Учнів ще немає.</p>
@@ -119,10 +130,7 @@
         </div>
 
         <div id="schedule-panel" class="tab-panel hidden">
-          <div class="group-switch-bar">
-            <span class="group-switch-label" data-i18n="groupSwitchLabel">Клас:</span>
-            <div class="group-switch" id="group-switch-bar-inner"></div>
-          </div>
+          <div class="group-switch-bar" id="group-switch-bar-inner"></div>
 
           <section class="card hidden" id="live-status-card">
             <div id="live-status" class="live-status"></div>

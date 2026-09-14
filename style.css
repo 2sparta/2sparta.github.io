@@ -455,9 +455,46 @@ code {
 /* ---------- Group switch (Група 1 / Група 2) ---------- */
 .group-switch-bar {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 18px;
+}
+.class-group-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.day-times-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.day-times-header h3 {
+  margin: 0;
+}
+.students-list-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.students-sort-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.students-sort-field select {
+  margin: 0;
+  width: auto;
+  padding: 6px 10px;
+  font-size: 13px;
 }
 .group-switch-label {
   font-family: var(--font-heading);

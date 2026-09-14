@@ -119,7 +119,19 @@ const translations = {
     group2Label: "Група 2",
     addClassBtn: "Додати клас",
     deleteClassBtn: "Видалити клас",
-    newClassNamePrompt: "Назва нового класу:",
+    newClassNamePrompt: "Назва нового класу (наприклад, 8-А):",
+    addGroupBtn: "Додати групу",
+    deleteGroupBtn: "Видалити групу",
+    newGroupNamePrompt: "Назва нової групи (наприклад, 1 група):",
+    deleteGroupConfirm: (name) => `Видалити групу "${name}"? Учні цієї групи будуть перенесені до іншої групи, а розклад групи буде втрачено.`,
+    groupSwitchSubLabel: "Група:",
+    studentsSortLabel: "Сортувати:",
+    studentsSortName: "За іменем",
+    studentsSortPoints: "За балами",
+    studentsSortLinked: "За прив'язкою",
+    studentsSortGroup: "За групою",
+    dayTimesCollapseBtn: "Згорнути",
+    dayTimesExpandBtn: "Розгорнути",
     deleteClassConfirm: (name) => `Ви впевнені, що хочете видалити клас "${name}"? Учні цього класу будуть перенесені до іншого класу, а розклад класу буде втрачено. Цю дію не можна скасувати.`,
     deleteClassNoEmail: "У вашого акаунта немає пошти для надсилання коду підтвердження.",
     deleteClassEmailSubject: "Код підтвердження видалення класу — Класний простір",
@@ -252,7 +264,19 @@ const translations = {
     group2Label: "Group 2",
     addClassBtn: "Add class",
     deleteClassBtn: "Delete class",
-    newClassNamePrompt: "Name of the new class:",
+    newClassNamePrompt: "Name of the new class (e.g. 8-A):",
+    addGroupBtn: "Add group",
+    deleteGroupBtn: "Delete group",
+    newGroupNamePrompt: "Name of the new group (e.g. Group 1):",
+    deleteGroupConfirm: (name) => `Delete group "${name}"? Its students will be moved to another group, and the group's schedule will be lost.`,
+    groupSwitchSubLabel: "Group:",
+    studentsSortLabel: "Sort:",
+    studentsSortName: "By name",
+    studentsSortPoints: "By points",
+    studentsSortLinked: "By linked status",
+    studentsSortGroup: "By group",
+    dayTimesCollapseBtn: "Collapse",
+    dayTimesExpandBtn: "Expand",
     deleteClassConfirm: (name) => `Are you sure you want to delete the class "${name}"? Its students will be moved to another class, and the class's schedule will be lost. This cannot be undone.`,
     deleteClassNoEmail: "Your account has no email address to send the confirmation code to.",
     deleteClassEmailSubject: "Class deletion confirmation code — Class Space",
@@ -368,6 +392,8 @@ function setLanguage(lang) {
   localStorage.setItem(LANG_STORAGE_KEY, currentLang);
   applyStaticTranslations();
   updateSubjectsToggleBtn();
+  renderClassSwitch();
+  renderNewStudentGroupOptions();
   renderStudentsTable();
   renderSubjectsList();
   renderSubjectSelects();
@@ -376,6 +402,8 @@ function setLanguage(lang) {
   updateLiveStatus();
   updateGreetingDate();
   updateDashboardStats();
+  const sortSel = document.getElementById("students-sort-select");
+  if (sortSel) sortSel.value = studentsSortMode;
 }
 
 document.querySelectorAll(".lang-btn").forEach((btn) => {
@@ -385,58 +413,167 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
 applyStaticTranslations();
 
 // ==========================================================
-// Класи (раніше — фіксовані Група 1 / Група 2, тепер довільна
-// кількість класів, які вчитель сам додає й видаляє). Кожен клас
-// має власний розклад. Зберігаються в колекції Firestore "classes".
+// Класи та групи.
+// Клас (напр. "8-А") — батьківський рівень; група (напр. "1 група")
+// — підрівень із власним розкладом. Учні та schedule/week прив'язані
+// до id групи (поле students.group = groupId).
+// Зберігаються в Firestore: classes / groups.
 // ==========================================================
 const GROUP_STORAGE_KEY = "schooleballs-group";
+const CLASS_STORAGE_KEY = "schooleballs-class";
 
-let lastClasses = []; // [{id, data:{name, createdAt}}]
+let lastClasses = []; // [{id, data:{name, createdAt}}] — батьківські класи
+let lastGroups = []; // [{id, data:{classId, name, createdAt}}] — групи з розкладом
+let currentClassId = localStorage.getItem(CLASS_STORAGE_KEY) || null;
 let currentGroup = localStorage.getItem(GROUP_STORAGE_KEY) || "group1";
 let classesSeeded = false;
+let groupsSeeded = false;
 let unsubscribeClasses = null;
+let unsubscribeGroups = null;
 
 function classIds() {
   return lastClasses.map((c) => c.id);
 }
 
-function getClassName(classId) {
-  const found = lastClasses.find((c) => c.id === classId);
-  return found ? found.data.name : classId;
+function groupIds() {
+  return lastGroups.map((g) => g.id);
 }
 
-function setGroup(group) {
-  if (!classIds().includes(group) || group === currentGroup) return;
-  currentGroup = group;
-  localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+function groupsOfClass(classId) {
+  return lastGroups.filter((g) => g.data.classId === classId);
+}
+
+function getClassName(classId) {
+  const found = lastClasses.find((c) => c.id === classId);
+  return found ? found.data.name : classId || "";
+}
+
+function getGroupName(groupId) {
+  const found = lastGroups.find((g) => g.id === groupId);
+  return found ? found.data.name : groupId || "";
+}
+
+function getGroupLabel(groupId) {
+  const found = lastGroups.find((g) => g.id === groupId);
+  if (!found) return groupId || "";
+  const clsName = getClassName(found.data.classId);
+  return clsName ? `${clsName} / ${found.data.name}` : found.data.name;
+}
+
+function setCurrentClass(classId) {
+  if (!classIds().includes(classId) || classId === currentClassId) {
+    // навіть якщо клас той самий — переконаємось, що поточна група з нього
+    ensureCurrentGroupInClass();
+    return;
+  }
+  currentClassId = classId;
+  localStorage.setItem(CLASS_STORAGE_KEY, currentClassId);
+  const groups = groupsOfClass(classId);
+  if (groups.length && !groups.some((g) => g.id === currentGroup)) {
+    currentGroup = groups[0].id;
+    localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+  }
   renderClassSwitch();
   renderSchedule();
   renderLessonsContainer();
   updateLiveStatus();
 }
 
-// Слухаємо колекцію класів. Якщо вона порожня (перший запуск на старій
-// базі без колекції "classes"), один раз "засіюємо" її двома класами
-// зі старими фіксованими id group1/group2 — так старі студенти й старий
-// документ розкладу лишаються сумісними без міграції даних.
+function setGroup(groupId) {
+  if (!groupIds().includes(groupId) || groupId === currentGroup) return;
+  currentGroup = groupId;
+  localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+  const g = lastGroups.find((x) => x.id === groupId);
+  if (g && g.data.classId !== currentClassId) {
+    currentClassId = g.data.classId;
+    localStorage.setItem(CLASS_STORAGE_KEY, currentClassId);
+  }
+  renderClassSwitch();
+  renderSchedule();
+  renderLessonsContainer();
+  updateLiveStatus();
+}
+
+function ensureCurrentGroupInClass() {
+  if (!currentClassId || !classIds().includes(currentClassId)) {
+    currentClassId = classIds()[0] || null;
+    if (currentClassId) localStorage.setItem(CLASS_STORAGE_KEY, currentClassId);
+  }
+  const groups = currentClassId ? groupsOfClass(currentClassId) : lastGroups;
+  if (groups.length && !groups.some((g) => g.id === currentGroup)) {
+    currentGroup = groups[0].id;
+    localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+  } else if (!groupIds().includes(currentGroup) && lastGroups.length) {
+    currentGroup = lastGroups[0].id;
+    localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+    currentClassId = lastGroups[0].data.classId;
+    localStorage.setItem(CLASS_STORAGE_KEY, currentClassId);
+  }
+}
+
+// Міграція зі старої схеми (classes = leaf units group1/group2) на
+// hierarchy classes → groups. Старі id груп зберігаються, щоб schedule
+// і students.group лишилися сумісними.
+async function migrateLegacyClassesToGroups(legacyClassDocs) {
+  if (groupsSeeded) return;
+  groupsSeeded = true;
+  try {
+    const parentRef = await addDoc(collection(db, "classes"), {
+      name: "Основний",
+      createdAt: Date.now(),
+    });
+    const batch = writeBatch(db);
+    legacyClassDocs.forEach((d) => {
+      batch.set(doc(db, "groups", d.id), {
+        classId: parentRef.id,
+        name: d.data().name || d.id,
+        createdAt: d.data().createdAt || Date.now(),
+      });
+      // Старі документи classes більше не є батьківськими — видаляємо
+      // (батько вже створений вище). Не чіпаємо щойно створений parent.
+      if (d.id !== parentRef.id) batch.delete(doc(db, "classes", d.id));
+    });
+    await batch.commit();
+  } catch (e) {
+    groupsSeeded = false;
+    reportSaveError(e, "Не вдалося мігрувати класи в групи", "Failed to migrate classes to groups");
+  }
+}
+
+async function seedDefaultClassAndGroups() {
+  if (classesSeeded) return;
+  classesSeeded = true;
+  try {
+    await setDoc(doc(db, "classes", "default-class"), {
+      name: "Основний",
+      createdAt: 1,
+    });
+    await setDoc(doc(db, "groups", "group1"), {
+      classId: "default-class",
+      name: "Група 1",
+      createdAt: 1,
+    });
+    await setDoc(doc(db, "groups", "group2"), {
+      classId: "default-class",
+      name: "Група 2",
+      createdAt: 2,
+    });
+  } catch (e) {
+    classesSeeded = false;
+    reportSaveError(e, "Не вдалося створити класи за замовчуванням", "Failed to create default classes");
+  }
+}
+
 function listenToClasses() {
   const q = query(collection(db, "classes"), orderBy("createdAt"));
   unsubscribeClasses = onSnapshot(q, async (snap) => {
+    lastClasses = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    // Порожня колекція — засіюємо (разом із групами) один раз.
     if (snap.empty && !classesSeeded) {
-      classesSeeded = true;
-      try {
-        await setDoc(doc(db, "classes", "group1"), { name: "Група 1", createdAt: 1 });
-        await setDoc(doc(db, "classes", "group2"), { name: "Група 2", createdAt: 2 });
-      } catch (e) {
-        reportSaveError(e, "Не вдалося створити класи за замовчуванням", "Failed to create default classes");
-      }
+      await seedDefaultClassAndGroups();
       return;
     }
-    lastClasses = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
-    if (!classIds().includes(currentGroup)) {
-      currentGroup = classIds()[0] || "group1";
-      localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
-    }
+    ensureCurrentGroupInClass();
     renderClassSwitch();
     renderNewStudentGroupOptions();
     renderStudentsTable();
@@ -444,58 +581,196 @@ function listenToClasses() {
     renderLessonsContainer();
     updateLiveStatus();
   });
+
+  // Окремий слухач груп
+  const gq = query(collection(db, "groups"), orderBy("createdAt"));
+  unsubscribeGroups = onSnapshot(gq, async (snap) => {
+    // Якщо груп ще немає, а класи вже є (стара схема) — мігруємо.
+    if (snap.empty && !groupsSeeded && lastClasses.length > 0) {
+      // Потрібні «сирі» docs класів; перечитаємо
+      const classesSnap = await getDocs(query(collection(db, "classes"), orderBy("createdAt")));
+      // Якщо classes містить лише щойно засіяний default-class без груп —
+      // seedDefaultClassAndGroups уже мав створити групи; інакше legacy.
+      const hasDefault = classesSnap.docs.some((d) => d.id === "default-class");
+      if (!hasDefault || classesSnap.docs.length > 1) {
+        await migrateLegacyClassesToGroups(classesSnap.docs.filter((d) => d.id !== "default-class" || classesSnap.docs.length === 1));
+      } else if (!classesSeeded) {
+        // default-class є, груп немає — досіюємо групи
+        try {
+          await setDoc(doc(db, "groups", "group1"), { classId: "default-class", name: "Група 1", createdAt: 1 });
+          await setDoc(doc(db, "groups", "group2"), { classId: "default-class", name: "Група 2", createdAt: 2 });
+        } catch (e) {
+          reportSaveError(e, "Не вдалося створити групи за замовчуванням", "Failed to create default groups");
+        }
+      }
+      return;
+    }
+    lastGroups = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    ensureCurrentGroupInClass();
+    renderClassSwitch();
+    renderNewStudentGroupOptions();
+    renderStudentsTable();
+    // scheduleData будується за group ids
+    if (typeof scheduleData !== "undefined") {
+      // rebuild will happen via listenToSchedule; just re-render
+      renderSchedule();
+      renderLessonsContainer();
+      updateLiveStatus();
+    }
+  });
 }
 
 function renderClassSwitch() {
   const bar = document.getElementById("group-switch-bar-inner");
   if (!bar) return;
   bar.innerHTML = "";
+
+  // Рівень 1: класи
+  const classRow = document.createElement("div");
+  classRow.className = "class-group-switch-row";
+  const classLabel = document.createElement("span");
+  classLabel.className = "group-switch-label";
+  classLabel.textContent = t("groupSwitchLabel");
+  classRow.appendChild(classLabel);
+
+  const classBtns = document.createElement("div");
+  classBtns.className = "group-switch";
   lastClasses.forEach(({ id, data }) => {
     const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "group-btn" + (id === currentClassId ? " active" : "");
+    btn.textContent = data.name;
+    btn.onclick = () => setCurrentClass(id);
+    classBtns.appendChild(btn);
+  });
+
+  const addClassBtn = document.createElement("button");
+  addClassBtn.className = "secondary small class-add-btn";
+  addClassBtn.type = "button";
+  addClassBtn.textContent = "+";
+  addClassBtn.title = t("addClassBtn");
+  addClassBtn.onclick = addClassFlow;
+  classBtns.appendChild(addClassBtn);
+
+  const deleteClassBtn = document.createElement("button");
+  deleteClassBtn.className = "secondary small class-delete-btn";
+  deleteClassBtn.type = "button";
+  deleteClassBtn.textContent = "✕";
+  deleteClassBtn.title = t("deleteClassBtn");
+  deleteClassBtn.disabled = lastClasses.length <= 1;
+  deleteClassBtn.onclick = () => deleteClassFlow(currentClassId);
+  classBtns.appendChild(deleteClassBtn);
+  classRow.appendChild(classBtns);
+  bar.appendChild(classRow);
+
+  // Рівень 2: групи вибраного класу
+  const groupRow = document.createElement("div");
+  groupRow.className = "class-group-switch-row";
+  const groupLabel = document.createElement("span");
+  groupLabel.className = "group-switch-label";
+  groupLabel.textContent = t("groupSwitchSubLabel");
+  groupRow.appendChild(groupLabel);
+
+  const groupBtns = document.createElement("div");
+  groupBtns.className = "group-switch";
+  const groups = currentClassId ? groupsOfClass(currentClassId) : [];
+  groups.forEach(({ id, data }) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
     btn.className = "group-btn" + (id === currentGroup ? " active" : "");
     btn.textContent = data.name;
     btn.onclick = () => setGroup(id);
-    bar.appendChild(btn);
+    groupBtns.appendChild(btn);
   });
 
-  const addBtn = document.createElement("button");
-  addBtn.className = "secondary small class-add-btn";
-  addBtn.type = "button";
-  addBtn.textContent = "+";
-  addBtn.title = t("addClassBtn");
-  addBtn.onclick = addClassFlow;
-  bar.appendChild(addBtn);
+  const addGroupBtn = document.createElement("button");
+  addGroupBtn.className = "secondary small class-add-btn";
+  addGroupBtn.type = "button";
+  addGroupBtn.textContent = "+";
+  addGroupBtn.title = t("addGroupBtn");
+  addGroupBtn.disabled = !currentClassId;
+  addGroupBtn.onclick = addGroupFlow;
+  groupBtns.appendChild(addGroupBtn);
 
-  const deleteBtn = document.createElement("button");
-  deleteBtn.className = "secondary small class-delete-btn";
-  deleteBtn.type = "button";
-  deleteBtn.textContent = "✕";
-  deleteBtn.title = t("deleteClassBtn");
-  deleteBtn.disabled = lastClasses.length <= 1;
-  deleteBtn.onclick = () => deleteClassFlow(currentGroup);
-  bar.appendChild(deleteBtn);
+  const deleteGroupBtn = document.createElement("button");
+  deleteGroupBtn.className = "secondary small class-delete-btn";
+  deleteGroupBtn.type = "button";
+  deleteGroupBtn.textContent = "✕";
+  deleteGroupBtn.title = t("deleteGroupBtn");
+  deleteGroupBtn.disabled = groups.length <= 1;
+  deleteGroupBtn.onclick = () => deleteGroupFlow(currentGroup);
+  groupBtns.appendChild(deleteGroupBtn);
+  groupRow.appendChild(groupBtns);
+  bar.appendChild(groupRow);
 }
 
 async function addClassFlow() {
   const name = (prompt(t("newClassNamePrompt")) || "").trim();
   if (!name) return;
   try {
-    const ref = await addDoc(collection(db, "classes"), { name, createdAt: Date.now() });
-    currentGroup = ref.id;
+    const classRef = await addDoc(collection(db, "classes"), { name, createdAt: Date.now() });
+    const groupRef = await addDoc(collection(db, "groups"), {
+      classId: classRef.id,
+      name: currentLang === "uk" ? "Група 1" : "Group 1",
+      createdAt: Date.now(),
+    });
+    currentClassId = classRef.id;
+    currentGroup = groupRef.id;
+    localStorage.setItem(CLASS_STORAGE_KEY, currentClassId);
     localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
   } catch (e) {
     reportSaveError(e, "Не вдалося додати клас", "Failed to add the class");
   }
 }
 
-// Видалення класу — двокроковий процес заради безпеки:
-// 1) звичайне підтвердження "ви впевнені?";
-// 2) 6-значний код підтвердження надсилається на пошту вчителя
-//    (через Firestore-колекцію "mail", яку обробляє розширення
-//    Firebase "Trigger Email" — див. коментар нижче) і вчитель
-//    повинен ввести цей код, щоб видалення відбулося.
+async function addGroupFlow() {
+  if (!currentClassId) return;
+  const name = (prompt(t("newGroupNamePrompt")) || "").trim();
+  if (!name) return;
+  try {
+    const ref = await addDoc(collection(db, "groups"), {
+      classId: currentClassId,
+      name,
+      createdAt: Date.now(),
+    });
+    currentGroup = ref.id;
+    localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+  } catch (e) {
+    reportSaveError(e, "Не вдалося додати групу", "Failed to add the group");
+  }
+}
+
+async function deleteGroupFlow(groupId) {
+  const groups = currentClassId ? groupsOfClass(currentClassId) : lastGroups;
+  if (groups.length <= 1) return;
+  const grp = lastGroups.find((g) => g.id === groupId);
+  if (!grp) return;
+  if (!confirm(t("deleteGroupConfirm")(grp.data.name))) return;
+
+  try {
+    const fallback = groups.find((g) => g.id !== groupId);
+    const fallbackId = fallback ? fallback.id : null;
+    const studentsSnap = await getDocs(query(collection(db, "students"), where("group", "==", groupId)));
+    const batch = writeBatch(db);
+    studentsSnap.docs.forEach((docSnap) => {
+      batch.update(docSnap.ref, { group: fallbackId });
+    });
+    batch.delete(doc(db, "groups", groupId));
+    batch.update(doc(db, "schedule", "week"), { [groupId]: deleteField() });
+    await batch.commit();
+    if (currentGroup === groupId) {
+      currentGroup = fallbackId || groupIds()[0] || "group1";
+      localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+    }
+  } catch (e) {
+    reportSaveError(e, "Не вдалося видалити групу", "Failed to delete the group");
+  }
+}
+
+// Видалення класу — двокроковий процес (підтвердження + код на пошту).
+// Разом із класом видаляються всі його групи та їх розклади.
 async function deleteClassFlow(classId) {
-  if (lastClasses.length <= 1) return;
+  if (!classId || lastClasses.length <= 1) return;
   const cls = lastClasses.find((c) => c.id === classId);
   if (!cls) return;
 
@@ -517,11 +792,6 @@ async function deleteClassFlow(classId) {
     expiresAt: Date.now() + 10 * 60 * 1000,
   });
 
-  // ПРИМІТКА: реальна відправка листа відбувається через розширення
-  // Firebase Extensions "Trigger Email" (https://extensions.dev/extensions/firebase/firestore-send-email),
-  // яке відстежує колекцію "mail" і саме шле листи через налаштований SMTP.
-  // Якщо розширення не встановлено, документ у "mail" просто збережеться
-  // без фактичної відправки — встановіть розширення в Firebase Console.
   try {
     await addDoc(collection(db, "mail"), {
       to: [user.email],
@@ -557,20 +827,28 @@ async function deleteClassFlow(classId) {
   }
 
   try {
-    // Учні цього класу переносяться в перший клас, що лишається,
-    // аби вони не "загубилися" без жодного класу.
-    const fallbackId = classIds().find((id) => id !== classId) || null;
-    const studentsSnap = await getDocs(query(collection(db, "students"), where("group", "==", classId)));
+    const classGroups = groupsOfClass(classId);
+    const fallbackClass = lastClasses.find((c) => c.id !== classId);
+    const fallbackGroups = fallbackClass ? groupsOfClass(fallbackClass.id) : [];
+    const fallbackGroupId = fallbackGroups[0] ? fallbackGroups[0].id : null;
+
     const batch = writeBatch(db);
-    studentsSnap.docs.forEach((docSnap) => {
-      batch.update(docSnap.ref, { group: fallbackId });
-    });
+    for (const g of classGroups) {
+      const studentsSnap = await getDocs(query(collection(db, "students"), where("group", "==", g.id)));
+      studentsSnap.docs.forEach((docSnap) => {
+        batch.update(docSnap.ref, { group: fallbackGroupId });
+      });
+      batch.delete(doc(db, "groups", g.id));
+      batch.update(doc(db, "schedule", "week"), { [g.id]: deleteField() });
+    }
     batch.delete(doc(db, "classes", classId));
-    batch.update(doc(db, "schedule", "week"), { [classId]: deleteField() });
     await batch.commit();
     await deleteDoc(requestRef).catch(() => {});
-    if (currentGroup === classId) {
-      currentGroup = fallbackId || "group1";
+
+    if (currentClassId === classId) {
+      currentClassId = fallbackClass ? fallbackClass.id : classIds()[0] || null;
+      if (currentClassId) localStorage.setItem(CLASS_STORAGE_KEY, currentClassId);
+      currentGroup = fallbackGroupId || groupIds()[0] || "group1";
       localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
     }
   } catch (e) {
@@ -692,6 +970,7 @@ let scheduleData = emptySchedule();
 let currentView = "today"; // "today" | "tomorrow" | "all"
 let currentType = "lessons"; // "lessons" | "homework"
 let studentsSearchQuery = "";
+let studentsSortMode = localStorage.getItem("schooleballs-students-sort") || "name";
 
 // ---------- Tabs ----------
 // ---------- Dashboard header (привітання, дата, показники) ----------
@@ -857,12 +1136,41 @@ if (studentsSearchInput) {
     renderStudentsTable();
   };
 }
+const studentsSortSelect = document.getElementById("students-sort-select");
+if (studentsSortSelect) {
+  studentsSortSelect.value = studentsSortMode;
+  studentsSortSelect.onchange = () => {
+    studentsSortMode = studentsSortSelect.value || "name";
+    localStorage.setItem("schooleballs-students-sort", studentsSortMode);
+    renderStudentsTable();
+  };
+}
+
+function sortStudentsList(list) {
+  const locale = currentLang === "uk" ? "uk" : "en";
+  const arr = list.slice();
+  if (studentsSortMode === "points") {
+    arr.sort((a, b) => (b.data.points || 0) - (a.data.points || 0) || (a.data.name || "").localeCompare(b.data.name || "", locale));
+  } else if (studentsSortMode === "linked") {
+    arr.sort((a, b) => {
+      const la = a.data.authUid ? 0 : 1;
+      const lb = b.data.authUid ? 0 : 1;
+      return la - lb || (a.data.name || "").localeCompare(b.data.name || "", locale);
+    });
+  } else if (studentsSortMode === "group") {
+    arr.sort((a, b) => getGroupLabel(a.data.group).localeCompare(getGroupLabel(b.data.group), locale) || (a.data.name || "").localeCompare(b.data.name || "", locale));
+  } else {
+    arr.sort((a, b) => (a.data.name || "").localeCompare(b.data.name || "", locale));
+  }
+  return arr;
+}
 
 function renderStudentsTable() {
   studentsTbody.innerHTML = "";
-  const filtered = studentsSearchQuery
+  let filtered = studentsSearchQuery
     ? lastStudents.filter(({ data }) => (data.name || "").toLowerCase().includes(studentsSearchQuery))
-    : lastStudents;
+    : lastStudents.slice();
+  filtered = sortStudentsList(filtered);
   filtered.forEach(({ id, data }) => {
     studentsTbody.appendChild(renderStudentRow(id, data));
   });
@@ -879,7 +1187,7 @@ addStudentBtn.onclick = async () => {
   await addDoc(collection(db, "students"), {
     name,
     points: 0,
-    group: newStudentGroup && newStudentGroup.value ? newStudentGroup.value : (classIds()[0] || "group1"),
+    group: newStudentGroup && newStudentGroup.value ? newStudentGroup.value : (groupIds()[0] || currentGroup || "group1"),
     inviteCode: generateInviteCode(),
     authUid: null,
     createdAt: Date.now(),
@@ -891,10 +1199,23 @@ addStudentBtn.onclick = async () => {
 function renderNewStudentGroupOptions() {
   if (!newStudentGroup) return;
   const prevValue = newStudentGroup.value;
-  newStudentGroup.innerHTML = lastClasses
-    .map(({ id, data }) => `<option value="${id}">${escapeHtml(data.name)}</option>`)
+  const options = [];
+  lastClasses.forEach((cls) => {
+    groupsOfClass(cls.id).forEach((g) => {
+      options.push({ id: g.id, label: `${cls.data.name} / ${g.data.name}` });
+    });
+  });
+  // fallback: groups without known class
+  lastGroups.forEach((g) => {
+    if (!options.some((o) => o.id === g.id)) {
+      options.push({ id: g.id, label: getGroupLabel(g.id) });
+    }
+  });
+  newStudentGroup.innerHTML = options
+    .map(({ id, label }) => `<option value="${id}">${escapeHtml(label)}</option>`)
     .join("");
-  if (lastClasses.some((c) => c.id === prevValue)) newStudentGroup.value = prevValue;
+  if (options.some((o) => o.id === prevValue)) newStudentGroup.value = prevValue;
+  else if (options.some((o) => o.id === currentGroup)) newStudentGroup.value = currentGroup;
 }
 
 function generateInviteCode() {
@@ -936,10 +1257,21 @@ function renderStudentRow(id, data) {
 
   const groupSelect = document.createElement("select");
   groupSelect.className = "student-group-select";
-  groupSelect.innerHTML = lastClasses
-    .map(({ id, data: c }) => `<option value="${id}">${escapeHtml(c.name)}</option>`)
+  const groupOptions = [];
+  lastClasses.forEach((cls) => {
+    groupsOfClass(cls.id).forEach((g) => {
+      groupOptions.push({ id: g.id, label: `${cls.data.name} / ${g.data.name}` });
+    });
+  });
+  lastGroups.forEach((g) => {
+    if (!groupOptions.some((o) => o.id === g.id)) {
+      groupOptions.push({ id: g.id, label: getGroupLabel(g.id) });
+    }
+  });
+  groupSelect.innerHTML = groupOptions
+    .map(({ id: gid, label }) => `<option value="${gid}">${escapeHtml(label)}</option>`)
     .join("");
-  if (lastClasses.some((c) => c.id === data.group)) groupSelect.value = data.group;
+  if (groupOptions.some((o) => o.id === data.group)) groupSelect.value = data.group;
   groupSelect.onchange = () => {
     updateDoc(doc(db, "students", id), { group: groupSelect.value }).catch((e) =>
       reportSaveError(e, "Не вдалося змінити групу", "Failed to change the group")
@@ -1107,7 +1439,7 @@ function renderSubjectSelects() {
 function listenToSchedule() {
   unsubscribeSchedule = onSnapshot(doc(db, "schedule", "week"), (snap) => {
     const raw = snap.exists() ? snap.data() : {};
-    scheduleData = buildScheduleData(raw, classIds());
+    scheduleData = buildScheduleData(raw, groupIds().length ? groupIds() : classIds());
     renderSchedule();
     renderLessonsContainer();
     updateLiveStatus();
@@ -1371,19 +1703,40 @@ function renderSchedule() {
 
 // ---------- Особливий розклад дзвінків для конкретного дня (напр. субота) ----------
 let dayTimesEditorDay = "sat";
+let dayTimesCollapsed = localStorage.getItem("schooleballs-daytimes-collapsed") === "1";
 
 function renderDayTimesEditor(groupSchedule, rowCount) {
   const box = document.createElement("section");
   box.className = "card day-times-editor";
 
+  const header = document.createElement("div");
+  header.className = "day-times-header";
+
   const heading = document.createElement("h3");
   heading.textContent = t("dayTimesHeading");
-  box.appendChild(heading);
+
+  const collapseBtn = document.createElement("button");
+  collapseBtn.type = "button";
+  collapseBtn.className = "secondary small";
+  collapseBtn.textContent = dayTimesCollapsed ? t("dayTimesExpandBtn") : t("dayTimesCollapseBtn");
+
+  const body = document.createElement("div");
+  body.className = "day-times-body" + (dayTimesCollapsed ? " hidden" : "");
+
+  collapseBtn.onclick = () => {
+    dayTimesCollapsed = !dayTimesCollapsed;
+    localStorage.setItem("schooleballs-daytimes-collapsed", dayTimesCollapsed ? "1" : "0");
+    body.classList.toggle("hidden", dayTimesCollapsed);
+    collapseBtn.textContent = dayTimesCollapsed ? t("dayTimesExpandBtn") : t("dayTimesCollapseBtn");
+  };
+
+  header.append(heading, collapseBtn);
+  box.appendChild(header);
 
   const hint = document.createElement("p");
   hint.className = "hint";
   hint.textContent = t("dayTimesHint");
-  box.appendChild(hint);
+  body.appendChild(hint);
 
   const controlsRow = document.createElement("div");
   controlsRow.className = "day-times-controls";
@@ -1432,7 +1785,7 @@ function renderDayTimesEditor(groupSchedule, rowCount) {
   toggleLabel.append(toggleCheckbox, toggleText);
   controlsRow.appendChild(toggleLabel);
 
-  box.appendChild(controlsRow);
+  body.appendChild(controlsRow);
 
   if (hasCustom) {
     const grid = document.createElement("div");
@@ -1477,9 +1830,10 @@ function renderDayTimesEditor(groupSchedule, rowCount) {
       row.append(startInput, endInput);
       grid.appendChild(row);
     }
-    box.appendChild(grid);
+    body.appendChild(grid);
   }
 
+  box.appendChild(body);
   return box;
 }
 
