@@ -94,6 +94,12 @@ const liveStatusEl = document.getElementById("live-status");
 const joinMeetingCard = document.getElementById("join-meeting-card");
 const joinMeetingBtn = document.getElementById("join-meeting-btn");
 
+const typeDayBtn = document.getElementById("type-day-btn");
+const typeHomeworkBtn = document.getElementById("type-homework-btn");
+const daySubviewSwitch = document.getElementById("day-subview-switch");
+const dayViewBlock = document.getElementById("day-view-block");
+const homeworkViewBlock = document.getElementById("homework-view-block");
+
 const viewTodayBtn = document.getElementById("view-today-btn");
 const viewTomorrowBtn = document.getElementById("view-tomorrow-btn");
 const scheduleContainer = document.getElementById("schedule-container");
@@ -125,6 +131,7 @@ let lastScheduleRaw = {};
 let lastElectives = [];
 let unsubscribeElectives = null;
 let currentView = "today"; // "today" | "tomorrow"
+let currentTaskType = "day"; // "day" | "homework" — перемикач всередині вкладки "Завдання"
 let hwSortMode = "date"; // "date" | "subject"
 let hwSubjectFilterId = "";
 let hwHideDone = false;
@@ -211,6 +218,8 @@ const translations = {
     scheduleHeading: "Розклад",
     viewToday: "Сьогодні",
     viewTomorrow: "Завтра",
+    viewTypeDay: "Розклад дня",
+    viewTypeHomework: "ДЗ",
     weeklyScheduleHeading: "Тижневий розклад",
     weeklyScheduleHint: "Лише перегляд — розклад редагує вчитель.",
     scheduleEmptyMsg: "Розклад порожній.",
@@ -277,6 +286,8 @@ const translations = {
     scheduleHeading: "Schedule",
     viewToday: "Today",
     viewTomorrow: "Tomorrow",
+    viewTypeDay: "Day schedule",
+    viewTypeHomework: "Homework",
     weeklyScheduleHeading: "Weekly schedule",
     weeklyScheduleHint: "View only — your teacher edits the schedule.",
     scheduleEmptyMsg: "The schedule is empty.",
@@ -372,6 +383,19 @@ function showTab(tab) {
 }
 if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
 if (tabTasksBtn) tabTasksBtn.onclick = () => showTab("tasks");
+
+// Перемикач всередині вкладки "Завдання": розклад дня (сьогодні/завтра) чи ДЗ.
+function showTaskType(type) {
+  currentTaskType = type;
+  if (typeDayBtn) typeDayBtn.classList.toggle("active", type === "day");
+  if (typeHomeworkBtn) typeHomeworkBtn.classList.toggle("active", type === "homework");
+  if (daySubviewSwitch) daySubviewSwitch.classList.toggle("hidden", type !== "day");
+  if (dayViewBlock) dayViewBlock.classList.toggle("hidden", type !== "day");
+  if (homeworkViewBlock) homeworkViewBlock.classList.toggle("hidden", type !== "homework");
+}
+if (typeDayBtn) typeDayBtn.onclick = () => showTaskType("day");
+if (typeHomeworkBtn) typeHomeworkBtn.onclick = () => showTaskType("homework");
+showTaskType(currentTaskType);
 
 function errorText(e) {
   return translations[currentLang].errors[e.code] || e.message;

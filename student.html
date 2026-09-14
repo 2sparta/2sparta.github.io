@@ -107,56 +107,10 @@
             </div>
           </section>
 
-          <section class="card">
-            <div class="lessons-view-header">
-              <h2 data-i18n="scheduleHeading">Розклад</h2>
-              <div class="view-switch">
-                <button id="view-today-btn" class="view-btn active" data-view="today" data-i18n="viewToday">Сьогодні</button>
-                <button id="view-tomorrow-btn" class="view-btn" data-view="tomorrow" data-i18n="viewTomorrow">Завтра</button>
-              </div>
-            </div>
-            <div id="schedule-container"></div>
-          </section>
-
           <section class="card card-wide">
             <h2 data-i18n="weeklyScheduleHeading">Тижневий розклад</h2>
             <p class="hint" data-i18n="weeklyScheduleHint">Лише перегляд — розклад редагує вчитель.</p>
             <div id="weekly-schedule-container"></div>
-          </section>
-
-        </div>
-
-        <div id="tasks-panel" class="tab-panel hidden">
-
-          <section class="card">
-            <h2 data-i18n="homeworkHeading">Найближчі домашні завдання</h2>
-            <div class="hw-controls">
-              <label class="hw-control-field">
-                <span data-i18n="hwSortLabel">Сортувати:</span>
-                <select id="hw-sort-select">
-                  <option value="date" data-i18n="hwSortDate">За датою</option>
-                  <option value="subject" data-i18n="hwSortSubject">За предметом</option>
-                </select>
-              </label>
-              <label class="hw-control-field">
-                <span data-i18n="hwFilterSubjectLabel">Предмет:</span>
-                <select id="hw-subject-filter">
-                  <option value="" data-i18n="hwFilterAllSubjects">Усі предмети</option>
-                </select>
-              </label>
-              <label class="hw-hide-done-toggle">
-                <input type="checkbox" id="hw-hide-done-checkbox" />
-                <span data-i18n="hwHideDoneLabel">Приховати виконані</span>
-              </label>
-            </div>
-            <div id="homework-container"></div>
-            <p id="no-homework-msg" class="hint hidden" data-i18n="noHomeworkMsg">Найближчим часом дз не заплановано.</p>
-          </section>
-
-          <section class="card">
-            <h2 data-i18n="subjectsListHeading">Мої предмети</h2>
-            <ul id="subjects-list" class="subjects-list"></ul>
-            <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
           </section>
 
           <section class="card electives-card">
@@ -168,6 +122,59 @@
             </div>
             <ul id="electives-list" class="electives-list"></ul>
             <p id="no-electives-msg" class="hint hidden" data-i18n="noElectivesMsg">Факультативів ще немає.</p>
+          </section>
+
+        </div>
+
+        <div id="tasks-panel" class="tab-panel hidden">
+
+          <section class="card">
+            <div class="lessons-view-header">
+              <div class="view-switches">
+                <div class="view-switch">
+                  <button id="type-day-btn" class="view-btn active" data-type="day" data-i18n="viewTypeDay">Розклад дня</button>
+                  <button id="type-homework-btn" class="view-btn" data-type="homework" data-i18n="viewTypeHomework">ДЗ</button>
+                </div>
+                <div class="view-switch" id="day-subview-switch">
+                  <button id="view-today-btn" class="view-btn active" data-view="today" data-i18n="viewToday">Сьогодні</button>
+                  <button id="view-tomorrow-btn" class="view-btn" data-view="tomorrow" data-i18n="viewTomorrow">Завтра</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="day-view-block">
+              <div id="schedule-container"></div>
+            </div>
+
+            <div id="homework-view-block" class="hidden">
+              <div class="hw-controls">
+                <label class="hw-control-field">
+                  <span data-i18n="hwSortLabel">Сортувати:</span>
+                  <select id="hw-sort-select">
+                    <option value="date" data-i18n="hwSortDate">За датою</option>
+                    <option value="subject" data-i18n="hwSortSubject">За предметом</option>
+                  </select>
+                </label>
+                <label class="hw-control-field">
+                  <span data-i18n="hwFilterSubjectLabel">Предмет:</span>
+                  <select id="hw-subject-filter">
+                    <option value="" data-i18n="hwFilterAllSubjects">Усі предмети</option>
+                  </select>
+                </label>
+                <label class="hw-hide-done-toggle">
+                  <input type="checkbox" id="hw-hide-done-checkbox" />
+                  <span data-i18n="hwHideDoneLabel">Приховати виконані</span>
+                </label>
+              </div>
+              <div id="homework-container"></div>
+              <p id="no-homework-msg" class="hint hidden" data-i18n="noHomeworkMsg">Найближчим часом дз не заплановано.</p>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2 data-i18n="subjectsListHeading">Мої предмети</h2>
+            <ul id="subjects-list" class="subjects-list"></ul>
+            <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
           </section>
 
         </div>
