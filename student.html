@@ -136,6 +136,17 @@
       <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
     </section>
 
+    <section class="card electives-card">
+      <h2 data-i18n="electivesHeading">Мої факультативи</h2>
+      <p class="hint" data-i18n="electivesHint">Видно тільки вам — вчитель і інші учні їх не бачать.</p>
+      <div class="row">
+        <input id="new-elective-name" type="text" data-i18n-placeholder="electiveNamePlaceholder" placeholder="Назва факультативу" />
+        <button id="add-elective-btn" data-i18n="addBtn">Додати</button>
+      </div>
+      <ul id="electives-list" class="electives-list"></ul>
+      <p id="no-electives-msg" class="hint hidden" data-i18n="noElectivesMsg">Факультативів ще немає.</p>
+    </section>
+
   </div>
 
   <script type="module" src="student.js"></script>

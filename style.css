@@ -15,6 +15,9 @@
   --color-danger: #dc2626;
   --color-warning: #b45309;
   --color-warning-bg: #fef3c7;
+  --color-purple: #7c3aed;
+  --color-purple-bg: #f3ebff;
+  --color-purple-border: #ddc8fb;
 
   --radius-lg: 20px;
   --radius-md: 12px;
@@ -483,6 +486,77 @@ code {
   background: var(--color-accent);
   color: white;
 }
+.group-switch {
+  flex-wrap: wrap;
+}
+.class-add-btn,
+.class-delete-btn {
+  border-radius: var(--radius-sm) !important;
+  margin-left: 6px;
+  padding: 6px 12px !important;
+}
+.class-delete-btn {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+.class-delete-btn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+.class-delete-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Особливий розклад дзвінків для дня ---------- */
+.day-times-editor {
+  margin-top: 18px;
+}
+.day-times-editor h3 {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  margin: 0 0 4px;
+  color: var(--color-primary);
+}
+.day-times-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.day-times-controls select {
+  width: auto;
+  margin-bottom: 0;
+}
+.day-times-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+.day-times-grid {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.day-times-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.day-times-row-label {
+  width: 22px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  font-size: 13px;
+}
+.day-times-row input[type="time"] {
+  width: auto;
+  margin-bottom: 0;
+}
 
 /* ---------- App body layout ---------- */
 
@@ -730,6 +804,59 @@ code {
   color: var(--color-secondary);
 }
 .subject-item-link::placeholder { color: #b7c9c1; }
+
+/* ---------- Electives (факультативи) — приватні, фіолетовий фон ---------- */
+.electives-card {
+  background: var(--color-purple-bg);
+  border: 1px solid var(--color-purple-border);
+}
+.electives-card h2 { color: var(--color-purple); }
+.electives-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.elective-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-purple-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+.elective-item-name {
+  font-weight: 600;
+  color: var(--color-primary);
+  overflow-wrap: anywhere;
+}
+.elective-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-purple);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.elective-delete-btn:hover {
+  background: var(--color-purple-bg);
+  color: var(--color-danger);
+}
+.electives-card .row input {
+  border-color: var(--color-purple-border);
+}
+.electives-card .row button {
+  background: var(--color-purple);
+}
+.electives-card .row button:hover {
+  background: #6b2fd6;
+}
 
 /* ---------- Schedule (table) ---------- */
 /* Розтягуємо обгортку розкладу за межі внутрішніх паддінгів картки */

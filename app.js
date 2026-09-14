@@ -22,7 +22,10 @@ import {
   onSnapshot,
   orderBy,
   query,
+  where,
+  getDocs,
   deleteField,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   firebaseConfig,
@@ -31,12 +34,15 @@ import {
   pluralUk,
   emptyGroupSchedule,
   emptySchedule,
+  buildScheduleData,
+  getDayEffectiveTimes,
   getISOWeekKey,
   getActiveOverride,
   getDayMaxPeriodIndex,
   getDayEntriesList,
   normalizeGroupData,
   generateEntryId,
+  generateSixDigitCode,
   parseTimeToMinutes,
   formatDateLocal,
   escapeHtml,
@@ -108,9 +114,22 @@ const translations = {
     addSubjectFirstHint: "Спочатку додайте хоча б один предмет.",
 
     scheduleHeading: "Розклад",
-    groupSwitchLabel: "Група:",
+    groupSwitchLabel: "Клас:",
     group1Label: "Група 1",
     group2Label: "Група 2",
+    addClassBtn: "Додати клас",
+    deleteClassBtn: "Видалити клас",
+    newClassNamePrompt: "Назва нового класу:",
+    deleteClassConfirm: (name) => `Ви впевнені, що хочете видалити клас "${name}"? Учні цього класу будуть перенесені до іншого класу, а розклад класу буде втрачено. Цю дію не можна скасувати.`,
+    deleteClassNoEmail: "У вашого акаунта немає пошти для надсилання коду підтвердження.",
+    deleteClassEmailSubject: "Код підтвердження видалення класу — Класний простір",
+    deleteClassEmailBody: (code) => `Ваш код підтвердження для видалення класу: ${code}\n\nКод дійсний 10 хвилин. Якщо ви не запитували видалення класу, проігноруйте цей лист.`,
+    deleteClassEnterCodePrompt: "Введіть 6-значний код підтвердження, надісланий на вашу пошту:",
+    deleteClassCodeExpired: "Термін дії коду сплив. Спробуйте видалити клас ще раз.",
+    deleteClassCodeWrong: "Невірний код підтвердження.",
+    dayTimesHeading: "Особливий розклад дзвінків для дня",
+    dayTimesHint: "Задайте окремий розклад дзвінків для конкретного дня тижня (наприклад, для суботи), який відрізняється від звичайного.",
+    dayTimesToggleLabel: "Свій розклад дзвінків для цього дня",
     weekdays: { mon: "Понеділок", tue: "Вівторок", wed: "Середа", thu: "Четвер", fri: "П'ятниця", sat: "Субота", sun: "Неділя" },
     weekdaysShort: { mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Нд" },
     addToScheduleBtn: "Додати",
@@ -228,9 +247,22 @@ const translations = {
     addSubjectFirstHint: "Add at least one subject first.",
 
     scheduleHeading: "Schedule",
-    groupSwitchLabel: "Group:",
+    groupSwitchLabel: "Class:",
     group1Label: "Group 1",
     group2Label: "Group 2",
+    addClassBtn: "Add class",
+    deleteClassBtn: "Delete class",
+    newClassNamePrompt: "Name of the new class:",
+    deleteClassConfirm: (name) => `Are you sure you want to delete the class "${name}"? Its students will be moved to another class, and the class's schedule will be lost. This cannot be undone.`,
+    deleteClassNoEmail: "Your account has no email address to send the confirmation code to.",
+    deleteClassEmailSubject: "Class deletion confirmation code — Class Space",
+    deleteClassEmailBody: (code) => `Your confirmation code for deleting the class: ${code}\n\nThe code is valid for 10 minutes. If you didn't request this, ignore this email.`,
+    deleteClassEnterCodePrompt: "Enter the 6-digit confirmation code sent to your email:",
+    deleteClassCodeExpired: "The code has expired. Please try deleting the class again.",
+    deleteClassCodeWrong: "Incorrect confirmation code.",
+    dayTimesHeading: "Custom bell schedule for a day",
+    dayTimesHint: "Set a separate bell schedule for a specific weekday (e.g. Saturday) that differs from the regular one.",
+    dayTimesToggleLabel: "Use a custom bell schedule for this day",
     weekdays: { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" },
     weekdaysShort: { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" },
     addToScheduleBtn: "Add",
@@ -353,28 +385,197 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
 applyStaticTranslations();
 
 // ==========================================================
-// Групи (Група 1 / Група 2) — окремий розклад для кожної
+// Класи (раніше — фіксовані Група 1 / Група 2, тепер довільна
+// кількість класів, які вчитель сам додає й видаляє). Кожен клас
+// має власний розклад. Зберігаються в колекції Firestore "classes".
 // ==========================================================
 const GROUP_STORAGE_KEY = "schooleballs-group";
-const GROUPS = ["group1", "group2"];
 
+let lastClasses = []; // [{id, data:{name, createdAt}}]
 let currentGroup = localStorage.getItem(GROUP_STORAGE_KEY) || "group1";
-if (!GROUPS.includes(currentGroup)) currentGroup = "group1";
+let classesSeeded = false;
+let unsubscribeClasses = null;
+
+function classIds() {
+  return lastClasses.map((c) => c.id);
+}
+
+function getClassName(classId) {
+  const found = lastClasses.find((c) => c.id === classId);
+  return found ? found.data.name : classId;
+}
 
 function setGroup(group) {
-  if (!GROUPS.includes(group) || group === currentGroup) return;
+  if (!classIds().includes(group) || group === currentGroup) return;
   currentGroup = group;
   localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
-  updateGroupButtons();
+  renderClassSwitch();
   renderSchedule();
   renderLessonsContainer();
   updateLiveStatus();
 }
 
-function updateGroupButtons() {
-  document.querySelectorAll(".group-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.group === currentGroup);
+// Слухаємо колекцію класів. Якщо вона порожня (перший запуск на старій
+// базі без колекції "classes"), один раз "засіюємо" її двома класами
+// зі старими фіксованими id group1/group2 — так старі студенти й старий
+// документ розкладу лишаються сумісними без міграції даних.
+function listenToClasses() {
+  const q = query(collection(db, "classes"), orderBy("createdAt"));
+  unsubscribeClasses = onSnapshot(q, async (snap) => {
+    if (snap.empty && !classesSeeded) {
+      classesSeeded = true;
+      try {
+        await setDoc(doc(db, "classes", "group1"), { name: "Група 1", createdAt: 1 });
+        await setDoc(doc(db, "classes", "group2"), { name: "Група 2", createdAt: 2 });
+      } catch (e) {
+        reportSaveError(e, "Не вдалося створити класи за замовчуванням", "Failed to create default classes");
+      }
+      return;
+    }
+    lastClasses = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    if (!classIds().includes(currentGroup)) {
+      currentGroup = classIds()[0] || "group1";
+      localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+    }
+    renderClassSwitch();
+    renderNewStudentGroupOptions();
+    renderStudentsTable();
+    renderSchedule();
+    renderLessonsContainer();
+    updateLiveStatus();
   });
+}
+
+function renderClassSwitch() {
+  const bar = document.getElementById("group-switch-bar-inner");
+  if (!bar) return;
+  bar.innerHTML = "";
+  lastClasses.forEach(({ id, data }) => {
+    const btn = document.createElement("button");
+    btn.className = "group-btn" + (id === currentGroup ? " active" : "");
+    btn.textContent = data.name;
+    btn.onclick = () => setGroup(id);
+    bar.appendChild(btn);
+  });
+
+  const addBtn = document.createElement("button");
+  addBtn.className = "secondary small class-add-btn";
+  addBtn.type = "button";
+  addBtn.textContent = "+";
+  addBtn.title = t("addClassBtn");
+  addBtn.onclick = addClassFlow;
+  bar.appendChild(addBtn);
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "secondary small class-delete-btn";
+  deleteBtn.type = "button";
+  deleteBtn.textContent = "✕";
+  deleteBtn.title = t("deleteClassBtn");
+  deleteBtn.disabled = lastClasses.length <= 1;
+  deleteBtn.onclick = () => deleteClassFlow(currentGroup);
+  bar.appendChild(deleteBtn);
+}
+
+async function addClassFlow() {
+  const name = (prompt(t("newClassNamePrompt")) || "").trim();
+  if (!name) return;
+  try {
+    const ref = await addDoc(collection(db, "classes"), { name, createdAt: Date.now() });
+    currentGroup = ref.id;
+    localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+  } catch (e) {
+    reportSaveError(e, "Не вдалося додати клас", "Failed to add the class");
+  }
+}
+
+// Видалення класу — двокроковий процес заради безпеки:
+// 1) звичайне підтвердження "ви впевнені?";
+// 2) 6-значний код підтвердження надсилається на пошту вчителя
+//    (через Firestore-колекцію "mail", яку обробляє розширення
+//    Firebase "Trigger Email" — див. коментар нижче) і вчитель
+//    повинен ввести цей код, щоб видалення відбулося.
+async function deleteClassFlow(classId) {
+  if (lastClasses.length <= 1) return;
+  const cls = lastClasses.find((c) => c.id === classId);
+  if (!cls) return;
+
+  if (!confirm(t("deleteClassConfirm")(cls.data.name))) return;
+
+  const user = auth.currentUser;
+  if (!user || !user.email) {
+    alert(t("deleteClassNoEmail"));
+    return;
+  }
+
+  const code = generateSixDigitCode();
+  const requestRef = await addDoc(collection(db, "classDeletionRequests"), {
+    classId,
+    code,
+    teacherUid: user.uid,
+    teacherEmail: user.email,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  });
+
+  // ПРИМІТКА: реальна відправка листа відбувається через розширення
+  // Firebase Extensions "Trigger Email" (https://extensions.dev/extensions/firebase/firestore-send-email),
+  // яке відстежує колекцію "mail" і саме шле листи через налаштований SMTP.
+  // Якщо розширення не встановлено, документ у "mail" просто збережеться
+  // без фактичної відправки — встановіть розширення в Firebase Console.
+  try {
+    await addDoc(collection(db, "mail"), {
+      to: [user.email],
+      message: {
+        subject: t("deleteClassEmailSubject"),
+        text: t("deleteClassEmailBody")(code),
+      },
+    });
+  } catch (e) {
+    reportSaveError(e, "Не вдалося надіслати код підтвердження на пошту", "Failed to send the confirmation code by email");
+    await deleteDoc(requestRef).catch(() => {});
+    return;
+  }
+
+  const entered = (prompt(t("deleteClassEnterCodePrompt")) || "").trim();
+  if (!entered) {
+    await deleteDoc(requestRef).catch(() => {});
+    return;
+  }
+
+  const freshSnap = await getDoc(requestRef);
+  const reqData = freshSnap.exists() ? freshSnap.data() : null;
+
+  if (!reqData || Date.now() > reqData.expiresAt) {
+    alert(t("deleteClassCodeExpired"));
+    await deleteDoc(requestRef).catch(() => {});
+    return;
+  }
+  if (entered !== reqData.code) {
+    alert(t("deleteClassCodeWrong"));
+    await deleteDoc(requestRef).catch(() => {});
+    return;
+  }
+
+  try {
+    // Учні цього класу переносяться в перший клас, що лишається,
+    // аби вони не "загубилися" без жодного класу.
+    const fallbackId = classIds().find((id) => id !== classId) || null;
+    const studentsSnap = await getDocs(query(collection(db, "students"), where("group", "==", classId)));
+    const batch = writeBatch(db);
+    studentsSnap.docs.forEach((docSnap) => {
+      batch.update(docSnap.ref, { group: fallbackId });
+    });
+    batch.delete(doc(db, "classes", classId));
+    batch.update(doc(db, "schedule", "week"), { [classId]: deleteField() });
+    await batch.commit();
+    await deleteDoc(requestRef).catch(() => {});
+    if (currentGroup === classId) {
+      currentGroup = fallbackId || "group1";
+      localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
+    }
+  } catch (e) {
+    reportSaveError(e, "Не вдалося видалити клас", "Failed to delete the class");
+  }
 }
 
 // ---------- DOM refs ----------
@@ -424,13 +625,6 @@ const joinMeetingWrap = document.getElementById("join-meeting-wrap");
 const joinMeetingBtn = document.getElementById("join-meeting-btn");
 const liveStatusCard = document.getElementById("live-status-card");
 const liveStatusEl = document.getElementById("live-status");
-const group1Btn = document.getElementById("group-1-btn");
-const group2Btn = document.getElementById("group-2-btn");
-
-[group1Btn, group2Btn].forEach((btn) => {
-  if (btn) btn.onclick = () => setGroup(btn.dataset.group);
-});
-updateGroupButtons();
 
 // ---------- Згортання списку предметів ----------
 let subjectsCollapsed = false;
@@ -451,7 +645,7 @@ if (subjectsToggleBtn) {
 
 if (scheduleToggleBtn) {
   scheduleToggleBtn.onclick = async () => {
-    const groupSchedule = scheduleData[currentGroup];
+    const groupSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
     const newApplied = !groupSchedule.applied;
     try {
       await setDoc(
@@ -609,6 +803,7 @@ onAuthStateChanged(auth, async (user) => {
   showAppScreen();
   updateAvatar(user);
   updateGreetingDate();
+  listenToClasses();
   listenToStudents();
   listenToSubjects();
   listenToSchedule();
@@ -618,6 +813,7 @@ onAuthStateChanged(auth, async (user) => {
 function showAuthScreen() {
   authScreen.classList.remove("hidden");
   appScreen.classList.add("hidden");
+  if (unsubscribeClasses) unsubscribeClasses();
   if (unsubscribeStudents) unsubscribeStudents();
   if (unsubscribeLessons) unsubscribeLessons();
   if (unsubscribeSubjects) unsubscribeSubjects();
@@ -683,13 +879,23 @@ addStudentBtn.onclick = async () => {
   await addDoc(collection(db, "students"), {
     name,
     points: 0,
-    group: newStudentGroup ? newStudentGroup.value : "group1",
+    group: newStudentGroup && newStudentGroup.value ? newStudentGroup.value : (classIds()[0] || "group1"),
     inviteCode: generateInviteCode(),
     authUid: null,
     createdAt: Date.now(),
   });
   newStudentName.value = "";
 };
+
+// Перебудовує список класів у селекті форми "Додати учня".
+function renderNewStudentGroupOptions() {
+  if (!newStudentGroup) return;
+  const prevValue = newStudentGroup.value;
+  newStudentGroup.innerHTML = lastClasses
+    .map(({ id, data }) => `<option value="${id}">${escapeHtml(data.name)}</option>`)
+    .join("");
+  if (lastClasses.some((c) => c.id === prevValue)) newStudentGroup.value = prevValue;
+}
 
 function generateInviteCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -730,10 +936,10 @@ function renderStudentRow(id, data) {
 
   const groupSelect = document.createElement("select");
   groupSelect.className = "student-group-select";
-  groupSelect.innerHTML = `
-    <option value="group1">${t("group1Label")}</option>
-    <option value="group2">${t("group2Label")}</option>`;
-  groupSelect.value = data.group === "group2" ? "group2" : "group1";
+  groupSelect.innerHTML = lastClasses
+    .map(({ id, data: c }) => `<option value="${id}">${escapeHtml(c.name)}</option>`)
+    .join("");
+  if (lastClasses.some((c) => c.id === data.group)) groupSelect.value = data.group;
   groupSelect.onchange = () => {
     updateDoc(doc(db, "students", id), { group: groupSelect.value }).catch((e) =>
       reportSaveError(e, "Не вдалося змінити групу", "Failed to change the group")
@@ -901,11 +1107,7 @@ function renderSubjectSelects() {
 function listenToSchedule() {
   unsubscribeSchedule = onSnapshot(doc(db, "schedule", "week"), (snap) => {
     const raw = snap.exists() ? snap.data() : {};
-    const hasGroups = !!raw.group1 || !!raw.group2;
-    scheduleData = hasGroups
-      ? { group1: normalizeGroupData(raw.group1), group2: normalizeGroupData(raw.group2) }
-      // Старий документ без груп — показуємо його як Групу 1, Група 2 порожня
-      : { group1: normalizeGroupData(raw), group2: emptyGroupSchedule() };
+    scheduleData = buildScheduleData(raw, classIds());
     renderSchedule();
     renderLessonsContainer();
     updateLiveStatus();
@@ -915,7 +1117,7 @@ function listenToSchedule() {
 function renderSchedule() {
   scheduleDaysEl.innerHTML = "";
 
-  const groupSchedule = scheduleData[currentGroup];
+  const groupSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
   const applied = !!groupSchedule.applied;
 
   if (scheduleToggleBtn) {
@@ -1163,6 +1365,122 @@ function renderSchedule() {
   wrap.className = "schedule-table-wrap";
   wrap.appendChild(table);
   scheduleDaysEl.appendChild(wrap);
+
+  scheduleDaysEl.appendChild(renderDayTimesEditor(groupSchedule, Math.max(rowCount, 1)));
+}
+
+// ---------- Особливий розклад дзвінків для конкретного дня (напр. субота) ----------
+let dayTimesEditorDay = "sat";
+
+function renderDayTimesEditor(groupSchedule, rowCount) {
+  const box = document.createElement("section");
+  box.className = "card day-times-editor";
+
+  const heading = document.createElement("h3");
+  heading.textContent = t("dayTimesHeading");
+  box.appendChild(heading);
+
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent = t("dayTimesHint");
+  box.appendChild(hint);
+
+  const controlsRow = document.createElement("div");
+  controlsRow.className = "day-times-controls";
+
+  const daySelect = document.createElement("select");
+  WEEKDAYS.forEach((d) => {
+    const opt = document.createElement("option");
+    opt.value = d;
+    opt.textContent = t("weekdays")[d];
+    if (d === dayTimesEditorDay) opt.selected = true;
+    daySelect.appendChild(opt);
+  });
+  daySelect.onchange = () => {
+    dayTimesEditorDay = daySelect.value;
+    renderSchedule();
+  };
+  controlsRow.appendChild(daySelect);
+
+  const dayKey = dayTimesEditorDay;
+  const hasCustom = !!(groupSchedule.dayTimes && groupSchedule.dayTimes[dayKey] && Object.keys(groupSchedule.dayTimes[dayKey]).length > 0);
+
+  const toggleLabel = document.createElement("label");
+  toggleLabel.className = "day-times-toggle";
+  const toggleCheckbox = document.createElement("input");
+  toggleCheckbox.type = "checkbox";
+  toggleCheckbox.checked = hasCustom;
+  toggleCheckbox.onchange = async () => {
+    try {
+      if (toggleCheckbox.checked) {
+        const defaults = groupSchedule.times || {};
+        const seeded = {};
+        for (let r = 0; r < rowCount; r++) {
+          const t0 = defaults[r] || defaults[String(r)] || {};
+          seeded[r] = { start: t0.start || null, end: t0.end || null };
+        }
+        await setDoc(doc(db, "schedule", "week"), { [currentGroup]: { dayTimes: { [dayKey]: seeded } } }, { merge: true });
+      } else {
+        await updateDoc(doc(db, "schedule", "week"), { [`${currentGroup}.dayTimes.${dayKey}`]: deleteField() });
+      }
+    } catch (e) {
+      reportSaveError(e, "Не вдалося оновити розклад дзвінків", "Failed to update the bell schedule");
+    }
+  };
+  const toggleText = document.createElement("span");
+  toggleText.textContent = t("dayTimesToggleLabel");
+  toggleLabel.append(toggleCheckbox, toggleText);
+  controlsRow.appendChild(toggleLabel);
+
+  box.appendChild(controlsRow);
+
+  if (hasCustom) {
+    const grid = document.createElement("div");
+    grid.className = "day-times-grid";
+    const dayTimesMap = groupSchedule.dayTimes[dayKey] || {};
+    for (let r = 0; r < rowCount; r++) {
+      const saved = dayTimesMap[r] || dayTimesMap[String(r)] || {};
+      const row = document.createElement("div");
+      row.className = "day-times-row";
+
+      const label = document.createElement("span");
+      label.className = "day-times-row-label";
+      label.textContent = String(r + 1);
+      row.appendChild(label);
+
+      const startInput = document.createElement("input");
+      startInput.type = "time";
+      startInput.value = saved.start || "";
+      startInput.onblur = async () => {
+        const val = startInput.value || null;
+        if (val === (saved.start || null)) return;
+        try {
+          await setDoc(doc(db, "schedule", "week"), { [currentGroup]: { dayTimes: { [dayKey]: { [r]: { start: val } } } } }, { merge: true });
+        } catch (e) {
+          reportSaveError(e, "Не вдалося зберегти час", "Failed to save the time");
+        }
+      };
+
+      const endInput = document.createElement("input");
+      endInput.type = "time";
+      endInput.value = saved.end || "";
+      endInput.onblur = async () => {
+        const val = endInput.value || null;
+        if (val === (saved.end || null)) return;
+        try {
+          await setDoc(doc(db, "schedule", "week"), { [currentGroup]: { dayTimes: { [dayKey]: { [r]: { end: val } } } } }, { merge: true });
+        } catch (e) {
+          reportSaveError(e, "Не вдалося зберегти час", "Failed to save the time");
+        }
+      };
+
+      row.append(startInput, endInput);
+      grid.appendChild(row);
+    }
+    box.appendChild(grid);
+  }
+
+  return box;
 }
 
 // Показує в клітинці розкладу вибір предмета для разової заміни на цей тиждень.
@@ -1252,10 +1570,10 @@ function updateLiveStatus() {
   if (!liveStatusEl) return;
 
   const now = new Date();
-  const groupSchedule = scheduleData[currentGroup];
+  const groupSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
   const weekdayKey = WEEKDAY_BY_JS_INDEX[now.getDay()];
   const dayEntries = groupSchedule[weekdayKey] || {};
-  const periodTimes = groupSchedule.times || {};
+  const periodTimes = getDayEffectiveTimes(groupSchedule, weekdayKey);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   const maxPeriodIndex = Math.max(
@@ -1431,7 +1749,7 @@ function renderDayView(dayOffset) {
 
 function renderDayLessons(target, targetDateStr) {
   const weekdayKey = WEEKDAY_BY_JS_INDEX[target.getDay()];
-  const groupSchedule = scheduleData[currentGroup];
+  const groupSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
   const dayEntries = getDayEntriesList(groupSchedule, weekdayKey);
 
   if (dayEntries.length === 0) {

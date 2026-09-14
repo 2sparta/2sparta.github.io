@@ -32,13 +32,42 @@ export function emptyGroupSchedule() {
     // Це дозволяє видаляти/додавати урок у конкретній клітинці, не зсуваючи інші.
     mon: {}, tue: {}, wed: {}, thu: {}, fri: {}, sat: {}, sun: {},
     times: {},
+    // Власний ("особливий") розклад дзвінків для конкретного дня тижня,
+    // напр. { sat: { 0: {start,end}, 1: {...} } } — якщо для дня задано
+    // хоча б один запис, він повністю перекриває спільний times для цього дня.
+    dayTimes: {},
     applied: false,
     overrides: {},
   };
 }
 
+// ЗАСТАРІЛЕ: раніше було рівно дві фіксовані групи. Лишили для сумісності —
+// нові класи тепер зберігаються в колекції Firestore "classes" і схема
+// розкладу будується динамічно через buildScheduleData().
 export function emptySchedule() {
   return { group1: emptyGroupSchedule(), group2: emptyGroupSchedule() };
+}
+
+// Будує scheduleData для довільного набору id класів (замість фіксованих
+// group1/group2). raw — вміст документа schedule/week, classIds — масив
+// id-шників усіх класів, що зараз існують (з колекції "classes").
+export function buildScheduleData(raw, classIds) {
+  const result = {};
+  const safeRaw = raw || {};
+  const ids = classIds && classIds.length ? classIds : ["group1"];
+  ids.forEach((id) => {
+    result[id] = normalizeGroupData(safeRaw[id]);
+  });
+  return result;
+}
+
+// Повертає ефективну мапу "номер уроку" → {start,end} для конкретного дня:
+// якщо для цього дня задано власний розклад дзвінків (dayTimes[dayKey]) —
+// повертає його, інакше — спільний groupSchedule.times.
+export function getDayEffectiveTimes(groupSchedule, dayKey) {
+  const dayOverride = groupSchedule.dayTimes && groupSchedule.dayTimes[dayKey];
+  if (dayOverride && Object.keys(dayOverride).length > 0) return dayOverride;
+  return groupSchedule.times || {};
 }
 
 // Повертає ISO-ключ поточного тижня, напр. "2026-W37".
@@ -104,9 +133,14 @@ export function normalizeGroupData(groupRaw) {
     base[dayKey] = dayMap;
   });
   base.times = groupRaw.times || {};
+  base.dayTimes = groupRaw.dayTimes || {};
   base.applied = !!groupRaw.applied;
   base.overrides = groupRaw.overrides || {};
   return base;
+}
+
+export function generateSixDigitCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 export function generateEntryId() {

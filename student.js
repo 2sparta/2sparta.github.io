@@ -28,6 +28,8 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
+  addDoc,
   collection,
   query,
   where,
@@ -41,8 +43,8 @@ import {
   getActiveOverride,
   getDayEntriesList,
   getDayMaxPeriodIndex,
+  getDayEffectiveTimes,
   normalizeGroupData,
-  emptySchedule,
   parseTimeToMinutes,
   formatDateLocal,
   escapeHtml,
@@ -99,6 +101,11 @@ const hwHideDoneCheckbox = document.getElementById("hw-hide-done-checkbox");
 const subjectsListEl = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
 
+const newElectiveName = document.getElementById("new-elective-name");
+const addElectiveBtn = document.getElementById("add-elective-btn");
+const electivesListEl = document.getElementById("electives-list");
+const noElectivesMsg = document.getElementById("no-electives-msg");
+
 // ---------- State ----------
 // Так само як DOM-блок вище: винесено ДО i18n, бо updateGreeting() /
 // renderScheduleContainer() / updateLiveStatus() читають ці змінні вже
@@ -107,7 +114,9 @@ let studentId = null;
 let studentData = null;
 let lastSubjects = [];
 let lastLessons = [];
-let scheduleData = emptySchedule();
+let lastScheduleRaw = {};
+let lastElectives = [];
+let unsubscribeElectives = null;
 let currentView = "today"; // "today" | "tomorrow"
 let hwSortMode = "date"; // "date" | "subject"
 let hwSubjectFilterId = "";
@@ -204,6 +213,12 @@ const translations = {
     hwMarkDoneLabel: "Виконано",
     subjectsListHeading: "Мої предмети",
     noSubjectsMsg: "Предметів ще немає.",
+    electivesHeading: "Мої факультативи",
+    electivesHint: "Видно тільки вам — вчитель і інші учні їх не бачать.",
+    electiveNamePlaceholder: "Назва факультативу",
+    noElectivesMsg: "Факультативів ще немає.",
+    addBtn: "Додати",
+    deleteBtn: "Видалити",
     joinMeetingBtn: "Приєднатися до зустрічі",
     liveLessonLabel: "Йде урок:",
     liveBreakLabel: "Перерва",
@@ -258,6 +273,12 @@ const translations = {
     hwMarkDoneLabel: "Done",
     subjectsListHeading: "My subjects",
     noSubjectsMsg: "No subjects yet.",
+    electivesHeading: "My electives",
+    electivesHint: "Only visible to you — your teacher and other students can't see these.",
+    electiveNamePlaceholder: "Elective name",
+    noElectivesMsg: "No electives yet.",
+    addBtn: "Add",
+    deleteBtn: "Delete",
     joinMeetingBtn: "Join the meeting",
     liveLessonLabel: "Lesson in progress:",
     liveBreakLabel: "Break",
@@ -327,7 +348,7 @@ function errorText(e) {
 }
 
 function myGroup() {
-  return studentData && studentData.group === "group2" ? "group2" : "group1";
+  return studentData && studentData.group ? studentData.group : "group1";
 }
 
 // ---------- Screens ----------
@@ -509,14 +530,24 @@ function startDashboard(user) {
   );
 
   unsubscribeSchedule = onSnapshot(doc(db, "schedule", "week"), (snap) => {
-    const raw = snap.exists() ? snap.data() : {};
-    const hasGroups = !!raw.group1 || !!raw.group2;
-    scheduleData = hasGroups
-      ? { group1: normalizeGroupData(raw.group1), group2: normalizeGroupData(raw.group2) }
-      : { group1: normalizeGroupData(raw), group2: emptySchedule().group2 };
+    lastScheduleRaw = snap.exists() ? snap.data() : {};
     renderScheduleContainer();
     updateLiveStatus();
   });
+
+  unsubscribeElectives = onSnapshot(
+    query(collection(db, "electives"), where("uid", "==", user.uid)),
+    (snap) => {
+      lastElectives = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      renderElectivesList();
+    }
+  );
+}
+
+// Розклад свого класу будується "на льоту" з сирого документа schedule/week —
+// так учневі не потрібен повний список усіх класів (їх бачить лише вчитель).
+function getGroupSchedule(classId) {
+  return normalizeGroupData(lastScheduleRaw[classId]);
 }
 
 // ---------- Greeting ----------
@@ -586,10 +617,10 @@ function updateLiveStatus() {
   if (!liveStatusEl || !studentData) return;
 
   const now = new Date();
-  const groupSchedule = scheduleData[myGroup()];
+  const groupSchedule = getGroupSchedule(myGroup());
   const weekdayKey = WEEKDAY_BY_JS_INDEX[now.getDay()];
   const dayEntries = groupSchedule[weekdayKey] || {};
-  const periodTimes = groupSchedule.times || {};
+  const periodTimes = getDayEffectiveTimes(groupSchedule, weekdayKey);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   const maxPeriodIndex = Math.max(
@@ -687,7 +718,7 @@ function renderScheduleContainer() {
   target.setDate(target.getDate() + (currentView === "tomorrow" ? 1 : 0));
   const targetDateStr = formatDateLocal(target);
   const weekdayKey = WEEKDAY_BY_JS_INDEX[target.getDay()];
-  const groupSchedule = scheduleData[myGroup()];
+  const groupSchedule = getGroupSchedule(myGroup());
   const dayEntries = getDayEntriesList(groupSchedule, weekdayKey);
 
   if (dayEntries.length === 0) {
@@ -867,4 +898,51 @@ function renderHomeworkContainer() {
   });
 
   noHomeworkMsg.classList.toggle("hidden", upcoming.length > 0);
+}
+
+// ---------- Факультативи (приватні, видно тільки самому учню) ----------
+if (addElectiveBtn) {
+  addElectiveBtn.onclick = async () => {
+    const name = newElectiveName.value.trim();
+    if (!name || !studentId || !auth.currentUser) return;
+    try {
+      await addDoc(collection(db, "electives"), {
+        uid: auth.currentUser.uid,
+        studentId,
+        name,
+        createdAt: Date.now(),
+      });
+      newElectiveName.value = "";
+    } catch (e) {
+      alert(errorText(e));
+    }
+  };
+}
+
+function renderElectivesList() {
+  if (!electivesListEl) return;
+  electivesListEl.innerHTML = "";
+  lastElectives
+    .slice()
+    .sort((a, b) => (a.data.createdAt || 0) - (b.data.createdAt || 0))
+    .forEach(({ id, data }) => {
+      const li = document.createElement("li");
+      li.className = "elective-item";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "elective-item-name";
+      nameSpan.textContent = data.name;
+      li.appendChild(nameSpan);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "elective-delete-btn";
+      deleteBtn.type = "button";
+      deleteBtn.textContent = "✕";
+      deleteBtn.setAttribute("aria-label", t("deleteBtn"));
+      deleteBtn.onclick = () => deleteDoc(doc(db, "electives", id)).catch((e) => alert(errorText(e)));
+      li.appendChild(deleteBtn);
+
+      electivesListEl.appendChild(li);
+    });
+  if (noElectivesMsg) noElectivesMsg.classList.toggle("hidden", lastElectives.length > 0);
 }
