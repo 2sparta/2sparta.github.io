@@ -72,80 +72,102 @@
       </div>
     </header>
 
-    <section class="greeting-card">
-      <div class="greeting-text">
-        <p id="greeting-date" class="greeting-date"></p>
-        <h1 id="greeting-title" class="greeting-title"></h1>
-        <p id="greeting-subtitle" class="greeting-subtitle"></p>
-      </div>
-      <div class="points-hero">
-        <span id="points-hero-value" class="points-hero-value">0</span>
-        <span class="points-hero-caption" data-i18n="pointsLabel">балів</span>
-      </div>
-    </section>
+    <div class="app-body">
 
-    <section class="card hidden" id="live-status-card">
-      <div id="live-status" class="live-status"></div>
-    </section>
+      <!-- Вкладки зліва, так само як у панелі вчителя -->
+      <nav class="tabs">
+        <button id="tab-schedule-btn" class="tab-btn active" data-i18n="tabSchedule">Розклад</button>
+        <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
+      </nav>
 
-    <section class="card hidden" id="join-meeting-card">
-      <div id="join-meeting-wrap" class="join-meeting-wrap">
-        <button id="join-meeting-btn" class="join-meeting-btn" type="button"></button>
-      </div>
-    </section>
+      <!-- Віджети та контент: відцентровані та широкі -->
+      <div class="app-main">
 
-    <section class="card">
-      <div class="lessons-view-header">
-        <h2 data-i18n="scheduleHeading">Розклад</h2>
-        <div class="view-switch">
-          <button id="view-today-btn" class="view-btn active" data-view="today" data-i18n="viewToday">Сьогодні</button>
-          <button id="view-tomorrow-btn" class="view-btn" data-view="tomorrow" data-i18n="viewTomorrow">Завтра</button>
+        <section class="greeting-card">
+          <div class="greeting-text">
+            <p id="greeting-date" class="greeting-date"></p>
+            <h1 id="greeting-title" class="greeting-title"></h1>
+            <p id="greeting-subtitle" class="greeting-subtitle"></p>
+          </div>
+          <div class="points-hero">
+            <span id="points-hero-value" class="points-hero-value">0</span>
+            <span class="points-hero-caption" data-i18n="pointsLabel">балів</span>
+          </div>
+        </section>
+
+        <div id="schedule-panel" class="tab-panel">
+
+          <section class="card hidden" id="live-status-card">
+            <div id="live-status" class="live-status"></div>
+          </section>
+
+          <section class="card hidden" id="join-meeting-card">
+            <div id="join-meeting-wrap" class="join-meeting-wrap">
+              <button id="join-meeting-btn" class="join-meeting-btn" type="button"></button>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="lessons-view-header">
+              <h2 data-i18n="scheduleHeading">Розклад</h2>
+              <div class="view-switch">
+                <button id="view-today-btn" class="view-btn active" data-view="today" data-i18n="viewToday">Сьогодні</button>
+                <button id="view-tomorrow-btn" class="view-btn" data-view="tomorrow" data-i18n="viewTomorrow">Завтра</button>
+              </div>
+            </div>
+            <div id="schedule-container"></div>
+          </section>
+
         </div>
-      </div>
-      <div id="schedule-container"></div>
-    </section>
 
-    <section class="card">
-      <h2 data-i18n="homeworkHeading">Найближчі домашні завдання</h2>
-      <div class="hw-controls">
-        <label class="hw-control-field">
-          <span data-i18n="hwSortLabel">Сортувати:</span>
-          <select id="hw-sort-select">
-            <option value="date" data-i18n="hwSortDate">За датою</option>
-            <option value="subject" data-i18n="hwSortSubject">За предметом</option>
-          </select>
-        </label>
-        <label class="hw-control-field">
-          <span data-i18n="hwFilterSubjectLabel">Предмет:</span>
-          <select id="hw-subject-filter">
-            <option value="" data-i18n="hwFilterAllSubjects">Усі предмети</option>
-          </select>
-        </label>
-        <label class="hw-hide-done-toggle">
-          <input type="checkbox" id="hw-hide-done-checkbox" />
-          <span data-i18n="hwHideDoneLabel">Приховати виконані</span>
-        </label>
-      </div>
-      <div id="homework-container"></div>
-      <p id="no-homework-msg" class="hint hidden" data-i18n="noHomeworkMsg">Найближчим часом дз не заплановано.</p>
-    </section>
+        <div id="tasks-panel" class="tab-panel hidden">
 
-    <section class="card">
-      <h2 data-i18n="subjectsListHeading">Мої предмети</h2>
-      <ul id="subjects-list" class="subjects-list"></ul>
-      <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
-    </section>
+          <section class="card">
+            <h2 data-i18n="homeworkHeading">Найближчі домашні завдання</h2>
+            <div class="hw-controls">
+              <label class="hw-control-field">
+                <span data-i18n="hwSortLabel">Сортувати:</span>
+                <select id="hw-sort-select">
+                  <option value="date" data-i18n="hwSortDate">За датою</option>
+                  <option value="subject" data-i18n="hwSortSubject">За предметом</option>
+                </select>
+              </label>
+              <label class="hw-control-field">
+                <span data-i18n="hwFilterSubjectLabel">Предмет:</span>
+                <select id="hw-subject-filter">
+                  <option value="" data-i18n="hwFilterAllSubjects">Усі предмети</option>
+                </select>
+              </label>
+              <label class="hw-hide-done-toggle">
+                <input type="checkbox" id="hw-hide-done-checkbox" />
+                <span data-i18n="hwHideDoneLabel">Приховати виконані</span>
+              </label>
+            </div>
+            <div id="homework-container"></div>
+            <p id="no-homework-msg" class="hint hidden" data-i18n="noHomeworkMsg">Найближчим часом дз не заплановано.</p>
+          </section>
 
-    <section class="card electives-card">
-      <h2 data-i18n="electivesHeading">Мої факультативи</h2>
-      <p class="hint" data-i18n="electivesHint">Видно тільки вам — вчитель і інші учні їх не бачать.</p>
-      <div class="row">
-        <input id="new-elective-name" type="text" data-i18n-placeholder="electiveNamePlaceholder" placeholder="Назва факультативу" />
-        <button id="add-elective-btn" data-i18n="addBtn">Додати</button>
+          <section class="card">
+            <h2 data-i18n="subjectsListHeading">Мої предмети</h2>
+            <ul id="subjects-list" class="subjects-list"></ul>
+            <p id="no-subjects-msg" class="hint hidden" data-i18n="noSubjectsMsg">Предметів ще немає.</p>
+          </section>
+
+          <section class="card electives-card">
+            <h2 data-i18n="electivesHeading">Мої факультативи</h2>
+            <p class="hint" data-i18n="electivesHint">Видно тільки вам — вчитель і інші учні їх не бачать.</p>
+            <div class="row">
+              <input id="new-elective-name" type="text" data-i18n-placeholder="electiveNamePlaceholder" placeholder="Назва факультативу" />
+              <button id="add-elective-btn" data-i18n="addBtn">Додати</button>
+            </div>
+            <ul id="electives-list" class="electives-list"></ul>
+            <p id="no-electives-msg" class="hint hidden" data-i18n="noElectivesMsg">Факультативів ще немає.</p>
+          </section>
+
+        </div>
+
       </div>
-      <ul id="electives-list" class="electives-list"></ul>
-      <p id="no-electives-msg" class="hint hidden" data-i18n="noElectivesMsg">Факультативів ще немає.</p>
-    </section>
+    </div>
 
   </div>
 

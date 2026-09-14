@@ -83,6 +83,11 @@ const greetingTitleEl = document.getElementById("greeting-title");
 const greetingSubtitleEl = document.getElementById("greeting-subtitle");
 const pointsHeroValueEl = document.getElementById("points-hero-value");
 
+const tabScheduleBtn = document.getElementById("tab-schedule-btn");
+const tabTasksBtn = document.getElementById("tab-tasks-btn");
+const schedulePanel = document.getElementById("schedule-panel");
+const tasksPanel = document.getElementById("tasks-panel");
+
 const liveStatusCard = document.getElementById("live-status-card");
 const liveStatusEl = document.getElementById("live-status");
 const joinMeetingCard = document.getElementById("join-meeting-card");
@@ -199,6 +204,8 @@ const translations = {
     notStudentRole: "Цей акаунт зареєстровано як вчительський. Скористайтеся панеллю вчителя (посилання нижче).",
     greeting: (name) => `Привіт, ${name}!`,
     pointsLabel: "балів",
+    tabSchedule: "Розклад",
+    tabTasks: "Завдання",
     scheduleHeading: "Розклад",
     viewToday: "Сьогодні",
     viewTomorrow: "Завтра",
@@ -259,6 +266,8 @@ const translations = {
     notStudentRole: "This account is registered as a teacher account. Use the teacher panel (link below).",
     greeting: (name) => `Hi, ${name}!`,
     pointsLabel: "points",
+    tabSchedule: "Schedule",
+    tabTasks: "Tasks",
     scheduleHeading: "Schedule",
     viewToday: "Today",
     viewTomorrow: "Tomorrow",
@@ -342,6 +351,16 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
   btn.addEventListener("click", () => setLanguage(btn.dataset.lang));
 });
 applyStaticTranslations();
+
+// ---------- Tabs ----------
+function showTab(tab) {
+  if (tabScheduleBtn) tabScheduleBtn.classList.toggle("active", tab === "schedule");
+  if (tabTasksBtn) tabTasksBtn.classList.toggle("active", tab === "tasks");
+  if (schedulePanel) schedulePanel.classList.toggle("hidden", tab !== "schedule");
+  if (tasksPanel) tasksPanel.classList.toggle("hidden", tab !== "tasks");
+}
+if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
+if (tabTasksBtn) tabTasksBtn.onclick = () => showTab("tasks");
 
 function errorText(e) {
   return translations[currentLang].errors[e.code] || e.message;
