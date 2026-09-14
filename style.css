@@ -968,7 +968,7 @@ code {
   color: var(--color-secondary);
 }
 .schedule-table-today {
-  background: var(--color-surface-tint);
+  background: #fff3e0;
 }
 th.schedule-table-today {
   color: var(--color-accent);
