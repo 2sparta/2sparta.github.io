@@ -926,10 +926,6 @@ code {
 }
 
 /* ---------- Факультативи у розкладі (табличка + "Сьогодні/Завтра") ---------- */
-.chip-elective {
-  background: var(--color-purple-bg);
-  color: var(--color-purple);
-}
 .today-subject-block-elective .today-subject-name {
   display: inline-flex;
   color: var(--color-purple);
@@ -1081,6 +1077,10 @@ th.schedule-table-today {
   border-radius: var(--radius-pill);
   font-size: 13px;
   font-weight: 600;
+}
+.chip-elective {
+  background: var(--color-purple-bg);
+  color: var(--color-purple);
 }
 .chip-remove {
   background: transparent;
