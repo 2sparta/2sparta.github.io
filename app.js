@@ -151,6 +151,12 @@ const translations = {
     scheduleApplyBtn: "Застосувати розклад",
     scheduleEditBtn: "Змінити розклад",
     scheduleEmptyMsg: "Розклад порожній.",
+    copyScheduleBtnTitle: "Копіювати розклад",
+    pasteScheduleBtnTitle: "Вставити розклад",
+    pasteScheduleBtnTitleWithSource: (from) => `Вставити розклад (з: ${from})`,
+    pasteScheduleConfirm: (from, to) => `Вставити розклад з "${from}" у "${to}"? Поточний розклад дзвінків і уроків у "${to}" буде замінено.`,
+    copyScheduleDone: (from) => `Розклад "${from}" скопійовано. Перейдіть до потрібного класу/групи і натисніть "Вставити".`,
+    pasteScheduleDone: "Розклад вставлено.",
     joinMeetingBtn: "Приєднатися до зустрічі",
     oneTimeChangeTitle: "Разова заміна (на цей тиждень)",
     removeOverrideTitle: "Скасувати разову заміну",
@@ -295,6 +301,12 @@ const translations = {
     periodEndLabel: "Lesson end",
     scheduleApplyBtn: "Apply schedule",
     scheduleEditBtn: "Change schedule",
+    copyScheduleBtnTitle: "Copy schedule",
+    pasteScheduleBtnTitle: "Paste schedule",
+    pasteScheduleBtnTitleWithSource: (from) => `Paste schedule (from: ${from})`,
+    pasteScheduleConfirm: (from, to) => `Paste the schedule from "${from}" into "${to}"? The current bell schedule and lessons in "${to}" will be replaced.`,
+    copyScheduleDone: (from) => `Schedule "${from}" copied. Switch to the target class/group and press "Paste".`,
+    pasteScheduleDone: "Schedule pasted.",
     scheduleEmptyMsg: "The schedule is empty.",
     joinMeetingBtn: "Join the meeting",
     oneTimeChangeTitle: "One-time change (this week only)",
@@ -402,6 +414,7 @@ function setLanguage(lang) {
   updateLiveStatus();
   updateGreetingDate();
   updateDashboardStats();
+  updateScheduleClipboardButtons();
   const sortSel = document.getElementById("students-sort-select");
   if (sortSel) sortSel.value = studentsSortMode;
 }
@@ -898,6 +911,8 @@ const subjectsToggleBtn = document.getElementById("subjects-toggle-btn");
 
 const scheduleDaysEl = document.getElementById("schedule-days");
 const scheduleToggleBtn = document.getElementById("schedule-toggle-btn");
+const scheduleCopyBtn = document.getElementById("schedule-copy-btn");
+const schedulePasteBtn = document.getElementById("schedule-paste-btn");
 const joinMeetingCard = document.getElementById("join-meeting-card");
 const joinMeetingWrap = document.getElementById("join-meeting-wrap");
 const joinMeetingBtn = document.getElementById("join-meeting-btn");
@@ -936,6 +951,92 @@ if (scheduleToggleBtn) {
     }
   };
 }
+
+// ---------- Копіювати / вставити розклад між групами/класами ----------
+// Буфер зберігається в localStorage, щоб не губився, якщо між копіюванням
+// і вставкою сторінку перезавантажили (напр. на телефоні).
+const SCHEDULE_CLIPBOARD_KEY = "schooleballs-schedule-clipboard";
+
+function loadScheduleClipboard() {
+  try {
+    const raw = localStorage.getItem(SCHEDULE_CLIPBOARD_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.days) return null;
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+
+let scheduleClipboard = loadScheduleClipboard();
+
+function updateScheduleClipboardButtons() {
+  if (scheduleCopyBtn) scheduleCopyBtn.title = t("copyScheduleBtnTitle");
+  if (!schedulePasteBtn) return;
+  schedulePasteBtn.disabled = !scheduleClipboard;
+  schedulePasteBtn.title = scheduleClipboard
+    ? t("pasteScheduleBtnTitleWithSource")(scheduleClipboard.sourceLabel)
+    : t("pasteScheduleBtnTitle");
+}
+
+if (scheduleCopyBtn) {
+  scheduleCopyBtn.onclick = () => {
+    const groupSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
+    const days = {};
+    WEEKDAYS.forEach((d) => {
+      days[d] = groupSchedule[d] || {};
+    });
+    scheduleClipboard = {
+      sourceGroupId: currentGroup,
+      sourceLabel: getGroupLabel(currentGroup),
+      days,
+      times: groupSchedule.times || {},
+      dayTimes: groupSchedule.dayTimes || {},
+    };
+    try {
+      localStorage.setItem(SCHEDULE_CLIPBOARD_KEY, JSON.stringify(scheduleClipboard));
+    } catch (e) {
+      // localStorage може бути недоступний (приватний режим тощо) —
+      // буфер тоді живе лише в пам'яті на час сесії, це не критично.
+    }
+    updateScheduleClipboardButtons();
+    scheduleCopyBtn.classList.add("copied");
+    setTimeout(() => scheduleCopyBtn.classList.remove("copied"), 900);
+    alert(t("copyScheduleDone")(scheduleClipboard.sourceLabel));
+  };
+}
+
+if (schedulePasteBtn) {
+  schedulePasteBtn.onclick = async () => {
+    if (!scheduleClipboard) return;
+    const targetLabel = getGroupLabel(currentGroup);
+    if (!confirm(t("pasteScheduleConfirm")(scheduleClipboard.sourceLabel, targetLabel))) return;
+    const targetSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
+    const newGroupData = {
+      ...scheduleClipboard.days,
+      times: scheduleClipboard.times || {},
+      dayTimes: scheduleClipboard.dayTimes || {},
+      applied: targetSchedule.applied,
+      overrides: targetSchedule.overrides || {},
+    };
+    try {
+      // mergeFields: [currentGroup] замінює весь піддокумент групи цілком
+      // (а не глибоко зливає його поля), інакше старі уроки/періоди,
+      // яких немає у скопійованому розкладі, лишились би висіти.
+      await setDoc(
+        doc(db, "schedule", "week"),
+        { [currentGroup]: newGroupData },
+        { mergeFields: [currentGroup] }
+      );
+      alert(t("pasteScheduleDone"));
+    } catch (e) {
+      reportSaveError(e, "Не вдалося вставити розклад", "Failed to paste the schedule");
+    }
+  };
+}
+
+updateScheduleClipboardButtons();
 
 const newLessonSubject = document.getElementById("new-lesson-subject");
 const newLessonTitle = document.getElementById("new-lesson-title");
