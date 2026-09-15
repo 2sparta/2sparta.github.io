@@ -1500,7 +1500,7 @@ function renderStudentRow(id, data) {
 }
 
 async function changePoints(id, currentPoints, delta) {
-  const newValue = Math.max(0, (currentPoints || 0) + delta);
+  const newValue = Math.min(1_000_000, Math.max(0, (currentPoints || 0) + delta));
   await updateDoc(doc(db, "students", id), { points: newValue });
 }
 
