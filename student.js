@@ -115,6 +115,9 @@ const subjectsListEl = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
 
 const newElectiveName = document.getElementById("new-elective-name");
+const newElectiveDay = document.getElementById("new-elective-day");
+const newElectiveStart = document.getElementById("new-elective-start");
+const newElectiveEnd = document.getElementById("new-elective-end");
 const addElectiveBtn = document.getElementById("add-elective-btn");
 const electivesListEl = document.getElementById("electives-list");
 const noElectivesMsg = document.getElementById("no-electives-msg");
@@ -239,6 +242,8 @@ const translations = {
     electivesHint: "Видно тільки вам — вчитель і інші учні їх не бачать.",
     electiveNamePlaceholder: "Назва факультативу",
     noElectivesMsg: "Факультативів ще немає.",
+    electiveNoDay: "Без дня в розкладі",
+    electiveTimeInvalidMsg: "Час закінчення має бути пізніше часу початку.",
     addBtn: "Додати",
     deleteBtn: "Видалити",
     joinMeetingBtn: "Приєднатися до зустрічі",
@@ -307,6 +312,8 @@ const translations = {
     electivesHint: "Only visible to you — your teacher and other students can't see these.",
     electiveNamePlaceholder: "Elective name",
     noElectivesMsg: "No electives yet.",
+    electiveNoDay: "Not in schedule",
+    electiveTimeInvalidMsg: "End time must be after start time.",
     addBtn: "Add",
     deleteBtn: "Delete",
     joinMeetingBtn: "Join the meeting",
@@ -359,7 +366,30 @@ function applyStaticTranslations() {
   renderWeeklyScheduleTable();
   renderHomeworkContainer();
   renderSubjectsList();
+  populateElectiveDaySelect(newElectiveDay);
+  renderElectivesList();
   updateLiveStatus();
+}
+
+// Заповнює <select> вибору дня тижня для факультативу перекладеними
+// назвами днів, намагаючись зберегти поточний вибір (або viz. selectedValue,
+// якщо переданий явно — використовується під час рендеру рядка факультативу
+// зі збереженим значенням дня).
+function populateElectiveDaySelect(selectEl, selectedValue) {
+  if (!selectEl) return;
+  const prev = selectedValue !== undefined ? selectedValue : selectEl.value;
+  selectEl.innerHTML = "";
+  const noneOpt = document.createElement("option");
+  noneOpt.value = "";
+  noneOpt.textContent = t("electiveNoDay");
+  selectEl.appendChild(noneOpt);
+  WEEKDAYS.forEach((dayKey) => {
+    const opt = document.createElement("option");
+    opt.value = dayKey;
+    opt.textContent = t("weekdaysShort")[dayKey];
+    selectEl.appendChild(opt);
+  });
+  selectEl.value = prev || "";
 }
 
 function setLanguage(lang) {
@@ -431,12 +461,14 @@ function teardownListeners() {
   if (unsubscribeSubjects) unsubscribeSubjects();
   if (unsubscribeLessons) unsubscribeLessons();
   if (unsubscribeSchedule) unsubscribeSchedule();
+  if (unsubscribeElectives) unsubscribeElectives();
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
   }
   studentId = null;
   studentData = null;
+  lastElectives = [];
   hwDoneIds = new Set();
   hwSortMode = "date";
   hwSubjectFilterId = "";
@@ -597,6 +629,8 @@ function startDashboard(user) {
     (snap) => {
       lastElectives = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
       renderElectivesList();
+      renderScheduleContainer();
+      renderWeeklyScheduleTable();
     }
   );
 }
@@ -767,6 +801,24 @@ function updateLiveStatus() {
   };
 });
 
+// Факультативи учня, розписані на конкретний день тижня (day заповнено),
+// відсортовані за часом початку. Факультативи без часу йдуть в кінець
+// (у порядку додавання), факультативи без day взагалі виключаються — вони
+// лишаються тільки в списку "Мої факультативи" і не потрапляють у розклад.
+function getScheduledElectivesForDay(dayKey) {
+  return lastElectives
+    .filter((e) => e.data.day === dayKey)
+    .slice()
+    .sort((a, b) => {
+      const aMin = parseTimeToMinutes(a.data.start);
+      const bMin = parseTimeToMinutes(b.data.start);
+      if (aMin === null && bMin === null) return (a.data.createdAt || 0) - (b.data.createdAt || 0);
+      if (aMin === null) return 1;
+      if (bMin === null) return -1;
+      return aMin - bMin;
+    });
+}
+
 function renderScheduleContainer() {
   if (!scheduleContainer || !studentData) return;
   scheduleContainer.innerHTML = "";
@@ -777,8 +829,9 @@ function renderScheduleContainer() {
   const weekdayKey = WEEKDAY_BY_JS_INDEX[target.getDay()];
   const groupSchedule = getGroupSchedule(myGroup());
   const dayEntries = getDayEntriesList(groupSchedule, weekdayKey);
+  const dayElectives = getScheduledElectivesForDay(weekdayKey);
 
-  if (dayEntries.length === 0) {
+  if (dayEntries.length === 0 && dayElectives.length === 0) {
     const hint = document.createElement("p");
     hint.className = "hint";
     hint.textContent = t("noScheduleForDay");
@@ -813,12 +866,50 @@ function renderScheduleContainer() {
 
     scheduleContainer.appendChild(block);
   });
+
+  dayElectives.forEach(({ data }) => {
+    const block = document.createElement("div");
+    block.className = "today-subject-block today-subject-block-elective";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "today-subject-name";
+    nameEl.textContent = data.name;
+    block.appendChild(nameEl);
+
+    if (data.start || data.end) {
+      const timeEl = document.createElement("div");
+      timeEl.className = "elective-block-time";
+      timeEl.textContent = `${data.start || "?"}–${data.end || "?"}`;
+      block.appendChild(timeEl);
+    }
+
+    scheduleContainer.appendChild(block);
+  });
 }
 
-// ---------- Тижневий розклад (табличка, лише перегляд) ----------
+// Домальовує в клітинку табличкі чіп факультативу (фіолетовий, на відміну
+// від звичайних уроків) з часом, якщо він заданий.
+function appendElectiveCell(td, data) {
+  const chip = document.createElement("span");
+  chip.className = "chip chip-elective";
+  chip.textContent = data.name;
+  td.appendChild(chip);
+  if (data.start || data.end) {
+    const timeEl = document.createElement("div");
+    timeEl.className = "schedule-cell-time";
+    timeEl.textContent = `${data.start || "?"}–${data.end || "?"}`;
+    td.appendChild(timeEl);
+  }
+}
+
+// ---------- Тижневий розклад (табличка, лише перегляд уроків) ----------
 // На відміну від renderScheduleContainer() (день сьогодні/завтра), тут
-// показуємо всю таблицю на тиждень одразу — без можливості редагування,
-// адже розклад веде тільки вчитель (student.js нічого сюди не записує).
+// показуємо всю таблицю на тиждень одразу — уроки редагує тільки вчитель
+// (student.js нічого в schedule/week не записує). Факультативи ж — приватні
+// записи самого учня (колекція electives): для дня, куди учень призначив
+// факультатив, ми вставляємо його в першу вільну клітинку періоду; якщо
+// вільних клітинок для цього дня вже нема — під факультативи, що не влізли,
+// додаються додаткові рядки внизу таблиці (спільні для всіх днів).
 // Для кожного дня беремо ефективний час уроку через getDayEffectiveTimes():
 // якщо вчитель задав окремий ("унікальний") розклад дзвінків саме для
 // цього дня тижня (dayTimes), покажемо саме його, а не спільний times.
@@ -827,7 +918,15 @@ function renderWeeklyScheduleTable() {
   weeklyScheduleContainer.innerHTML = "";
 
   const groupSchedule = getGroupSchedule(myGroup());
-  const visibleDays = WEEKDAYS.filter((d) => getDayMaxPeriodIndex(groupSchedule[d]) >= 0);
+
+  const electivesByDay = {};
+  WEEKDAYS.forEach((d) => {
+    electivesByDay[d] = getScheduledElectivesForDay(d);
+  });
+
+  const visibleDays = WEEKDAYS.filter(
+    (d) => getDayMaxPeriodIndex(groupSchedule[d]) >= 0 || electivesByDay[d].length > 0
+  );
 
   if (visibleDays.length === 0) {
     const hint = document.createElement("p");
@@ -837,7 +936,30 @@ function renderWeeklyScheduleTable() {
     return;
   }
 
-  const rowCount = Math.max(-1, ...visibleDays.map((d) => getDayMaxPeriodIndex(groupSchedule[d]))) + 1;
+  const periodRowCount = Math.max(-1, ...visibleDays.map((d) => getDayMaxPeriodIndex(groupSchedule[d]))) + 1;
+
+  // Розкладаємо факультативи кожного дня по вільних (без уроку) клітинках
+  // періодів; те, що не влізло, іде "понад" таблицю — в overflow.
+  const electiveSlotByDay = {};
+  const overflowByDay = {};
+  visibleDays.forEach((dayKey) => {
+    electiveSlotByDay[dayKey] = {};
+    const dayMap = groupSchedule[dayKey] || {};
+    const freeRows = [];
+    for (let r = 0; r < periodRowCount; r++) {
+      if (!dayMap[r]) freeRows.push(r);
+    }
+    const dayElectives = electivesByDay[dayKey];
+    dayElectives.forEach((ev, idx) => {
+      if (idx < freeRows.length) {
+        electiveSlotByDay[dayKey][freeRows[idx]] = ev;
+      }
+    });
+    overflowByDay[dayKey] = dayElectives.slice(freeRows.length);
+  });
+
+  const maxOverflow = Math.max(0, ...visibleDays.map((d) => overflowByDay[d].length));
+  const totalRowCount = periodRowCount + maxOverflow;
 
   const table = document.createElement("table");
   table.className = "schedule-table";
@@ -859,7 +981,7 @@ function renderWeeklyScheduleTable() {
 
   const tbody = document.createElement("tbody");
 
-  for (let r = 0; r < rowCount; r++) {
+  for (let r = 0; r < totalRowCount; r++) {
     const tr = document.createElement("tr");
 
     const rowTh = document.createElement("th");
@@ -871,33 +993,46 @@ function renderWeeklyScheduleTable() {
     tr.appendChild(rowTh);
 
     visibleDays.forEach((dayKey) => {
-      const dayMap = groupSchedule[dayKey] || {};
-      const baseEntry = dayMap[r];
       const td = document.createElement("td");
       td.className = "schedule-table-cell";
       if (dayKey === todayWeekdayKey) td.classList.add("schedule-table-today");
 
-      const override = baseEntry ? getActiveOverride(groupSchedule, dayKey, r) : null;
-      const subjectId = override ? override.subjectId : baseEntry ? baseEntry.subjectId : null;
+      if (r < periodRowCount) {
+        const dayMap = groupSchedule[dayKey] || {};
+        const baseEntry = dayMap[r];
+        const override = baseEntry ? getActiveOverride(groupSchedule, dayKey, r) : null;
+        const subjectId = override ? override.subjectId : baseEntry ? baseEntry.subjectId : null;
 
-      if (subjectId) {
-        const chip = document.createElement("span");
-        chip.className = override ? "chip chip-override" : "chip";
-        chip.textContent = getSubjectName(subjectId);
-        td.appendChild(chip);
+        if (subjectId) {
+          const chip = document.createElement("span");
+          chip.className = override ? "chip chip-override" : "chip";
+          chip.textContent = getSubjectName(subjectId);
+          td.appendChild(chip);
 
-        // Ефективний (можливо, унікальний саме для цього дня) час уроку.
-        const dayTimes = getDayEffectiveTimes(groupSchedule, dayKey);
-        const time = dayTimes[r] || dayTimes[String(r)];
-        if (time && (time.start || time.end)) {
-          const timeEl = document.createElement("div");
-          timeEl.className = "schedule-cell-time";
-          timeEl.textContent = `${time.start || "?"}–${time.end || "?"}`;
-          td.appendChild(timeEl);
+          // Ефективний (можливо, унікальний саме для цього дня) час уроку.
+          const dayTimes = getDayEffectiveTimes(groupSchedule, dayKey);
+          const time = dayTimes[r] || dayTimes[String(r)];
+          if (time && (time.start || time.end)) {
+            const timeEl = document.createElement("div");
+            timeEl.className = "schedule-cell-time";
+            timeEl.textContent = `${time.start || "?"}–${time.end || "?"}`;
+            td.appendChild(timeEl);
+          }
+        } else if (electiveSlotByDay[dayKey][r]) {
+          appendElectiveCell(td, electiveSlotByDay[dayKey][r].data);
+        } else {
+          td.classList.add("schedule-table-empty");
+          td.textContent = "–";
         }
       } else {
-        td.classList.add("schedule-table-empty");
-        td.textContent = "–";
+        const overflowIdx = r - periodRowCount;
+        const ev = overflowByDay[dayKey][overflowIdx];
+        if (ev) {
+          appendElectiveCell(td, ev.data);
+        } else {
+          td.classList.add("schedule-table-empty");
+          td.textContent = "–";
+        }
       }
 
       tr.appendChild(td);
@@ -1057,18 +1192,38 @@ function renderHomeworkContainer() {
 }
 
 // ---------- Факультативи (приватні, видно тільки самому учню) ----------
+// day/start/end — необов'язкові: якщо день не вибрано, факультатив лишається
+// просто записом у списку і не потрапляє в табличку розкладу. День без часу
+// теж дозволений — тоді в табличці буде показано назву без годин.
 if (addElectiveBtn) {
   addElectiveBtn.onclick = async () => {
     const name = newElectiveName.value.trim();
     if (!name || !studentId || !auth.currentUser) return;
+
+    const day = newElectiveDay && newElectiveDay.value ? newElectiveDay.value : null;
+    const startRaw = newElectiveStart ? newElectiveStart.value : "";
+    const endRaw = newElectiveEnd ? newElectiveEnd.value : "";
+    const start = day && startRaw ? startRaw : null;
+    const end = day && endRaw ? endRaw : null;
+    if (start && end && parseTimeToMinutes(end) <= parseTimeToMinutes(start)) {
+      alert(t("electiveTimeInvalidMsg"));
+      return;
+    }
+
     try {
       await addDoc(collection(db, "electives"), {
         uid: auth.currentUser.uid,
         studentId,
         name,
+        day,
+        start,
+        end,
         createdAt: Date.now(),
       });
       newElectiveName.value = "";
+      if (newElectiveDay) newElectiveDay.value = "";
+      if (newElectiveStart) newElectiveStart.value = "";
+      if (newElectiveEnd) newElectiveEnd.value = "";
     } catch (e) {
       alert(errorText(e));
     }
@@ -1085,10 +1240,13 @@ function renderElectivesList() {
       const li = document.createElement("li");
       li.className = "elective-item";
 
+      const topRow = document.createElement("div");
+      topRow.className = "elective-item-top";
+
       const nameSpan = document.createElement("span");
       nameSpan.className = "elective-item-name";
       nameSpan.textContent = data.name;
-      li.appendChild(nameSpan);
+      topRow.appendChild(nameSpan);
 
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "elective-delete-btn";
@@ -1096,7 +1254,56 @@ function renderElectivesList() {
       deleteBtn.textContent = "✕";
       deleteBtn.setAttribute("aria-label", t("deleteBtn"));
       deleteBtn.onclick = () => deleteDoc(doc(db, "electives", id)).catch((e) => alert(errorText(e)));
-      li.appendChild(deleteBtn);
+      topRow.appendChild(deleteBtn);
+
+      li.appendChild(topRow);
+
+      // Учень сам призначає (і може будь-коли змінити) день і час свого
+      // факультативу — саме ці значення потім потрапляють у клітинку
+      // тижневої табличкі розкладу (renderWeeklyScheduleTable) та у
+      // список "Сьогодні/Завтра" (renderScheduleContainer).
+      const scheduleRow = document.createElement("div");
+      scheduleRow.className = "elective-item-schedule";
+
+      const daySelect = document.createElement("select");
+      daySelect.className = "elective-day-select";
+      populateElectiveDaySelect(daySelect, data.day || "");
+
+      const startInput = document.createElement("input");
+      startInput.type = "time";
+      startInput.className = "elective-time-input";
+      startInput.value = data.start || "";
+
+      const endInput = document.createElement("input");
+      endInput.type = "time";
+      endInput.className = "elective-time-input";
+      endInput.value = data.end || "";
+
+      const resetInputs = () => {
+        daySelect.value = data.day || "";
+        startInput.value = data.start || "";
+        endInput.value = data.end || "";
+      };
+
+      const saveSchedule = () => {
+        const day = daySelect.value || null;
+        const start = day && startInput.value ? startInput.value : null;
+        const end = day && endInput.value ? endInput.value : null;
+        if (start && end && parseTimeToMinutes(end) <= parseTimeToMinutes(start)) {
+          alert(t("electiveTimeInvalidMsg"));
+          resetInputs();
+          return;
+        }
+        updateDoc(doc(db, "electives", id), { day, start, end }).catch((e) => alert(errorText(e)));
+      };
+      daySelect.onchange = saveSchedule;
+      startInput.onchange = saveSchedule;
+      endInput.onchange = saveSchedule;
+
+      scheduleRow.appendChild(daySelect);
+      scheduleRow.appendChild(startInput);
+      scheduleRow.appendChild(endInput);
+      li.appendChild(scheduleRow);
 
       electivesListEl.appendChild(li);
     });

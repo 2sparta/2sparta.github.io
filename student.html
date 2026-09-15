@@ -116,8 +116,11 @@
           <section class="card electives-card">
             <h2 data-i18n="electivesHeading">Мої факультативи</h2>
             <p class="hint" data-i18n="electivesHint">Видно тільки вам — вчитель і інші учні їх не бачать.</p>
-            <div class="row">
+            <div class="row elective-add-row">
               <input id="new-elective-name" type="text" data-i18n-placeholder="electiveNamePlaceholder" placeholder="Назва факультативу" />
+              <select id="new-elective-day" class="elective-day-select"></select>
+              <input id="new-elective-start" type="time" class="elective-time-input" />
+              <input id="new-elective-end" type="time" class="elective-time-input" />
               <button id="add-elective-btn" data-i18n="addBtn">Додати</button>
             </div>
             <ul id="electives-list" class="electives-list"></ul>
