@@ -872,8 +872,13 @@ code {
   gap: 10px;
 }
 .elective-item-name {
+  display: inline-flex;
+  align-items: center;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--color-purple);
+  background: var(--color-purple-bg);
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
   overflow-wrap: anywhere;
 }
 .elective-delete-btn {
@@ -926,7 +931,11 @@ code {
   color: var(--color-purple);
 }
 .today-subject-block-elective .today-subject-name {
+  display: inline-flex;
   color: var(--color-purple);
+  background: var(--color-purple-bg);
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
 }
 .elective-block-time {
   font-size: 12px;
