@@ -14,33 +14,49 @@ export const firebaseConfig = {
   measurementId: "G-K8HGF284FX"
 };
 
-// ---------- Тема (світла/темна) ----------
+// ---------- Тема (світла / темна / ocean / warm) ----------
 export const THEME_STORAGE_KEY = "schooleballs-theme";
+export const THEME_ORDER = ["light", "ocean", "warm", "dark"];
+
+const THEME_LABELS = {
+  light: "Світла",
+  ocean: "Океан",
+  warm: "Тепла",
+  dark: "Темна",
+};
 
 // Застосовує тему до <html data-theme="..."> і синхронізує стан усіх
-// кнопок-перемикачів теми на сторінці (іконка + aria-pressed).
+// кнопок-перемикачів теми на сторінці (іконка + aria + title).
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
+  const isDark = theme === "dark";
   document.querySelectorAll(".theme-toggle-btn").forEach((btn) => {
-    btn.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
-    btn.classList.toggle("is-dark", theme === "dark");
+    btn.setAttribute("aria-pressed", isDark ? "true" : "false");
+    btn.classList.toggle("is-dark", isDark);
+    btn.classList.toggle("is-ocean", theme === "ocean");
+    btn.classList.toggle("is-warm", theme === "warm");
+    const label = THEME_LABELS[theme] || theme;
+    btn.setAttribute("aria-label", `Тема: ${label}. Натисніть, щоб змінити`);
+    btn.title = `Тема: ${label}`;
   });
 }
 
 // Викликається один раз при завантаженні сторінки (app.js / student.js):
 // читає збережену тему (або системну), застосовує її та вішає обробники
 // кліків на всі елементи .theme-toggle-btn, які є в HTML.
+// Кнопка циклічно перемикає: light → ocean → warm → dark → light.
 export function initThemeToggle() {
   const saved = localStorage.getItem(THEME_STORAGE_KEY);
   const systemPrefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   let theme = saved || (systemPrefersDark ? "dark" : "light");
-  if (theme !== "dark" && theme !== "light") theme = "light";
+  if (!THEME_ORDER.includes(theme)) theme = "light";
 
   applyTheme(theme);
 
   document.querySelectorAll(".theme-toggle-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      theme = theme === "dark" ? "light" : "dark";
+      const idx = THEME_ORDER.indexOf(theme);
+      theme = THEME_ORDER[(idx + 1) % THEME_ORDER.length];
       localStorage.setItem(THEME_STORAGE_KEY, theme);
       applyTheme(theme);
     });
