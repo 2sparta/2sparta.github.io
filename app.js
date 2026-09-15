@@ -106,6 +106,11 @@ const translations = {
     notLinked: "Очікує",
     deleteBtn: "Видалити",
     deleteConfirm: (name) => `Видалити ${name}?`,
+    starostaLabel: "Староста",
+    starostaTitle: "Староста може додавати домашні завдання з предметів, де це дозволено",
+    studentsCanAddHwLabel: "Учні можуть самі записувати ДЗ",
+    studentsCanAddHwTitle: "Староста зможе додавати домашні завдання з цього предмета",
+    addedByStarostaBadge: "Від старости",
 
     addSubjectHeading: "Додати предмет",
     subjectNamePlaceholder: "Назва предмета",
@@ -265,6 +270,11 @@ const translations = {
     notLinked: "Pending",
     deleteBtn: "Delete",
     deleteConfirm: (name) => `Delete ${name}?`,
+    starostaLabel: "Class monitor",
+    starostaTitle: "The class monitor can add homework for subjects where this is allowed",
+    studentsCanAddHwLabel: "Students can write homework themselves",
+    studentsCanAddHwTitle: "The class monitor will be able to add homework for this subject",
+    addedByStarostaBadge: "By class monitor",
 
     addSubjectHeading: "Add a Subject",
     subjectNamePlaceholder: "Subject name",
@@ -1411,9 +1421,24 @@ function renderStudentRow(id, data) {
     );
   };
 
+  const starostaLabel = document.createElement("label");
+  starostaLabel.className = "starosta-toggle";
+  starostaLabel.title = t("starostaTitle");
+  const starostaCb = document.createElement("input");
+  starostaCb.type = "checkbox";
+  starostaCb.checked = !!data.isStarosta;
+  starostaCb.onchange = () => {
+    updateDoc(doc(db, "students", id), { isStarosta: starostaCb.checked }).catch((e) =>
+      reportSaveError(e, "Не вдалося змінити статус старости", "Failed to update class monitor status")
+    );
+  };
+  const starostaText = document.createElement("span");
+  starostaText.textContent = t("starostaLabel");
+  starostaLabel.append(starostaCb, starostaText);
+
   const metaRow = document.createElement("div");
   metaRow.className = "student-meta";
-  metaRow.append(linkedBadge, groupSelect, codeChip);
+  metaRow.append(linkedBadge, starostaLabel, groupSelect, codeChip);
 
   identity.append(nameEl, metaRow);
 
@@ -1535,7 +1560,25 @@ function renderSubjectsList() {
       }
     };
 
-    li.append(topRow, linkInput);
+    const hwToggle = document.createElement("label");
+    hwToggle.className = "subject-hw-toggle";
+    hwToggle.title = t("studentsCanAddHwTitle");
+    const hwCb = document.createElement("input");
+    hwCb.type = "checkbox";
+    hwCb.checked = !!data.studentsCanAddHw;
+    hwCb.onchange = async () => {
+      try {
+        await updateDoc(doc(db, "subjects", id), { studentsCanAddHw: hwCb.checked });
+      } catch (e) {
+        reportSaveError(e, "Не вдалося зберегти дозвіл на ДЗ", "Failed to save homework permission");
+        hwCb.checked = !hwCb.checked;
+      }
+    };
+    const hwText = document.createElement("span");
+    hwText.textContent = t("studentsCanAddHwLabel");
+    hwToggle.append(hwCb, hwText);
+
+    li.append(topRow, linkInput, hwToggle);
     subjectsList.appendChild(li);
   });
   noSubjectsMsg.classList.toggle("hidden", lastSubjects.length > 0);
@@ -2533,6 +2576,12 @@ function renderLessonCard(id, data) {
     const badge = document.createElement("span");
     badge.className = "date-badge hw";
     badge.textContent = `${t("homeworkDateShort")} ${data.homeworkDate}`;
+    datesRow.appendChild(badge);
+  }
+  if (data.addedByStarosta) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge starosta-badge";
+    badge.textContent = t("addedByStarostaBadge");
     datesRow.appendChild(badge);
   }
   if (data.publishAt && data.publishAt > Date.now()) {

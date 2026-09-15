@@ -116,6 +116,13 @@ const hwSortSelect = document.getElementById("hw-sort-select");
 const hwSubjectFilter = document.getElementById("hw-subject-filter");
 const hwHideDoneCheckbox = document.getElementById("hw-hide-done-checkbox");
 
+const starostaHwSection = document.getElementById("starosta-hw-section");
+const starostaHwSubject = document.getElementById("starosta-hw-subject");
+const starostaHwTitle = document.getElementById("starosta-hw-title");
+const starostaHwContent = document.getElementById("starosta-hw-content");
+const starostaHwDate = document.getElementById("starosta-hw-date");
+const starostaHwAddBtn = document.getElementById("starosta-hw-add-btn");
+
 const subjectsListEl = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
 
@@ -265,6 +272,18 @@ const translations = {
     lessonDateShort: "Урок:",
     deletedSubjectLabel: "Видалений предмет",
     noMeetingLink: "",
+    homeworkDateLabel: "Дата дз (до)",
+    starostaHwHeading: "Додати ДЗ (староста)",
+    starostaHwHint: "Запишіть домашнє завдання, яке вчитель оголосив усно або на дошці. Доступні лише предмети, для яких вчитель дозволив самостійний запис ДЗ.",
+    starostaHwTitlePlaceholder: "Назва / короткий опис ДЗ",
+    starostaHwContentPlaceholder: "Деталі завдання (необов'язково)",
+    starostaHwNoSubjects: "Немає предметів, для яких дозволено самостійний запис ДЗ.",
+    starostaHwNeedDate: "Вкажіть дату здачі ДЗ.",
+    starostaHwNeedTitle: "Вкажіть назву або короткий опис завдання.",
+    starostaHwNeedSubject: "Оберіть предмет.",
+    starostaHwAdded: "Домашнє завдання додано.",
+    addedByStarostaBadge: "Від старости",
+    selectSubjectPlaceholder: "Оберіть предмет",
     errors: {
       "auth/invalid-email": "Некоректний email.",
       "auth/user-not-found": "Користувача не знайдено.",
@@ -335,6 +354,18 @@ const translations = {
     lessonDateShort: "Lesson:",
     deletedSubjectLabel: "Deleted subject",
     noMeetingLink: "",
+    homeworkDateLabel: "Homework due date",
+    starostaHwHeading: "Add homework (class monitor)",
+    starostaHwHint: "Record homework the teacher announced orally or wrote on the board. Only subjects where the teacher allowed student-written homework are available.",
+    starostaHwTitlePlaceholder: "Title / short description",
+    starostaHwContentPlaceholder: "Assignment details (optional)",
+    starostaHwNoSubjects: "No subjects allow student-written homework yet.",
+    starostaHwNeedDate: "Please set a homework due date.",
+    starostaHwNeedTitle: "Please enter a title or short description.",
+    starostaHwNeedSubject: "Please choose a subject.",
+    starostaHwAdded: "Homework added.",
+    addedByStarostaBadge: "By class monitor",
+    selectSubjectPlaceholder: "Choose a subject",
     errors: {
       "auth/invalid-email": "Invalid email.",
       "auth/user-not-found": "User not found.",
@@ -374,6 +405,7 @@ function applyStaticTranslations() {
   renderSubjectsList();
   populateElectiveDaySelect(newElectiveDay);
   renderElectivesList();
+  updateStarostaHwSection();
   updateLiveStatus();
 }
 
@@ -625,6 +657,7 @@ function startDashboard(user) {
   resolveStudentClassId().then(() => {
     renderScheduleContainer();
     renderHomeworkContainer();
+    updateStarostaHwSection();
   });
 
   unsubscribeStudentDoc = onSnapshot(doc(db, "students", studentId), (snap) => {
@@ -633,6 +666,7 @@ function startDashboard(user) {
     studentData = snap.data();
     updateGreeting();
     updateLiveStatus();
+    updateStarostaHwSection();
     if (studentData.group !== prevGroup) {
       resolveStudentClassId().then(() => {
         renderScheduleContainer();
@@ -652,6 +686,7 @@ function startDashboard(user) {
       renderScheduleContainer();
       renderWeeklyScheduleTable();
       renderHomeworkContainer();
+      updateStarostaHwSection();
       updateLiveStatus();
     }
   );
@@ -1123,6 +1158,12 @@ function renderLessonView(data) {
     badge.textContent = `${t("homeworkDateShort")} ${data.homeworkDate}`;
     datesRow.appendChild(badge);
   }
+  if (data.addedByStarosta) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge starosta-badge";
+    badge.textContent = t("addedByStarostaBadge");
+    datesRow.appendChild(badge);
+  }
   wrap.appendChild(datesRow);
 
   if (data.content) {
@@ -1176,6 +1217,94 @@ function updateHwSubjectFilterOptions() {
   const stillValid = hwSubjectFilterId && lastSubjects.some((s) => s.id === hwSubjectFilterId);
   hwSubjectFilter.value = stillValid ? hwSubjectFilterId : "";
   if (!stillValid) hwSubjectFilterId = "";
+}
+
+
+// ---------- Додавання ДЗ старостою ----------
+// Показуємо форму лише якщо учень має isStarosta і є хоча б один предмет
+// з studentsCanAddHw. Запис іде в ту саму колекцію lessons, що й уроки
+// вчителя, з позначкою addedByStarosta, щоб у списках було видно джерело.
+function getSubjectsAllowingStudentHw() {
+  return lastSubjects.filter((s) => !!s.data.studentsCanAddHw);
+}
+
+function updateStarostaHwSection() {
+  if (!starostaHwSection) return;
+  const isStarosta = !!(studentData && studentData.isStarosta);
+  const allowed = getSubjectsAllowingStudentHw();
+  const show = isStarosta && allowed.length > 0;
+  starostaHwSection.classList.toggle("hidden", !show);
+  if (!show) return;
+
+  if (starostaHwSubject) {
+    const prev = starostaHwSubject.value;
+    starostaHwSubject.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.disabled = true;
+    placeholder.selected = !prev;
+    placeholder.textContent = t("selectSubjectPlaceholder");
+    starostaHwSubject.appendChild(placeholder);
+    allowed.forEach(({ id, data }) => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = data.name;
+      starostaHwSubject.appendChild(opt);
+    });
+    if (allowed.some((s) => s.id === prev)) starostaHwSubject.value = prev;
+  }
+}
+
+if (starostaHwAddBtn) {
+  starostaHwAddBtn.onclick = async () => {
+    if (!(studentData && studentData.isStarosta)) return;
+    const subjectId = starostaHwSubject ? starostaHwSubject.value : "";
+    const title = starostaHwTitle ? starostaHwTitle.value.trim() : "";
+    const content = starostaHwContent ? starostaHwContent.value.trim() : "";
+    const homeworkDate = starostaHwDate ? starostaHwDate.value : "";
+
+    if (!subjectId) {
+      alert(t("starostaHwNeedSubject"));
+      return;
+    }
+    if (!getSubjectsAllowingStudentHw().some((s) => s.id === subjectId)) {
+      alert(t("starostaHwNoSubjects"));
+      return;
+    }
+    if (!title) {
+      alert(t("starostaHwNeedTitle"));
+      return;
+    }
+    if (!homeworkDate) {
+      alert(t("starostaHwNeedDate"));
+      return;
+    }
+
+    try {
+      const payload = {
+        subjectId,
+        title,
+        content: content || "",
+        lessonDate: null,
+        homeworkDate,
+        createdAt: Date.now(),
+        addedByStarosta: true,
+        addedByStudentId: studentId || null,
+        addedByUid: auth.currentUser ? auth.currentUser.uid : null,
+      };
+      // Прив'язуємо до класу старости, щоб інші класи не бачили чуже ДЗ.
+      if (studentClassId) {
+        payload.assignedClassIds = [studentClassId];
+      }
+      await addDoc(collection(db, "lessons"), payload);
+      if (starostaHwTitle) starostaHwTitle.value = "";
+      if (starostaHwContent) starostaHwContent.value = "";
+      if (starostaHwDate) starostaHwDate.value = "";
+      alert(t("starostaHwAdded"));
+    } catch (e) {
+      alert(errorText(e));
+    }
+  };
 }
 
 function renderHomeworkContainer() {
