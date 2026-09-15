@@ -14,6 +14,39 @@ export const firebaseConfig = {
   measurementId: "G-K8HGF284FX"
 };
 
+// ---------- Тема (світла/темна) ----------
+export const THEME_STORAGE_KEY = "schooleballs-theme";
+
+// Застосовує тему до <html data-theme="..."> і синхронізує стан усіх
+// кнопок-перемикачів теми на сторінці (іконка + aria-pressed).
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.querySelectorAll(".theme-toggle-btn").forEach((btn) => {
+    btn.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+    btn.classList.toggle("is-dark", theme === "dark");
+  });
+}
+
+// Викликається один раз при завантаженні сторінки (app.js / student.js):
+// читає збережену тему (або системну), застосовує її та вішає обробники
+// кліків на всі елементи .theme-toggle-btn, які є в HTML.
+export function initThemeToggle() {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY);
+  const systemPrefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  let theme = saved || (systemPrefersDark ? "dark" : "light");
+  if (theme !== "dark" && theme !== "light") theme = "light";
+
+  applyTheme(theme);
+
+  document.querySelectorAll(".theme-toggle-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      theme = theme === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+      applyTheme(theme);
+    });
+  });
+}
+
 export const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 // getDay(): 0=Sun..6=Sat
 export const WEEKDAY_BY_JS_INDEX = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];

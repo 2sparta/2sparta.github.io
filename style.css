@@ -28,13 +28,40 @@
   --font-body: "Inter", "Inter Placeholder", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* ---------- Темна тема ----------
+   Перемикається через JS (common.js initThemeToggle), який виставляє
+   атрибут data-theme="dark" на <html>. Значення нижче — ті самі токени,
+   що й у :root, лише переозначені під темний фон, тож увесь інтерфейс,
+   побудований на var(--color-*), підхоплює їх автоматично. */
+:root[data-theme="dark"] {
+  --color-bg: #0f1613;
+  --color-surface: #17201d;
+  --color-surface-tint: #1f2b26;
+  --color-primary: #eaf3ee;
+  --color-secondary: #93a89f;
+  --color-accent: #34b58e;
+  --color-accent-hover: #3fcf9f;
+  --color-accent-soft: #23304a;
+  --color-border: #2a3a34;
+  --color-avatar-bg: #244038;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-warning-bg: #3a2f14;
+  --color-purple: #b09bfa;
+  --color-purple-bg: #2b2350;
+  --color-purple-border: #46396f;
+}
+
 * { box-sizing: border-box; }
+html { color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; }
 body {
   font-family: var(--font-body);
   background: var(--color-bg);
   margin: 0;
   padding: 24px;
   color: var(--color-primary);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 .hidden { display: none !important; }
 .screen { max-width: 720px; margin: 0 auto; }
@@ -431,6 +458,12 @@ code {
 .lang-switch--auth {
   justify-content: flex-end;
   border: none;
+}
+.auth-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
   margin-bottom: 10px;
 }
 .lang-switch--auth .lang-btn {
@@ -1497,4 +1530,67 @@ select {
 .date-badge.class-assign-all {
   background: var(--color-border);
   color: var(--color-secondary);
+}
+
+/* ---------- Перемикач теми (світла/темна) ---------- */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.theme-toggle-btn:hover {
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.theme-toggle-btn svg { width: 18px; height: 18px; }
+.theme-toggle-btn .icon-sun,
+.theme-toggle-btn .icon-moon { display: none; }
+/* Світла тема (за замовчуванням): показуємо іконку сонця (натиснути → стане темно) */
+.theme-toggle-btn .icon-sun { display: block; }
+.theme-toggle-btn.is-dark .icon-sun { display: none; }
+.theme-toggle-btn.is-dark .icon-moon { display: block; }
+
+/* ---------- Точкові виправлення кольорів під темну тему
+   (елементи нижче задані не через --color-*, а прямими hex-значеннями,
+   бо в світлій темі це насичені "плашки"-акценти; у темній їх варто
+   притлумити, інакше вони світяться занадто яскраво на темному фоні) ---------- */
+:root[data-theme="dark"] .class-delete-btn:hover:not(:disabled) {
+  background: #3a1f1f;
+}
+:root[data-theme="dark"] .subject-item-link::placeholder {
+  color: #5c7a70;
+}
+:root[data-theme="dark"] .schedule-table-today {
+  background: #33291a;
+}
+:root[data-theme="dark"] .chip-override {
+  background: #402c14;
+  color: #f0a15f;
+}
+:root[data-theme="dark"] .chip-swap:hover {
+  background: transparent;
+  color: #f0a15f;
+}
+:root[data-theme="dark"] .date-badge.scheduled {
+  background: #232a4a;
+  color: #b8c2f5;
+}
+:root[data-theme="dark"] .live-status-break .live-status-dot {
+  background: #d99a2b;
+}
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .greeting-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+:root[data-theme="dark"] .tab-btn.active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }

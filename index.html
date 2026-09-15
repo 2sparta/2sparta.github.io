@@ -19,9 +19,15 @@
         </span>
         <span class="brand-name">Класний простір</span>
       </div>
-      <div class="lang-switch lang-switch--auth">
-        <button id="lang-uk" class="lang-btn active" data-lang="uk">UA</button>
-        <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+      <div class="auth-top-actions">
+        <button id="theme-toggle-btn" class="theme-toggle-btn" type="button" aria-pressed="false" aria-label="Перемкнути тему">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="lang-switch lang-switch--auth">
+          <button id="lang-uk" class="lang-btn active" data-lang="uk">UA</button>
+          <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+        </div>
       </div>
       <h1 data-i18n="authTitle">Вхід для вчителя</h1>
       <input id="email" type="email" data-i18n-placeholder="emailPlaceholder" placeholder="Електронна пошта" />
@@ -48,6 +54,10 @@
         <span class="brand-name">Класний простір</span>
       </div>
       <div class="header-actions">
+        <button id="theme-toggle-btn-app" class="theme-toggle-btn" type="button" aria-pressed="false" aria-label="Перемкнути тему">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
         <div class="lang-switch">
           <button id="lang-uk-app" class="lang-btn active" data-lang="uk">UA</button>
           <button id="lang-en-app" class="lang-btn" data-lang="en">EN</button>

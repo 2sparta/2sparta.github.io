@@ -49,7 +49,12 @@ import {
   parseTimeToMinutes,
   formatDateLocal,
   escapeHtml,
+  initThemeToggle,
 } from "./common.js";
+
+// Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
+// щоб уникнути "блимання" світлою темою при завантаженні.
+initThemeToggle();
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
