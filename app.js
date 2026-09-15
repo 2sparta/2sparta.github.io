@@ -175,6 +175,14 @@ const translations = {
     lessonContentPlaceholder: "Зміст уроку / завдання",
     lessonDateLabel: "Дата уроку",
     homeworkDateLabel: "Дата дз (до)",
+    assignClassesLabel: "Призначити класам",
+    assignClassesHint: "Якщо нічого не вибрано — урок бачать усі класи. Можна обрати кілька.",
+    classSearchPlaceholder: "Пошук класу...",
+    noClassesForAssign: "Класів ще немає.",
+    allClassesLabel: "Усі класи",
+    scheduledPublishLabel: "Запланувати (з'явиться учням з)",
+    scheduledPublishHint: "Залиште порожнім, щоб урок був видно одразу. Інакше учні побачать його лише після вказаного часу.",
+    scheduledBadge: "Заплановано",
     lessonsHeading: "Список уроків",
     noLessons: "Уроків ще немає.",
     expandBtn: "Показати",
@@ -326,6 +334,14 @@ const translations = {
     lessonContentPlaceholder: "Lesson content / assignment",
     lessonDateLabel: "Lesson date",
     homeworkDateLabel: "Homework due date",
+    assignClassesLabel: "Assign to classes",
+    assignClassesHint: "If nothing is selected — the lesson is visible to all classes. You can pick several.",
+    classSearchPlaceholder: "Search class...",
+    noClassesForAssign: "No classes yet.",
+    allClassesLabel: "All classes",
+    scheduledPublishLabel: "Schedule (visible to students from)",
+    scheduledPublishHint: "Leave empty to make the lesson visible immediately. Otherwise students will see it only after the chosen time.",
+    scheduledBadge: "Scheduled",
     lessonsHeading: "Lesson List",
     noLessons: "No lessons yet.",
     expandBtn: "Show",
@@ -409,6 +425,7 @@ function setLanguage(lang) {
   renderStudentsTable();
   renderSubjectsList();
   renderSubjectSelects();
+  renderLessonClassOptions();
   renderSchedule();
   renderLessonsContainer();
   updateLiveStatus();
@@ -589,6 +606,7 @@ function listenToClasses() {
     ensureCurrentGroupInClass();
     renderClassSwitch();
     renderNewStudentGroupOptions();
+    renderLessonClassOptions();
     renderStudentsTable();
     renderSchedule();
     renderLessonsContainer();
@@ -1043,9 +1061,16 @@ const newLessonTitle = document.getElementById("new-lesson-title");
 const newLessonContent = document.getElementById("new-lesson-content");
 const newLessonDate = document.getElementById("new-lesson-date");
 const newLessonHwDate = document.getElementById("new-lesson-hw-date");
+const newLessonPublishAt = document.getElementById("new-lesson-publish-at");
+const lessonClassSearch = document.getElementById("lesson-class-search");
+const lessonClassOptions = document.getElementById("lesson-class-options");
+const lessonClassSelected = document.getElementById("lesson-class-selected");
 const addLessonBtn = document.getElementById("add-lesson-btn");
 const lessonsContainer = document.getElementById("lessons-container");
 const noLessonsMsg = document.getElementById("no-lessons-msg");
+
+// Вибрані класи для нового уроку (мультивибір)
+let selectedLessonClassIds = new Set();
 
 const viewTodayBtn = document.getElementById("view-today-btn");
 const viewTomorrowBtn = document.getElementById("view-tomorrow-btn");
@@ -1098,7 +1123,9 @@ function updateDashboardStats() {
   if (statSubjectsEl) statSubjectsEl.textContent = String(lastSubjects.length);
 
   const todayStr = formatDateLocal(new Date());
-  const lessonsToday = lastLessons.filter((l) => l.data.lessonDate === todayStr).length;
+  const lessonsToday = lastLessons.filter(
+    (l) => l.data.lessonDate === todayStr && lessonVisibleForCurrentClass(l.data)
+  ).length;
   if (statLessonsTodayEl) statLessonsTodayEl.textContent = String(lessonsToday);
   if (greetingSubtitleEl) greetingSubtitleEl.textContent = t("greetingSubtitle")(lessonsToday);
 
@@ -2121,12 +2148,97 @@ function listenToLessons() {
   });
 }
 
+// ---------- Призначення уроку класам (мультивибір + пошук) ----------
+function renderLessonClassOptions() {
+  if (!lessonClassOptions) return;
+  const q = (lessonClassSearch && lessonClassSearch.value ? lessonClassSearch.value : "").trim().toLowerCase();
+  lessonClassOptions.innerHTML = "";
+
+  const filtered = lastClasses.filter((c) => {
+    if (!q) return true;
+    return (c.data.name || "").toLowerCase().includes(q);
+  });
+
+  if (filtered.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = lastClasses.length === 0 ? t("noClassesForAssign") : t("noStudentsSearchMsg");
+    lessonClassOptions.appendChild(empty);
+  } else {
+    filtered.forEach(({ id, data }) => {
+      const label = document.createElement("label");
+      label.className = "class-option-item";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = id;
+      cb.checked = selectedLessonClassIds.has(id);
+      cb.onchange = () => {
+        if (cb.checked) selectedLessonClassIds.add(id);
+        else selectedLessonClassIds.delete(id);
+        renderLessonClassSelectedChips();
+      };
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = data.name || id;
+      label.append(cb, nameSpan);
+      lessonClassOptions.appendChild(label);
+    });
+  }
+  renderLessonClassSelectedChips();
+}
+
+function renderLessonClassSelectedChips() {
+  if (!lessonClassSelected) return;
+  lessonClassSelected.innerHTML = "";
+  if (selectedLessonClassIds.size === 0) {
+    const all = document.createElement("span");
+    all.className = "class-chip class-chip-all";
+    all.textContent = t("allClassesLabel");
+    lessonClassSelected.appendChild(all);
+    return;
+  }
+  [...selectedLessonClassIds].forEach((id) => {
+    const chip = document.createElement("span");
+    chip.className = "class-chip";
+    chip.textContent = getClassName(id) || id;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "class-chip-remove";
+    removeBtn.textContent = "×";
+    removeBtn.setAttribute("aria-label", t("deleteBtn"));
+    removeBtn.onclick = () => {
+      selectedLessonClassIds.delete(id);
+      renderLessonClassOptions();
+    };
+    chip.appendChild(removeBtn);
+    lessonClassSelected.appendChild(chip);
+  });
+}
+
+if (lessonClassSearch) {
+  lessonClassSearch.addEventListener("input", () => renderLessonClassOptions());
+}
+
+function lessonVisibleForCurrentClass(lessonData) {
+  const ids = lessonData.assignedClassIds;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) return true;
+  if (!currentClassId) return true;
+  return ids.includes(currentClassId);
+}
+
+function parsePublishAtInput(value) {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 addLessonBtn.onclick = async () => {
   const subjectId = newLessonSubject.value;
   const title = newLessonTitle.value.trim();
   const content = newLessonContent.value.trim();
   const lessonDate = newLessonDate.value || null;
   const homeworkDate = newLessonHwDate.value || null;
+  const publishAt = newLessonPublishAt ? parsePublishAtInput(newLessonPublishAt.value) : null;
+  const assignedClassIds = [...selectedLessonClassIds];
 
   if (!subjectId) {
     alert(t("selectSubjectPlaceholder"));
@@ -2135,18 +2247,26 @@ addLessonBtn.onclick = async () => {
   if (!title) return;
 
   try {
-    await addDoc(collection(db, "lessons"), {
+    const payload = {
       subjectId,
       title,
       content: content || "",
       lessonDate,
       homeworkDate,
       createdAt: Date.now(),
-    });
+    };
+    if (assignedClassIds.length > 0) payload.assignedClassIds = assignedClassIds;
+    if (publishAt) payload.publishAt = publishAt;
+
+    await addDoc(collection(db, "lessons"), payload);
     newLessonTitle.value = "";
     newLessonContent.value = "";
     newLessonDate.value = "";
     newLessonHwDate.value = "";
+    if (newLessonPublishAt) newLessonPublishAt.value = "";
+    selectedLessonClassIds = new Set();
+    if (lessonClassSearch) lessonClassSearch.value = "";
+    renderLessonClassOptions();
   } catch (e) {
     reportSaveError(e, "Не вдалося додати урок. Перевірте правила Firestore для колекції lessons", "Failed to add the lesson. Check Firestore Rules for the lessons collection");
   }
@@ -2169,9 +2289,11 @@ addLessonBtn.onclick = async () => {
 });
 
 function getFilteredAllLessons() {
-  return currentType === "homework"
-    ? lastLessons.filter((l) => !!l.data.homeworkDate)
-    : lastLessons;
+  const base =
+    currentType === "homework"
+      ? lastLessons.filter((l) => !!l.data.homeworkDate)
+      : lastLessons;
+  return base.filter((l) => lessonVisibleForCurrentClass(l.data));
 }
 
 function renderLessonsContainer() {
@@ -2227,7 +2349,10 @@ function renderDayLessons(target, targetDateStr) {
     block.appendChild(nameEl);
 
     const matchingLessons = lastLessons.filter(
-      (l) => l.data.subjectId === subjectId && l.data.lessonDate === targetDateStr
+      (l) =>
+        l.data.subjectId === subjectId &&
+        l.data.lessonDate === targetDateStr &&
+        lessonVisibleForCurrentClass(l.data)
     );
 
     if (matchingLessons.length === 0) {
@@ -2248,7 +2373,9 @@ function renderDayLessons(target, targetDateStr) {
 function renderDayHomework(targetDateStr) {
   // ДЗ прив'язане до дати здачі, а не до розкладу дня — тож шукаємо серед
   // усіх уроків незалежно від того, чи предмет стоїть у розкладі на targetDateStr
-  const matching = lastLessons.filter((l) => l.data.homeworkDate === targetDateStr);
+  const matching = lastLessons.filter(
+    (l) => l.data.homeworkDate === targetDateStr && lessonVisibleForCurrentClass(l.data)
+  );
 
   if (matching.length === 0) {
     const hint = document.createElement("p");
@@ -2401,6 +2528,31 @@ function renderLessonCard(id, data) {
     const badge = document.createElement("span");
     badge.className = "date-badge hw";
     badge.textContent = `${t("homeworkDateShort")} ${data.homeworkDate}`;
+    datesRow.appendChild(badge);
+  }
+  if (data.publishAt && data.publishAt > Date.now()) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge scheduled";
+    const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+    const when = new Date(data.publishAt).toLocaleString(locale, {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    badge.textContent = `${t("scheduledBadge")}: ${when}`;
+    datesRow.appendChild(badge);
+  }
+  const assigned = data.assignedClassIds;
+  if (assigned && Array.isArray(assigned) && assigned.length > 0) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge class-assign-badge";
+    badge.textContent = assigned.map((cid) => getClassName(cid) || cid).join(", ");
+    datesRow.appendChild(badge);
+  } else {
+    const badge = document.createElement("span");
+    badge.className = "date-badge class-assign-badge class-assign-all";
+    badge.textContent = t("allClassesLabel");
     datesRow.appendChild(badge);
   }
 

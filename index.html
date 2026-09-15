@@ -177,6 +177,18 @@
                   <input id="new-lesson-hw-date" type="date" />
                 </label>
               </div>
+              <div class="class-assign-block">
+                <label class="class-assign-label" data-i18n="assignClassesLabel">Призначити класам</label>
+                <p class="hint class-assign-hint" data-i18n="assignClassesHint">Якщо нічого не вибрано — урок бачать усі класи. Можна обрати кілька.</p>
+                <input id="lesson-class-search" type="search" class="class-assign-search" data-i18n-placeholder="classSearchPlaceholder" placeholder="Пошук класу..." autocomplete="off" />
+                <div id="lesson-class-options" class="class-options-list" role="listbox" aria-multiselectable="true"></div>
+                <div id="lesson-class-selected" class="class-selected-chips"></div>
+              </div>
+              <label class="date-field schedule-publish-field">
+                <span data-i18n="scheduledPublishLabel">Запланувати (з'явиться учням з)</span>
+                <input id="new-lesson-publish-at" type="datetime-local" />
+                <span class="hint" data-i18n="scheduledPublishHint">Залиште порожнім, щоб урок був видно одразу. Інакше учні побачать його лише після вказаного часу.</span>
+              </label>
               <button id="add-lesson-btn" data-i18n="addBtn">Додати</button>
             </div>
           </section>

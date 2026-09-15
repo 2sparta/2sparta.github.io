@@ -128,6 +128,7 @@ const noElectivesMsg = document.getElementById("no-electives-msg");
 // під час першого виклику applyStaticTranslations() нижче.
 let studentId = null;
 let studentData = null;
+let studentClassId = null; // classId батьківського класу групи учня (для фільтра призначених уроків)
 let lastSubjects = [];
 let lastLessons = [];
 let lastScheduleRaw = {};
@@ -435,6 +436,35 @@ function myGroup() {
   return studentData && studentData.group ? studentData.group : "group1";
 }
 
+async function resolveStudentClassId() {
+  const groupId = myGroup();
+  if (!groupId) {
+    studentClassId = null;
+    return;
+  }
+  try {
+    const snap = await getDoc(doc(db, "groups", groupId));
+    if (snap.exists()) {
+      studentClassId = snap.data().classId || null;
+    } else {
+      studentClassId = null;
+    }
+  } catch (e) {
+    studentClassId = null;
+  }
+}
+
+// Урок видно учню, якщо:
+// 1) не обмежений класами або призначений його класу;
+// 2) не запланований на майбутнє (publishAt ще не настав).
+function lessonVisibleToStudent(lessonData) {
+  if (lessonData.publishAt && lessonData.publishAt > Date.now()) return false;
+  const ids = lessonData.assignedClassIds;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) return true;
+  if (!studentClassId) return true; // ще не знаємо клас — показуємо (щоб не ховати все)
+  return ids.includes(studentClassId);
+}
+
 // ---------- Screens ----------
 function showAuthScreen() {
   authScreen.classList.remove("hidden");
@@ -468,6 +498,7 @@ function teardownListeners() {
   }
   studentId = null;
   studentData = null;
+  studentClassId = null;
   lastElectives = [];
   hwDoneIds = new Set();
   hwSortMode = "date";
@@ -586,14 +617,26 @@ function startDashboard(user) {
     avatarEl.title = user.email || "";
   }
   updateGreeting();
+  resolveStudentClassId().then(() => {
+    renderScheduleContainer();
+    renderHomeworkContainer();
+  });
 
   unsubscribeStudentDoc = onSnapshot(doc(db, "students", studentId), (snap) => {
     if (!snap.exists()) return;
+    const prevGroup = studentData && studentData.group;
     studentData = snap.data();
     updateGreeting();
     updateLiveStatus();
-    renderScheduleContainer();
-    renderWeeklyScheduleTable();
+    if (studentData.group !== prevGroup) {
+      resolveStudentClassId().then(() => {
+        renderScheduleContainer();
+        renderHomeworkContainer();
+      });
+    } else {
+      renderScheduleContainer();
+      renderWeeklyScheduleTable();
+    }
   });
 
   unsubscribeSubjects = onSnapshot(
@@ -852,7 +895,10 @@ function renderScheduleContainer() {
     block.appendChild(nameEl);
 
     const matchingLessons = lastLessons.filter(
-      (l) => l.data.subjectId === subjectId && l.data.lessonDate === targetDateStr
+      (l) =>
+        l.data.subjectId === subjectId &&
+        l.data.lessonDate === targetDateStr &&
+        lessonVisibleToStudent(l.data)
     );
 
     if (matchingLessons.length === 0) {
@@ -1135,7 +1181,9 @@ function renderHomeworkContainer() {
   homeworkContainer.innerHTML = "";
 
   const todayStr = formatDateLocal(new Date());
-  let upcoming = lastLessons.filter((l) => !!l.data.homeworkDate && l.data.homeworkDate >= todayStr);
+  let upcoming = lastLessons.filter(
+    (l) => !!l.data.homeworkDate && l.data.homeworkDate >= todayStr && lessonVisibleToStudent(l.data)
+  );
 
   if (hwSubjectFilterId) {
     upcoming = upcoming.filter((l) => l.data.subjectId === hwSubjectFilterId);

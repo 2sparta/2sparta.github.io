@@ -1393,3 +1393,108 @@ select {
     width: min(1000px, 100vw - 24px);
   }
 }
+
+
+/* ---------- Призначення уроку класам (мультивибір + пошук) ---------- */
+.class-assign-block {
+  margin: 12px 0 14px;
+  padding: 12px 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.class-assign-label {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+.class-assign-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+.class-assign-search {
+  margin-bottom: 8px;
+}
+.class-options-list {
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 4px 0;
+}
+.class-option-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-primary);
+}
+.class-option-item:hover {
+  background: var(--color-surface-tint);
+}
+.class-option-item input {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+.class-selected-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.class-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+  padding: 4px 8px 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+}
+.class-chip-all {
+  background: var(--color-border);
+  color: var(--color-secondary);
+}
+.class-chip-remove {
+  background: transparent;
+  border: none;
+  color: var(--color-accent);
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.class-chip-remove:hover {
+  background: transparent;
+  color: var(--color-danger);
+}
+.schedule-publish-field {
+  margin-bottom: 12px;
+}
+.schedule-publish-field .hint {
+  margin-top: 4px;
+  display: block;
+}
+.date-badge.scheduled {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+.date-badge.class-assign-badge {
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+}
+.date-badge.class-assign-all {
+  background: var(--color-border);
+  color: var(--color-secondary);
+}
