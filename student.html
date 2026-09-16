@@ -89,6 +89,7 @@
         <button id="tab-schedule-btn" class="tab-btn active" data-i18n="tabSchedule">Розклад</button>
         <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
         <button id="tab-grades-btn" class="tab-btn" data-i18n="tabGrades">Оцінки</button>
+        <button id="tab-selfgov-btn" class="tab-btn" data-i18n="tabSelfGov">Самоврядування</button>
       </nav>
 
       <!-- Віджети та контент: відцентровані та широкі -->
@@ -215,6 +216,30 @@
             <p class="hint" data-i18n="gradesHint">Оцінки виставляє вчитель за уроки та домашні завдання.</p>
             <div id="grades-table-container"></div>
             <p id="no-grades-msg" class="hint hidden" data-i18n="noGradesMsg">Оцінок ще немає.</p>
+          </section>
+        </div>
+
+        <div id="selfgov-panel" class="tab-panel hidden">
+          <section class="card">
+            <h2 data-i18n="selfGovHeading">Самоврядування</h2>
+            <p class="hint" data-i18n="selfGovStudentHint">Тут ви можете подати кандидатуру на старосту або проголосувати під час виборів.</p>
+            <div id="selfgov-student-status" class="selfgov-status"></div>
+            <div id="selfgov-student-actions" class="selfgov-student-actions"></div>
+            <div class="selfgov-progress-wrap">
+              <div id="selfgov-student-pie" class="election-pie" aria-hidden="true"></div>
+              <div id="selfgov-student-legend" class="election-legend"></div>
+            </div>
+            <div id="selfgov-student-candidates" class="selfgov-candidates-list"></div>
+          </section>
+          <section class="card">
+            <div class="subjects-header">
+              <h2 data-i18n="selfGovHistoryHeading">Історія виборів / старост</h2>
+              <button id="selfgov-history-toggle" class="secondary small" type="button" data-i18n="subjectsExpandBtn">Розгорнути</button>
+            </div>
+            <div id="selfgov-history-body" class="hidden">
+              <div id="selfgov-history-list"></div>
+              <p id="selfgov-no-history-msg" class="hint hidden" data-i18n="selfGovNoHistory">Історії ще немає.</p>
+            </div>
           </section>
         </div>
 

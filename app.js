@@ -231,6 +231,34 @@ const translations = {
     gradesAverageLabel: "Середній бал",
     gradesTableSubjectHeader: "Предмет",
 
+    tabSelfGov: "Самоврядування",
+    selfGovHeading: "Самоврядування",
+    selfGovTeacherHint: "Оголосіть вибори старости для поточного класу. До початку виборів учні можуть подати кандидатуру; після початку — голосувати. Після завершення переможець стає старостою автоматично.",
+    selfGovAnnounceHeading: "Оголосити вибори",
+    selfGovStartLabel: "Початок виборів",
+    selfGovEndLabel: "Завершення виборів",
+    selfGovAnnounceBtn: "Оголосити вибори",
+    selfGovCloseBtn: "Завершити вибори зараз",
+    selfGovHistoryHeading: "Історія виборів / старост",
+    selfGovNoHistory: "Історії ще немає.",
+    selfGovPhaseCandidacy: "Подача кандидатур",
+    selfGovPhaseVoting: "Голосування",
+    selfGovPhaseClosed: "Завершені",
+    selfGovNoActive: "Немає активних виборів для цього класу.",
+    selfGovNeedDates: "Вкажіть дату початку і завершення виборів.",
+    selfGovStartBeforeEnd: "Дата початку має бути раніше дати завершення.",
+    selfGovAnnounced: "Вибори оголошено.",
+    selfGovAlreadyActive: "Для цього класу вже є незавершені вибори.",
+    selfGovCandidates: "Кандидати",
+    selfGovVotes: "голосів",
+    selfGovNoCandidates: "Кандидатів ще немає.",
+    selfGovWinner: "Переможець",
+    selfGovClosedDone: "Вибори завершено. Старосту оновлено.",
+    selfGovUntilNow: "досі",
+    selfGovFrom: "з",
+    selfGovTo: "по",
+    selfGovProgress: "Прогрес голосування",
+    selfGovTotalVotes: "Усього голосів",
     registerSuccess: (uid) =>
       "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
       uid + " встановіть role = teacher, після чого увійдіть знову.",
@@ -415,6 +443,34 @@ const translations = {
     gradesAverageLabel: "Average",
     gradesTableSubjectHeader: "Subject",
 
+    tabSelfGov: "Self-government",
+    selfGovHeading: "Self-government",
+    selfGovTeacherHint: "Announce class monitor elections for the current class. Before the start, students can apply as candidates; after the start they can vote. When elections end, the winner becomes class monitor automatically.",
+    selfGovAnnounceHeading: "Announce elections",
+    selfGovStartLabel: "Elections start",
+    selfGovEndLabel: "Elections end",
+    selfGovAnnounceBtn: "Announce elections",
+    selfGovCloseBtn: "Close elections now",
+    selfGovHistoryHeading: "Election / monitor history",
+    selfGovNoHistory: "No history yet.",
+    selfGovPhaseCandidacy: "Candidacy",
+    selfGovPhaseVoting: "Voting",
+    selfGovPhaseClosed: "Closed",
+    selfGovNoActive: "No active elections for this class.",
+    selfGovNeedDates: "Please set both start and end dates.",
+    selfGovStartBeforeEnd: "Start date must be before end date.",
+    selfGovAnnounced: "Elections announced.",
+    selfGovAlreadyActive: "There are already open elections for this class.",
+    selfGovCandidates: "Candidates",
+    selfGovVotes: "votes",
+    selfGovNoCandidates: "No candidates yet.",
+    selfGovWinner: "Winner",
+    selfGovClosedDone: "Elections closed. Class monitor updated.",
+    selfGovUntilNow: "present",
+    selfGovFrom: "from",
+    selfGovTo: "to",
+    selfGovProgress: "Voting progress",
+    selfGovTotalVotes: "Total votes",
     registerSuccess: (uid) =>
       "Account created. Now in Firebase Console → Firestore → users → " +
       uid + " set role = teacher, then sign in again.",
@@ -567,6 +623,7 @@ function setCurrentClass(classId) {
   renderLessonsContainer();
   updateLiveStatus();
   updateDashboardStats();
+  if (selfgovPanelEl && !selfgovPanelEl.classList.contains("hidden")) renderSelfGovTeacher();
 }
 
 function setGroup(groupId) {
@@ -978,10 +1035,12 @@ const tabPointsBtn = document.getElementById("tab-points-btn");
 const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const tabGradesBtn = document.getElementById("tab-grades-btn");
+const tabSelfGovBtn = document.getElementById("tab-selfgov-btn");
 const pointsPanel = document.getElementById("points-panel");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 const gradesPanelEl = document.getElementById("grades-panel");
+const selfgovPanelEl = document.getElementById("selfgov-panel");
 const teacherGradesStudentSelect = document.getElementById("teacher-grades-student-select");
 const teacherGradesTableContainer = document.getElementById("teacher-grades-table-container");
 const teacherNoGradesMsg = document.getElementById("teacher-no-grades-msg");
@@ -1222,19 +1281,25 @@ function showTab(tab) {
   tabScheduleBtn.classList.toggle("active", tab === "schedule");
   tabTasksBtn.classList.toggle("active", tab === "tasks");
   if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
+  if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
   pointsPanel.classList.toggle("hidden", tab !== "points");
   schedulePanel.classList.toggle("hidden", tab !== "schedule");
   tasksPanel.classList.toggle("hidden", tab !== "tasks");
   if (gradesPanelEl) gradesPanelEl.classList.toggle("hidden", tab !== "grades");
+  if (selfgovPanelEl) selfgovPanelEl.classList.toggle("hidden", tab !== "selfgov");
   if (tab === "grades") {
     renderTeacherGradesStudentSelect();
     renderTeacherGradesTable();
+  }
+  if (tab === "selfgov") {
+    renderSelfGovTeacher();
   }
 }
 tabPointsBtn.onclick = () => showTab("points");
 tabScheduleBtn.onclick = () => showTab("schedule");
 tabTasksBtn.onclick = () => showTab("tasks");
 if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
+if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
 
 // ---------- Auth ----------
 loginBtn.onclick = async () => {
@@ -1298,6 +1363,7 @@ onAuthStateChanged(auth, async (user) => {
   listenToSchedule();
   listenToLessons();
   listenToGrades();
+  subscribeElectionsAndHistory();
 });
 
 function showAuthScreen() {
@@ -1309,6 +1375,8 @@ function showAuthScreen() {
   if (unsubscribeSubjects) unsubscribeSubjects();
   if (unsubscribeSchedule) unsubscribeSchedule();
   if (unsubscribeGrades) unsubscribeGrades();
+  if (unsubscribeElections) { unsubscribeElections(); unsubscribeElections = null; }
+  if (unsubscribeStarostaHistory) { unsubscribeStarostaHistory(); unsubscribeStarostaHistory = null; }
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
@@ -3167,3 +3235,373 @@ if (teacherGradesStudentSelect) {
     renderTeacherGradesTable();
   };
 }
+
+// ==========================================================
+// Самоврядування — вибори старости (панель вчителя)
+// ==========================================================
+const ELECTION_COLORS = [
+  "#24866b", "#0e7490", "#c2410c", "#7c3aed", "#b45309",
+  "#34b58e", "#6366f1", "#dc2626", "#0891b2", "#a855f7",
+];
+
+let lastElections = []; // [{id, data}]
+let lastStarostaHistory = []; // [{id, data}]
+let unsubscribeElections = null;
+let unsubscribeStarostaHistory = null;
+let selfgovHistoryExpanded = false;
+
+const selfgovClassNameEl = document.getElementById("selfgov-class-name");
+const selfgovAnnounceForm = document.getElementById("selfgov-announce-form");
+const electionStartInput = document.getElementById("election-start-input");
+const electionEndInput = document.getElementById("election-end-input");
+const announceElectionBtn = document.getElementById("announce-election-btn");
+const selfgovActiveBlock = document.getElementById("selfgov-active-block");
+const selfgovStatusEl = document.getElementById("selfgov-status");
+const selfgovPieEl = document.getElementById("selfgov-pie");
+const selfgovProgressLegend = document.getElementById("selfgov-progress-legend");
+const selfgovCandidatesList = document.getElementById("selfgov-candidates-list");
+const closeElectionBtn = document.getElementById("close-election-btn");
+const selfgovHistoryToggle = document.getElementById("selfgov-history-toggle");
+const selfgovHistoryBody = document.getElementById("selfgov-history-body");
+const selfgovHistoryList = document.getElementById("selfgov-history-list");
+const selfgovNoHistoryMsg = document.getElementById("selfgov-no-history-msg");
+
+function electionPhase(data, now = Date.now()) {
+  if (data.closed) return "closed";
+  if (now < data.startAt) return "candidacy";
+  if (now < data.endAt) return "voting";
+  return "closed";
+}
+
+function getActiveElectionForClass(classId) {
+  if (!classId) return null;
+  return lastElections.find(
+    (e) => e.data.classId === classId && !e.data.closed && electionPhase(e.data) !== "closed"
+  ) || null;
+}
+
+function countVotes(electionData) {
+  const votes = electionData.votes || {};
+  const counts = {};
+  Object.values(votes).forEach((cid) => {
+    counts[cid] = (counts[cid] || 0) + 1;
+  });
+  return counts;
+}
+
+function renderPieChart(pieEl, legendEl, electionData) {
+  if (!pieEl || !legendEl) return;
+  const candidates = electionData.candidates || {};
+  const counts = countVotes(electionData);
+  const entries = Object.keys(candidates).map((sid, i) => ({
+    id: sid,
+    name: candidates[sid].name || sid,
+    votes: counts[sid] || 0,
+    color: ELECTION_COLORS[i % ELECTION_COLORS.length],
+  }));
+  const total = entries.reduce((s, e) => s + e.votes, 0);
+
+  if (entries.length === 0 || total === 0) {
+    pieEl.style.background = `conic-gradient(var(--color-border) 0deg 360deg)`;
+    legendEl.innerHTML = `<div class="hint">${t("selfGovNoCandidates")}</div>`;
+    return;
+  }
+
+  let deg = 0;
+  const parts = [];
+  entries.forEach((e) => {
+    const slice = (e.votes / total) * 360;
+    parts.push(`${e.color} ${deg}deg ${deg + slice}deg`);
+    deg += slice;
+  });
+  pieEl.style.background = `conic-gradient(${parts.join(", ")})`;
+
+  legendEl.innerHTML = "";
+  const totalLabel = document.createElement("div");
+  totalLabel.className = "hint";
+  totalLabel.textContent = `${t("selfGovTotalVotes")}: ${total}`;
+  legendEl.appendChild(totalLabel);
+  entries
+    .slice()
+    .sort((a, b) => b.votes - a.votes)
+    .forEach((e) => {
+      const row = document.createElement("div");
+      row.className = "election-legend-item";
+      const sw = document.createElement("span");
+      sw.className = "election-legend-swatch";
+      sw.style.background = e.color;
+      const txt = document.createElement("span");
+      txt.textContent = `${e.name}: ${e.votes}`;
+      row.append(sw, txt);
+      legendEl.appendChild(row);
+    });
+}
+
+function studentsInClass(classId) {
+  const groupIdsInClass = new Set(groupsOfClass(classId).map((g) => g.id));
+  return lastStudents.filter((s) => groupIdsInClass.has(s.data.group));
+}
+
+async function closeElectionAndSetStarosta(electionId, electionData) {
+  const candidates = electionData.candidates || {};
+  const counts = countVotes(electionData);
+  let winnerId = null;
+  let maxVotes = -1;
+  Object.keys(candidates).forEach((sid) => {
+    const v = counts[sid] || 0;
+    if (v > maxVotes) {
+      maxVotes = v;
+      winnerId = sid;
+    }
+  });
+  // Tie: first by name among max
+  if (winnerId && maxVotes >= 0) {
+    const tied = Object.keys(candidates).filter((sid) => (counts[sid] || 0) === maxVotes);
+    if (tied.length > 1) {
+      tied.sort((a, b) => (candidates[a].name || "").localeCompare(candidates[b].name || ""));
+      winnerId = tied[0];
+    }
+  }
+
+  const classId = electionData.classId;
+  const now = Date.now();
+  const todayStr = formatDateLocal(new Date());
+
+  // Close previous open history for this class
+  const openHist = lastStarostaHistory.filter(
+    (h) => h.data.classId === classId && !h.data.toDate
+  );
+  for (const h of openHist) {
+    await updateDoc(doc(db, "starostaHistory", h.id), { toDate: todayStr });
+  }
+
+  // Clear isStarosta for all in class, set winner
+  const classStudents = studentsInClass(classId);
+  const batch = writeBatch(db);
+  classStudents.forEach(({ id }) => {
+    batch.update(doc(db, "students", id), { isStarosta: id === winnerId });
+  });
+  batch.update(doc(db, "elections", electionId), {
+    closed: true,
+    closedAt: now,
+    winnerStudentId: winnerId || null,
+  });
+  await batch.commit();
+
+  if (winnerId) {
+    const winnerName =
+      (candidates[winnerId] && candidates[winnerId].name) ||
+      (lastStudents.find((s) => s.id === winnerId) || {}).data?.name ||
+      winnerId;
+    await addDoc(collection(db, "starostaHistory"), {
+      classId,
+      studentId: winnerId,
+      studentName: winnerName,
+      fromDate: todayStr,
+      toDate: null,
+      electionId,
+      createdAt: now,
+    });
+  }
+}
+
+function renderSelfGovTeacher() {
+  if (!selfgovPanelEl) return;
+  const classId = currentClassId;
+  if (selfgovClassNameEl) {
+    selfgovClassNameEl.textContent = getClassName(classId) || "—";
+  }
+
+  // Auto-close expired elections
+  lastElections.forEach((e) => {
+    if (!e.data.closed && Date.now() >= e.data.endAt) {
+      closeElectionAndSetStarosta(e.id, e.data).catch((err) =>
+        reportSaveError(err, "Не вдалося завершити вибори", "Failed to close election")
+      );
+    }
+  });
+
+  const active = getActiveElectionForClass(classId);
+  if (selfgovAnnounceForm) selfgovAnnounceForm.classList.toggle("hidden", !!active);
+  if (selfgovActiveBlock) selfgovActiveBlock.classList.toggle("hidden", !active);
+
+  if (active) {
+    const phase = electionPhase(active.data);
+    const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+    const startStr = new Date(active.data.startAt).toLocaleString(locale, {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const endStr = new Date(active.data.endAt).toLocaleString(locale, {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const phaseLabel =
+      phase === "candidacy"
+        ? t("selfGovPhaseCandidacy")
+        : phase === "voting"
+          ? t("selfGovPhaseVoting")
+          : t("selfGovPhaseClosed");
+    const badgeClass =
+      phase === "voting" ? "election-phase-badge voting" : phase === "closed" ? "election-phase-badge closed" : "election-phase-badge";
+    if (selfgovStatusEl) {
+      selfgovStatusEl.innerHTML = `${phaseLabel} <span class="${badgeClass}">${phaseLabel}</span><br><span class="hint">${startStr} — ${endStr}</span>`;
+    }
+    renderPieChart(selfgovPieEl, selfgovProgressLegend, active.data);
+
+    if (selfgovCandidatesList) {
+      selfgovCandidatesList.innerHTML = "";
+      const candidates = active.data.candidates || {};
+      const counts = countVotes(active.data);
+      const ids = Object.keys(candidates);
+      if (ids.length === 0) {
+        const p = document.createElement("p");
+        p.className = "hint";
+        p.textContent = t("selfGovNoCandidates");
+        selfgovCandidatesList.appendChild(p);
+      } else {
+        ids
+          .slice()
+          .sort((a, b) => (counts[b] || 0) - (counts[a] || 0))
+          .forEach((sid) => {
+            const row = document.createElement("div");
+            row.className = "selfgov-candidate-row";
+            const name = document.createElement("span");
+            name.className = "selfgov-candidate-name";
+            name.textContent = candidates[sid].name || sid;
+            const votes = document.createElement("span");
+            votes.className = "selfgov-candidate-votes";
+            votes.textContent = `${counts[sid] || 0} ${t("selfGovVotes")}`;
+            row.append(name, votes);
+            selfgovCandidatesList.appendChild(row);
+          });
+      }
+    }
+    if (closeElectionBtn) {
+      closeElectionBtn.classList.toggle("hidden", phase === "closed");
+      closeElectionBtn.onclick = async () => {
+        try {
+          await closeElectionAndSetStarosta(active.id, active.data);
+          alert(t("selfGovClosedDone"));
+        } catch (e) {
+          reportSaveError(e, "Помилка завершення виборів", "Error closing election");
+        }
+      };
+    }
+  }
+
+  renderStarostaHistory(classId);
+}
+
+function renderStarostaHistory(classId) {
+  if (!selfgovHistoryList) return;
+  const items = lastStarostaHistory
+    .filter((h) => !classId || h.data.classId === classId)
+    .slice()
+    .sort((a, b) => (b.data.fromDate || "").localeCompare(a.data.fromDate || ""));
+  selfgovHistoryList.innerHTML = "";
+  if (items.length === 0) {
+    if (selfgovNoHistoryMsg) selfgovNoHistoryMsg.classList.remove("hidden");
+    return;
+  }
+  if (selfgovNoHistoryMsg) selfgovNoHistoryMsg.classList.add("hidden");
+  items.forEach(({ data }) => {
+    const div = document.createElement("div");
+    div.className = "selfgov-history-item";
+    const name = document.createElement("div");
+    name.className = "selfgov-history-name";
+    name.textContent = data.studentName || data.studentId;
+    const dates = document.createElement("div");
+    dates.className = "selfgov-history-dates";
+    const to = data.toDate || t("selfGovUntilNow");
+    dates.textContent = `${t("selfGovFrom")} ${data.fromDate || "?"} ${t("selfGovTo")} ${to}`;
+    div.append(name, dates);
+    selfgovHistoryList.appendChild(div);
+  });
+}
+
+if (selfgovHistoryToggle) {
+  selfgovHistoryToggle.onclick = () => {
+    selfgovHistoryExpanded = !selfgovHistoryExpanded;
+    if (selfgovHistoryBody) selfgovHistoryBody.classList.toggle("hidden", !selfgovHistoryExpanded);
+    selfgovHistoryToggle.textContent = selfgovHistoryExpanded
+      ? t("subjectsCollapseBtn")
+      : t("subjectsExpandBtn");
+  };
+}
+
+if (announceElectionBtn) {
+  announceElectionBtn.onclick = async () => {
+    const classId = currentClassId;
+    if (!classId) return;
+    if (getActiveElectionForClass(classId)) {
+      alert(t("selfGovAlreadyActive"));
+      return;
+    }
+    const startVal = electionStartInput ? electionStartInput.value : "";
+    const endVal = electionEndInput ? electionEndInput.value : "";
+    if (!startVal || !endVal) {
+      alert(t("selfGovNeedDates"));
+      return;
+    }
+    const startAt = new Date(startVal).getTime();
+    const endAt = new Date(endVal).getTime();
+    if (!(startAt < endAt)) {
+      alert(t("selfGovStartBeforeEnd"));
+      return;
+    }
+    try {
+      await addDoc(collection(db, "elections"), {
+        classId,
+        startAt,
+        endAt,
+        createdAt: Date.now(),
+        candidates: {},
+        votes: {},
+        closed: false,
+        winnerStudentId: null,
+      });
+      if (electionStartInput) electionStartInput.value = "";
+      if (electionEndInput) electionEndInput.value = "";
+      alert(t("selfGovAnnounced"));
+    } catch (e) {
+      reportSaveError(e, "Не вдалося оголосити вибори", "Failed to announce election");
+    }
+  };
+}
+
+function subscribeElectionsAndHistory() {
+  if (unsubscribeElections) unsubscribeElections();
+  if (unsubscribeStarostaHistory) unsubscribeStarostaHistory();
+  unsubscribeElections = onSnapshot(collection(db, "elections"), (snap) => {
+    lastElections = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    if (selfgovPanelEl && !selfgovPanelEl.classList.contains("hidden")) {
+      renderSelfGovTeacher();
+    }
+  });
+  unsubscribeStarostaHistory = onSnapshot(
+    query(collection(db, "starostaHistory"), orderBy("createdAt", "desc")),
+    (snap) => {
+      lastStarostaHistory = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      if (selfgovPanelEl && !selfgovPanelEl.classList.contains("hidden")) {
+        renderSelfGovTeacher();
+      }
+    },
+    () => {
+      // fallback without orderBy if index missing
+      unsubscribeStarostaHistory = onSnapshot(collection(db, "starostaHistory"), (snap) => {
+        lastStarostaHistory = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+        if (selfgovPanelEl && !selfgovPanelEl.classList.contains("hidden")) {
+          renderSelfGovTeacher();
+        }
+      });
+    }
+  );
+}
+
+// Hook into auth success — find where students listener starts
+const _origSubscribeNote = "subscribeElectionsAndHistory will be called from onAuth";

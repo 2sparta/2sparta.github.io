@@ -56,5 +56,13 @@ service cloud.firestore {
                     && resource.data.uid == request.auth.uid
                     && request.resource.data.uid == request.auth.uid;
     }
+    // Вибори старости (по класу)
+    match /elections/{electionId} {
+      allow read, write: if request.auth != null;
+    }
+    // Історія старост (хто був з/по яку дату)
+    match /starostaHistory/{historyId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }

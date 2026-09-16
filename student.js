@@ -36,6 +36,7 @@ import {
   getDocs,
   onSnapshot,
   orderBy,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   firebaseConfig,
@@ -92,9 +93,11 @@ const pointsHeroValueEl = document.getElementById("points-hero-value");
 const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const tabGradesBtn = document.getElementById("tab-grades-btn");
+const tabSelfGovBtn = document.getElementById("tab-selfgov-btn");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 const gradesPanel = document.getElementById("grades-panel");
+const selfgovPanel = document.getElementById("selfgov-panel");
 const gradesTableContainer = document.getElementById("grades-table-container");
 const noGradesMsg = document.getElementById("no-grades-msg");
 
@@ -287,6 +290,32 @@ const translations = {
     deletedSubjectLabel: "Видалений предмет",
     noMeetingLink: "",
     homeworkDateLabel: "Дата дз (до)",
+    subjectsExpandBtn: "Розгорнути",
+    subjectsCollapseBtn: "Згорнути",
+    tabSelfGov: "Самоврядування",
+    selfGovHeading: "Самоврядування",
+    selfGovStudentHint: "Тут ви можете подати кандидатуру на старосту або проголосувати під час виборів.",
+    selfGovHistoryHeading: "Історія виборів / старост",
+    selfGovNoHistory: "Історії ще немає.",
+    selfGovPhaseCandidacy: "Подача кандидатур",
+    selfGovPhaseVoting: "Голосування",
+    selfGovPhaseClosed: "Завершені",
+    selfGovNoActive: "Зараз немає активних виборів для вашого класу.",
+    selfGovApplyBtn: "Подати кандидатуру",
+    selfGovApplied: "Ви вже кандидат",
+    selfGovVoteBtn: "Голосувати",
+    selfGovVotedFor: "Ваш голос:",
+    selfGovCannotVoteSelf: "Не можна голосувати за себе.",
+    selfGovCandidates: "Кандидати",
+    selfGovVotes: "голосів",
+    selfGovNoCandidates: "Кандидатів ще немає.",
+    selfGovUntilNow: "досі",
+    selfGovFrom: "з",
+    selfGovTo: "по",
+    selfGovTotalVotes: "Усього голосів",
+    selfGovApplyDone: "Кандидатуру подано.",
+    selfGovVoteDone: "Голос зараховано.",
+    selfGovNeedLink: "Спочатку прив'яжіть профіль за кодом-запрошення.",
     starostaHwHeading: "Додати ДЗ (староста)",
     starostaHwHint: "Запишіть домашнє завдання, яке вчитель оголосив усно або на дошці. Доступні лише предмети, для яких вчитель дозволив самостійний запис ДЗ.",
     starostaHwTitlePlaceholder: "Назва / короткий опис ДЗ",
@@ -377,6 +406,32 @@ const translations = {
     deletedSubjectLabel: "Deleted subject",
     noMeetingLink: "",
     homeworkDateLabel: "Homework due date",
+    subjectsExpandBtn: "Expand",
+    subjectsCollapseBtn: "Collapse",
+    tabSelfGov: "Self-government",
+    selfGovHeading: "Self-government",
+    selfGovStudentHint: "Here you can apply as a class monitor candidate or vote during elections.",
+    selfGovHistoryHeading: "Election / monitor history",
+    selfGovNoHistory: "No history yet.",
+    selfGovPhaseCandidacy: "Candidacy",
+    selfGovPhaseVoting: "Voting",
+    selfGovPhaseClosed: "Closed",
+    selfGovNoActive: "There are no active elections for your class right now.",
+    selfGovApplyBtn: "Apply as candidate",
+    selfGovApplied: "You are already a candidate",
+    selfGovVoteBtn: "Vote",
+    selfGovVotedFor: "Your vote:",
+    selfGovCannotVoteSelf: "You cannot vote for yourself.",
+    selfGovCandidates: "Candidates",
+    selfGovVotes: "votes",
+    selfGovNoCandidates: "No candidates yet.",
+    selfGovUntilNow: "present",
+    selfGovFrom: "from",
+    selfGovTo: "to",
+    selfGovTotalVotes: "Total votes",
+    selfGovApplyDone: "Candidacy submitted.",
+    selfGovVoteDone: "Vote recorded.",
+    selfGovNeedLink: "Link your profile with an invite code first.",
     starostaHwHeading: "Add homework (class monitor)",
     starostaHwHint: "Record homework the teacher announced orally or wrote on the board. Only subjects where the teacher allowed student-written homework are available.",
     starostaHwTitlePlaceholder: "Title / short description",
@@ -470,13 +525,17 @@ function showTab(tab) {
   if (tabScheduleBtn) tabScheduleBtn.classList.toggle("active", tab === "schedule");
   if (tabTasksBtn) tabTasksBtn.classList.toggle("active", tab === "tasks");
   if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
+  if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
   if (schedulePanel) schedulePanel.classList.toggle("hidden", tab !== "schedule");
   if (tasksPanel) tasksPanel.classList.toggle("hidden", tab !== "tasks");
   if (gradesPanel) gradesPanel.classList.toggle("hidden", tab !== "grades");
+  if (selfgovPanel) selfgovPanel.classList.toggle("hidden", tab !== "selfgov");
+  if (tab === "selfgov") renderSelfGovStudent();
 }
 if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
 if (tabTasksBtn) tabTasksBtn.onclick = () => showTab("tasks");
 if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
+if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
 
 // Перемикач всередині вкладки "Завдання": розклад дня (сьогодні/завтра) чи ДЗ.
 function showTaskType(type) {
@@ -556,6 +615,8 @@ function teardownListeners() {
   if (unsubscribeSchedule) unsubscribeSchedule();
   if (unsubscribeElectives) unsubscribeElectives();
   if (unsubscribeGrades) unsubscribeGrades();
+  if (unsubscribeElections) { unsubscribeElections(); unsubscribeElections = null; }
+  if (unsubscribeStarostaHistory) { unsubscribeStarostaHistory(); unsubscribeStarostaHistory = null; }
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
@@ -753,6 +814,8 @@ function startDashboard(user) {
       renderGradesTable();
     }
   );
+
+  subscribeStudentElections();
 }
 
 // Розклад свого класу будується "на льоту" з сирого документа schedule/week —
@@ -1647,4 +1710,291 @@ function renderElectivesList() {
       electivesListEl.appendChild(li);
     });
   if (noElectivesMsg) noElectivesMsg.classList.toggle("hidden", lastElectives.length > 0);
+}
+// ==========================================================
+// Самоврядування — вибори старости (кабінет учня)
+// ==========================================================
+const ELECTION_COLORS = [
+  "#24866b", "#0e7490", "#c2410c", "#7c3aed", "#b45309",
+  "#34b58e", "#6366f1", "#dc2626", "#0891b2", "#a855f7",
+];
+
+let lastElections = [];
+let lastStarostaHistory = [];
+let unsubscribeElections = null;
+let unsubscribeStarostaHistory = null;
+let selfgovHistoryExpanded = false;
+
+const selfgovStudentStatus = document.getElementById("selfgov-student-status");
+const selfgovStudentActions = document.getElementById("selfgov-student-actions");
+const selfgovStudentPie = document.getElementById("selfgov-student-pie");
+const selfgovStudentLegend = document.getElementById("selfgov-student-legend");
+const selfgovStudentCandidates = document.getElementById("selfgov-student-candidates");
+const selfgovHistoryToggle = document.getElementById("selfgov-history-toggle");
+const selfgovHistoryBody = document.getElementById("selfgov-history-body");
+const selfgovHistoryList = document.getElementById("selfgov-history-list");
+const selfgovNoHistoryMsg = document.getElementById("selfgov-no-history-msg");
+
+function electionPhase(data, now = Date.now()) {
+  if (data.closed) return "closed";
+  if (now < data.startAt) return "candidacy";
+  if (now < data.endAt) return "voting";
+  return "closed";
+}
+
+function getActiveElectionForMyClass() {
+  if (!studentClassId) return null;
+  return (
+    lastElections.find(
+      (e) => e.data.classId === studentClassId && !e.data.closed && electionPhase(e.data) !== "closed"
+    ) || null
+  );
+}
+
+function countVotes(electionData) {
+  const votes = electionData.votes || {};
+  const counts = {};
+  Object.values(votes).forEach((cid) => {
+    counts[cid] = (counts[cid] || 0) + 1;
+  });
+  return counts;
+}
+
+function renderStudentPie(electionData) {
+  if (!selfgovStudentPie || !selfgovStudentLegend) return;
+  const candidates = electionData.candidates || {};
+  const counts = countVotes(electionData);
+  const entries = Object.keys(candidates).map((sid, i) => ({
+    id: sid,
+    name: candidates[sid].name || sid,
+    votes: counts[sid] || 0,
+    color: ELECTION_COLORS[i % ELECTION_COLORS.length],
+  }));
+  const total = entries.reduce((s, e) => s + e.votes, 0);
+  if (entries.length === 0 || total === 0) {
+    selfgovStudentPie.style.background = `conic-gradient(var(--color-border) 0deg 360deg)`;
+    selfgovStudentLegend.innerHTML = `<div class="hint">${t("selfGovNoCandidates")}</div>`;
+    return;
+  }
+  let deg = 0;
+  const parts = [];
+  entries.forEach((e) => {
+    const slice = (e.votes / total) * 360;
+    parts.push(`${e.color} ${deg}deg ${deg + slice}deg`);
+    deg += slice;
+  });
+  selfgovStudentPie.style.background = `conic-gradient(${parts.join(", ")})`;
+  selfgovStudentLegend.innerHTML = "";
+  const totalLabel = document.createElement("div");
+  totalLabel.className = "hint";
+  totalLabel.textContent = `${t("selfGovTotalVotes")}: ${total}`;
+  selfgovStudentLegend.appendChild(totalLabel);
+  entries
+    .slice()
+    .sort((a, b) => b.votes - a.votes)
+    .forEach((e) => {
+      const row = document.createElement("div");
+      row.className = "election-legend-item";
+      const sw = document.createElement("span");
+      sw.className = "election-legend-swatch";
+      sw.style.background = e.color;
+      const txt = document.createElement("span");
+      txt.textContent = `${e.name}: ${e.votes}`;
+      row.append(sw, txt);
+      selfgovStudentLegend.appendChild(row);
+    });
+}
+
+function renderSelfGovStudent() {
+  if (!selfgovPanel) return;
+  if (!studentId) {
+    if (selfgovStudentStatus) selfgovStudentStatus.textContent = t("selfGovNeedLink");
+    return;
+  }
+
+  const active = getActiveElectionForMyClass();
+  if (selfgovStudentActions) selfgovStudentActions.innerHTML = "";
+  if (selfgovStudentCandidates) selfgovStudentCandidates.innerHTML = "";
+
+  if (!active) {
+    if (selfgovStudentStatus) selfgovStudentStatus.textContent = t("selfGovNoActive");
+    if (selfgovStudentPie) selfgovStudentPie.style.background = `conic-gradient(var(--color-border) 0deg 360deg)`;
+    if (selfgovStudentLegend) selfgovStudentLegend.innerHTML = "";
+    renderStudentStarostaHistory();
+    return;
+  }
+
+  const phase = electionPhase(active.data);
+  const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+  const startStr = new Date(active.data.startAt).toLocaleString(locale, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endStr = new Date(active.data.endAt).toLocaleString(locale, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const phaseLabel =
+    phase === "candidacy"
+      ? t("selfGovPhaseCandidacy")
+      : phase === "voting"
+        ? t("selfGovPhaseVoting")
+        : t("selfGovPhaseClosed");
+  const badgeClass =
+    phase === "voting"
+      ? "election-phase-badge voting"
+      : phase === "closed"
+        ? "election-phase-badge closed"
+        : "election-phase-badge";
+  if (selfgovStudentStatus) {
+    selfgovStudentStatus.innerHTML = `${phaseLabel} <span class="${badgeClass}">${phaseLabel}</span><br><span class="hint">${startStr} — ${endStr}</span>`;
+  }
+
+  const candidates = active.data.candidates || {};
+  const votes = active.data.votes || {};
+  const myVote = votes[studentId];
+  const isCandidate = !!candidates[studentId];
+
+  if (phase === "candidacy" && selfgovStudentActions) {
+    if (isCandidate) {
+      const span = document.createElement("span");
+      span.className = "hint";
+      span.textContent = t("selfGovApplied");
+      selfgovStudentActions.appendChild(span);
+    } else {
+      const btn = document.createElement("button");
+      btn.textContent = t("selfGovApplyBtn");
+      btn.onclick = async () => {
+        try {
+          const name = (studentData && studentData.name) || "Student";
+          await updateDoc(doc(db, "elections", active.id), {
+            [`candidates.${studentId}`]: { name, appliedAt: Date.now() },
+          });
+          alert(t("selfGovApplyDone"));
+        } catch (e) {
+          alert(errorText(e));
+        }
+      };
+      selfgovStudentActions.appendChild(btn);
+    }
+  }
+
+  if (phase === "voting" && myVote && selfgovStudentActions) {
+    const votedName = (candidates[myVote] && candidates[myVote].name) || myVote;
+    const span = document.createElement("span");
+    span.className = "hint";
+    span.textContent = `${t("selfGovVotedFor")} ${votedName}`;
+    selfgovStudentActions.appendChild(span);
+  }
+
+  renderStudentPie(active.data);
+
+  if (selfgovStudentCandidates) {
+    const counts = countVotes(active.data);
+    const ids = Object.keys(candidates);
+    if (ids.length === 0) {
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = t("selfGovNoCandidates");
+      selfgovStudentCandidates.appendChild(p);
+    } else {
+      ids
+        .slice()
+        .sort((a, b) => (counts[b] || 0) - (counts[a] || 0))
+        .forEach((sid) => {
+          const row = document.createElement("div");
+          row.className = "selfgov-candidate-row";
+          const name = document.createElement("span");
+          name.className = "selfgov-candidate-name";
+          name.textContent = candidates[sid].name || sid;
+          const right = document.createElement("div");
+          right.style.display = "flex";
+          right.style.alignItems = "center";
+          right.style.gap = "10px";
+          const votesEl = document.createElement("span");
+          votesEl.className = "selfgov-candidate-votes";
+          votesEl.textContent = `${counts[sid] || 0} ${t("selfGovVotes")}`;
+          right.appendChild(votesEl);
+          if (phase === "voting" && !myVote && sid !== studentId) {
+            const voteBtn = document.createElement("button");
+            voteBtn.className = "small";
+            voteBtn.textContent = t("selfGovVoteBtn");
+            voteBtn.onclick = async () => {
+              try {
+                await updateDoc(doc(db, "elections", active.id), {
+                  [`votes.${studentId}`]: sid,
+                });
+                alert(t("selfGovVoteDone"));
+              } catch (e) {
+                alert(errorText(e));
+              }
+            };
+            right.appendChild(voteBtn);
+          } else if (phase === "voting" && sid === studentId && !myVote) {
+            const hint = document.createElement("span");
+            hint.className = "hint";
+            hint.textContent = t("selfGovCannotVoteSelf");
+            right.appendChild(hint);
+          }
+          row.append(name, right);
+          selfgovStudentCandidates.appendChild(row);
+        });
+    }
+  }
+
+  renderStudentStarostaHistory();
+}
+
+function renderStudentStarostaHistory() {
+  if (!selfgovHistoryList) return;
+  const items = lastStarostaHistory
+    .filter((h) => !studentClassId || h.data.classId === studentClassId)
+    .slice()
+    .sort((a, b) => (b.data.fromDate || "").localeCompare(a.data.fromDate || ""));
+  selfgovHistoryList.innerHTML = "";
+  if (items.length === 0) {
+    if (selfgovNoHistoryMsg) selfgovNoHistoryMsg.classList.remove("hidden");
+    return;
+  }
+  if (selfgovNoHistoryMsg) selfgovNoHistoryMsg.classList.add("hidden");
+  items.forEach(({ data }) => {
+    const div = document.createElement("div");
+    div.className = "selfgov-history-item";
+    const name = document.createElement("div");
+    name.className = "selfgov-history-name";
+    name.textContent = data.studentName || data.studentId;
+    const dates = document.createElement("div");
+    dates.className = "selfgov-history-dates";
+    const to = data.toDate || t("selfGovUntilNow");
+    dates.textContent = `${t("selfGovFrom")} ${data.fromDate || "?"} ${t("selfGovTo")} ${to}`;
+    div.append(name, dates);
+    selfgovHistoryList.appendChild(div);
+  });
+}
+
+if (selfgovHistoryToggle) {
+  selfgovHistoryToggle.onclick = () => {
+    selfgovHistoryExpanded = !selfgovHistoryExpanded;
+    if (selfgovHistoryBody) selfgovHistoryBody.classList.toggle("hidden", !selfgovHistoryExpanded);
+    selfgovHistoryToggle.textContent = selfgovHistoryExpanded
+      ? t("subjectsCollapseBtn") || "Згорнути"
+      : t("subjectsExpandBtn") || "Розгорнути";
+  };
+}
+
+function subscribeStudentElections() {
+  if (unsubscribeElections) unsubscribeElections();
+  if (unsubscribeStarostaHistory) unsubscribeStarostaHistory();
+  unsubscribeElections = onSnapshot(collection(db, "elections"), (snap) => {
+    lastElections = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    if (selfgovPanel && !selfgovPanel.classList.contains("hidden")) renderSelfGovStudent();
+  });
+  unsubscribeStarostaHistory = onSnapshot(collection(db, "starostaHistory"), (snap) => {
+    lastStarostaHistory = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    if (selfgovPanel && !selfgovPanel.classList.contains("hidden")) renderSelfGovStudent();
+  });
 }

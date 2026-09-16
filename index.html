@@ -75,6 +75,7 @@
         <button id="tab-schedule-btn" class="tab-btn" data-i18n="tabSchedule">Розклад</button>
         <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
         <button id="tab-grades-btn" class="tab-btn" data-i18n="tabGrades">Оцінки</button>
+        <button id="tab-selfgov-btn" class="tab-btn" data-i18n="tabSelfGov">Самоврядування</button>
       </nav>
 
       <!-- Віджети та контент: відцентровані та широкі -->
@@ -258,6 +259,50 @@
             </label>
             <div id="teacher-grades-table-container"></div>
             <p id="teacher-no-grades-msg" class="hint hidden" data-i18n="noGradesMsg">Оцінок ще немає.</p>
+          </section>
+        </div>
+
+        <div id="selfgov-panel" class="tab-panel hidden">
+          <section class="card">
+            <h2 data-i18n="selfGovHeading">Самоврядування</h2>
+            <p class="hint" data-i18n="selfGovTeacherHint">Оголосіть вибори старости для поточного класу. До початку виборів учні можуть подати кандидатуру; після початку — голосувати. Після завершення переможець стає старостою автоматично.</p>
+            <div class="selfgov-class-row">
+              <span class="group-switch-label" data-i18n="groupSwitchLabel">Клас:</span>
+              <span id="selfgov-class-name" class="selfgov-class-name"></span>
+            </div>
+            <div id="selfgov-announce-form" class="selfgov-announce-form">
+              <h3 data-i18n="selfGovAnnounceHeading">Оголосити вибори</h3>
+              <div class="date-row">
+                <label class="date-field">
+                  <span data-i18n="selfGovStartLabel">Початок виборів</span>
+                  <input id="election-start-input" type="datetime-local" />
+                </label>
+                <label class="date-field">
+                  <span data-i18n="selfGovEndLabel">Завершення виборів</span>
+                  <input id="election-end-input" type="datetime-local" />
+                </label>
+              </div>
+              <button id="announce-election-btn" data-i18n="selfGovAnnounceBtn">Оголосити вибори</button>
+            </div>
+            <div id="selfgov-active-block" class="hidden">
+              <div id="selfgov-status" class="selfgov-status"></div>
+              <div class="selfgov-progress-wrap">
+                <div id="selfgov-pie" class="election-pie" aria-hidden="true"></div>
+                <div id="selfgov-progress-legend" class="election-legend"></div>
+              </div>
+              <div id="selfgov-candidates-list" class="selfgov-candidates-list"></div>
+              <button id="close-election-btn" class="secondary small hidden" data-i18n="selfGovCloseBtn">Завершити вибори зараз</button>
+            </div>
+          </section>
+          <section class="card">
+            <div class="subjects-header">
+              <h2 data-i18n="selfGovHistoryHeading">Історія виборів / старост</h2>
+              <button id="selfgov-history-toggle" class="secondary small" type="button" data-i18n="subjectsExpandBtn">Розгорнути</button>
+            </div>
+            <div id="selfgov-history-body" class="hidden">
+              <div id="selfgov-history-list"></div>
+              <p id="selfgov-no-history-msg" class="hint hidden" data-i18n="selfGovNoHistory">Історії ще немає.</p>
+            </div>
           </section>
         </div>
 
