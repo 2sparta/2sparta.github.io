@@ -1878,9 +1878,11 @@ function renderSchedule() {
   const cornerTh = document.createElement("th");
   cornerTh.className = "schedule-table-corner";
   headRow.appendChild(cornerTh);
+  const todayWeekdayKey = WEEKDAY_BY_JS_INDEX[new Date().getDay()];
   visibleDays.forEach((dayKey) => {
     const th = document.createElement("th");
     th.textContent = t("weekdaysShort")[dayKey];
+    if (dayKey === todayWeekdayKey) th.classList.add("schedule-table-today");
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -1954,6 +1956,7 @@ function renderSchedule() {
       const entry = dayMap[r];
       const td = document.createElement("td");
       td.className = "schedule-table-cell";
+      if (dayKey === todayWeekdayKey) td.classList.add("schedule-table-today");
 
       if (entry) {
         if (applied) {
