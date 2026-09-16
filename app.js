@@ -84,7 +84,7 @@ const translations = {
     statSubjects: "Предметів",
     statLessonsToday: "Уроків сьогодні",
     statLinked: "Прив'язано",
-    tabPoints: "Бали",
+    tabPoints: "Учні",
     tabSchedule: "Розклад",
     tabTasks: "Завдання",
     studentLinkText: "Я учень →",
@@ -140,6 +140,9 @@ const translations = {
     studentsSortPoints: "За балами",
     studentsSortLinked: "За прив'язкою",
     studentsSortGroup: "За групою",
+    studentClassPlaceholder: "Клас",
+    studentGroupPlaceholder: "Група",
+    selectClassFirst: "Спочатку оберіть клас",
     dayTimesCollapseBtn: "Згорнути",
     dayTimesExpandBtn: "Розгорнути",
     deleteClassConfirm: (name) => `Ви впевнені, що хочете видалити клас "${name}"? Учні цього класу будуть перенесені до іншого класу, а розклад класу буде втрачено. Цю дію не можна скасувати.`,
@@ -265,7 +268,7 @@ const translations = {
     statSubjects: "Subjects",
     statLessonsToday: "Lessons today",
     statLinked: "Linked",
-    tabPoints: "Points",
+    tabPoints: "Students",
     tabSchedule: "Schedule",
     tabTasks: "Tasks",
     studentLinkText: "I'm a student →",
@@ -321,6 +324,9 @@ const translations = {
     studentsSortPoints: "By points",
     studentsSortLinked: "By linked status",
     studentsSortGroup: "By group",
+    studentClassPlaceholder: "Class",
+    studentGroupPlaceholder: "Group",
+    selectClassFirst: "Select a class first",
     dayTimesCollapseBtn: "Collapse",
     dayTimesExpandBtn: "Expand",
     deleteClassConfirm: (name) => `Are you sure you want to delete the class "${name}"? Its students will be moved to another class, and the class's schedule will be lost. This cannot be undone.`,
@@ -470,7 +476,7 @@ function setLanguage(lang) {
   applyStaticTranslations();
   updateSubjectsToggleBtn();
   renderClassSwitch();
-  renderNewStudentGroupOptions();
+  renderNewStudentClassOptions();
   renderStudentsTable();
   renderSubjectsList();
   renderSubjectSelects();
@@ -560,6 +566,7 @@ function setCurrentClass(classId) {
   renderSchedule();
   renderLessonsContainer();
   updateLiveStatus();
+  updateDashboardStats();
 }
 
 function setGroup(groupId) {
@@ -575,6 +582,7 @@ function setGroup(groupId) {
   renderSchedule();
   renderLessonsContainer();
   updateLiveStatus();
+  updateDashboardStats();
 }
 
 function ensureCurrentGroupInClass() {
@@ -658,7 +666,7 @@ function listenToClasses() {
     }
     ensureCurrentGroupInClass();
     renderClassSwitch();
-    renderNewStudentGroupOptions();
+    renderNewStudentClassOptions();
     renderLessonClassOptions();
     renderStudentsTable();
     renderSchedule();
@@ -692,7 +700,7 @@ function listenToClasses() {
     lastGroups = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
     ensureCurrentGroupInClass();
     renderClassSwitch();
-    renderNewStudentGroupOptions();
+    renderNewStudentClassOptions();
     renderStudentsTable();
     // scheduleData будується за group ids
     if (typeof scheduleData !== "undefined") {
@@ -959,6 +967,7 @@ const registerBtn = document.getElementById("register-btn");
 const authError = document.getElementById("auth-error");
 const logoutBtn = document.getElementById("logout-btn");
 const newStudentName = document.getElementById("new-student-name");
+const newStudentClass = document.getElementById("new-student-class");
 const newStudentGroup = document.getElementById("new-student-group");
 const addStudentBtn = document.getElementById("add-student-btn");
 const studentsTbody = document.getElementById("students-tbody");
@@ -1180,16 +1189,20 @@ function updateAvatar(user) {
   avatarEl.title = user.email || "";
 }
 
+function countScheduleLessonsToday() {
+  // Кількість уроків у розкладі поточної групи на сьогодні (те, що відкрито в "Розклад").
+  const groupSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
+  const weekdayKey = WEEKDAY_BY_JS_INDEX[new Date().getDay()];
+  return getDayEntriesList(groupSchedule, weekdayKey).length;
+}
+
 function updateDashboardStats() {
   if (statStudentsEl) statStudentsEl.textContent = String(lastStudents.length);
   if (statSubjectsEl) statSubjectsEl.textContent = String(lastSubjects.length);
 
-  const todayStr = formatDateLocal(new Date());
-  const lessonsToday = lastLessons.filter(
-    (l) => l.data.lessonDate === todayStr && lessonVisibleForCurrentClass(l.data)
-  ).length;
-  if (statLessonsTodayEl) statLessonsTodayEl.textContent = String(lessonsToday);
-  if (greetingSubtitleEl) greetingSubtitleEl.textContent = t("greetingSubtitle")(lessonsToday);
+  const scheduleToday = countScheduleLessonsToday();
+  if (statLessonsTodayEl) statLessonsTodayEl.textContent = String(scheduleToday);
+  if (greetingSubtitleEl) greetingSubtitleEl.textContent = t("greetingSubtitle")(scheduleToday);
 
   const linkedCount = lastStudents.filter((s) => !!s.data.authUid).length;
   if (statLinkedEl) statLinkedEl.textContent = `${linkedCount}/${lastStudents.length}`;
@@ -1387,10 +1400,15 @@ function renderStudentsTable() {
 addStudentBtn.onclick = async () => {
   const name = newStudentName.value.trim();
   if (!name) return;
+  const groupId =
+    newStudentGroup && newStudentGroup.value
+      ? newStudentGroup.value
+      : (groupIds()[0] || currentGroup || "group1");
+  if (!groupId) return;
   await addDoc(collection(db, "students"), {
     name,
     points: 0,
-    group: newStudentGroup && newStudentGroup.value ? newStudentGroup.value : (groupIds()[0] || currentGroup || "group1"),
+    group: groupId,
     inviteCode: generateInviteCode(),
     authUid: null,
     createdAt: Date.now(),
@@ -1398,27 +1416,75 @@ addStudentBtn.onclick = async () => {
   newStudentName.value = "";
 };
 
-// Перебудовує список класів у селекті форми "Додати учня".
+// Форма "Додати учня": спочатку клас, потім група цього класу.
+function renderNewStudentClassOptions() {
+  if (!newStudentClass) return;
+  const prevClass = newStudentClass.value;
+  newStudentClass.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = t("studentClassPlaceholder");
+  ph.disabled = true;
+  newStudentClass.appendChild(ph);
+
+  lastClasses.forEach((cls) => {
+    const opt = document.createElement("option");
+    opt.value = cls.id;
+    opt.textContent = cls.data.name || cls.id;
+    newStudentClass.appendChild(opt);
+  });
+
+  let pick = prevClass;
+  if (!lastClasses.some((c) => c.id === pick)) {
+    pick = currentClassId && lastClasses.some((c) => c.id === currentClassId)
+      ? currentClassId
+      : (lastClasses[0] ? lastClasses[0].id : "");
+  }
+  if (pick) newStudentClass.value = pick;
+  else ph.selected = true;
+
+  renderNewStudentGroupOptions();
+}
+
 function renderNewStudentGroupOptions() {
   if (!newStudentGroup) return;
-  const prevValue = newStudentGroup.value;
-  const options = [];
-  lastClasses.forEach((cls) => {
-    groupsOfClass(cls.id).forEach((g) => {
-      options.push({ id: g.id, label: `${cls.data.name} / ${g.data.name}` });
-    });
+  const prevGroup = newStudentGroup.value;
+  const classId = newStudentClass ? newStudentClass.value : "";
+  newStudentGroup.innerHTML = "";
+
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = classId ? t("studentGroupPlaceholder") : t("selectClassFirst");
+  ph.disabled = true;
+  newStudentGroup.appendChild(ph);
+
+  if (!classId) {
+    ph.selected = true;
+    newStudentGroup.disabled = true;
+    return;
+  }
+  newStudentGroup.disabled = false;
+
+  const groups = groupsOfClass(classId);
+  groups.forEach((g) => {
+    const opt = document.createElement("option");
+    opt.value = g.id;
+    opt.textContent = g.data.name || g.id;
+    newStudentGroup.appendChild(opt);
   });
-  // fallback: groups without known class
-  lastGroups.forEach((g) => {
-    if (!options.some((o) => o.id === g.id)) {
-      options.push({ id: g.id, label: getGroupLabel(g.id) });
-    }
-  });
-  newStudentGroup.innerHTML = options
-    .map(({ id, label }) => `<option value="${id}">${escapeHtml(label)}</option>`)
-    .join("");
-  if (options.some((o) => o.id === prevValue)) newStudentGroup.value = prevValue;
-  else if (options.some((o) => o.id === currentGroup)) newStudentGroup.value = currentGroup;
+
+  let pick = prevGroup;
+  if (!groups.some((g) => g.id === pick)) {
+    pick = currentGroup && groups.some((g) => g.id === currentGroup)
+      ? currentGroup
+      : (groups[0] ? groups[0].id : "");
+  }
+  if (pick) newStudentGroup.value = pick;
+  else ph.selected = true;
+}
+
+if (newStudentClass) {
+  newStudentClass.onchange = () => renderNewStudentGroupOptions();
 }
 
 function generateInviteCode() {
@@ -1458,24 +1524,49 @@ function renderStudentRow(id, data) {
   codeChip.className = "invite-code";
   codeChip.textContent = data.inviteCode || "—";
 
+  // Клас → група (каскад): спочатку клас, потім групи цього класу
+  const currentGroupObj = lastGroups.find((g) => g.id === data.group);
+  const studentClassId = currentGroupObj ? currentGroupObj.data.classId : (currentClassId || (lastClasses[0] && lastClasses[0].id) || "");
+
+  const classSelect = document.createElement("select");
+  classSelect.className = "student-group-select student-class-select";
+  classSelect.title = t("studentClassPlaceholder");
+  lastClasses.forEach((cls) => {
+    const opt = document.createElement("option");
+    opt.value = cls.id;
+    opt.textContent = cls.data.name || cls.id;
+    classSelect.appendChild(opt);
+  });
+  if (lastClasses.some((c) => c.id === studentClassId)) classSelect.value = studentClassId;
+
   const groupSelect = document.createElement("select");
   groupSelect.className = "student-group-select";
-  const groupOptions = [];
-  lastClasses.forEach((cls) => {
-    groupsOfClass(cls.id).forEach((g) => {
-      groupOptions.push({ id: g.id, label: `${cls.data.name} / ${g.data.name}` });
+  groupSelect.title = t("studentGroupPlaceholder");
+
+  function fillGroupSelect(classId, preferredGroupId) {
+    groupSelect.innerHTML = "";
+    const groups = groupsOfClass(classId);
+    groups.forEach((g) => {
+      const opt = document.createElement("option");
+      opt.value = g.id;
+      opt.textContent = g.data.name || g.id;
+      groupSelect.appendChild(opt);
     });
-  });
-  lastGroups.forEach((g) => {
-    if (!groupOptions.some((o) => o.id === g.id)) {
-      groupOptions.push({ id: g.id, label: getGroupLabel(g.id) });
-    }
-  });
-  groupSelect.innerHTML = groupOptions
-    .map(({ id: gid, label }) => `<option value="${gid}">${escapeHtml(label)}</option>`)
-    .join("");
-  if (groupOptions.some((o) => o.id === data.group)) groupSelect.value = data.group;
+    if (groups.some((g) => g.id === preferredGroupId)) groupSelect.value = preferredGroupId;
+    else if (groups[0]) groupSelect.value = groups[0].id;
+  }
+  fillGroupSelect(classSelect.value, data.group);
+
+  classSelect.onchange = () => {
+    fillGroupSelect(classSelect.value, null);
+    const gid = groupSelect.value;
+    if (!gid) return;
+    updateDoc(doc(db, "students", id), { group: gid }).catch((e) =>
+      reportSaveError(e, "Не вдалося змінити клас/групу", "Failed to change class/group")
+    );
+  };
   groupSelect.onchange = () => {
+    if (!groupSelect.value) return;
     updateDoc(doc(db, "students", id), { group: groupSelect.value }).catch((e) =>
       reportSaveError(e, "Не вдалося змінити групу", "Failed to change the group")
     );
@@ -1498,7 +1589,7 @@ function renderStudentRow(id, data) {
 
   const metaRow = document.createElement("div");
   metaRow.className = "student-meta";
-  metaRow.append(linkedBadge, starostaLabel, groupSelect, codeChip);
+  metaRow.append(linkedBadge, starostaLabel, classSelect, groupSelect, codeChip);
 
   identity.append(nameEl, metaRow);
 
@@ -2177,7 +2268,15 @@ function updateLiveStatus() {
     const time = periodTimes[r] || periodTimes[String(r)];
     const start = time ? parseTimeToMinutes(time.start) : null;
     const end = time ? parseTimeToMinutes(time.end) : null;
-    if (start !== null && end !== null && end > start) {
+    // Пропускаємо урок, якщо в цей день для нього немає ні запланованого
+    // предмета, ні активної разової заміни — інакше час дзвінків без уроку
+    // (напр. "порожній" 7-й урок у скорочений день) показувався б як
+    // "Йде урок: Урок" замість перерви/відсутності активного уроку.
+    const override = getActiveOverride(groupSchedule, weekdayKey, r);
+    const hasLesson = override
+      ? !!override.subjectId
+      : !!(dayEntries[r] && dayEntries[r].subjectId);
+    if (start !== null && end !== null && end > start && hasLesson) {
       periods.push({ r, start, end });
     }
   }
@@ -2204,7 +2303,8 @@ function updateLiveStatus() {
   }
 
   if (!state) {
-    liveStatusEl.innerHTML = `<div class="live-status-row live-status-idle">${t("noActiveLesson")}</div>`;
+    const groupHint = getGroupLabel(currentGroup);
+    liveStatusEl.innerHTML = `<div class="live-status-row live-status-idle">${t("noActiveLesson")}${groupHint ? ` <span class="live-status-group">(${escapeHtml(groupHint)})</span>` : ""}</div>`;
     updateJoinMeetingButton(null);
     return;
   }
@@ -2216,11 +2316,12 @@ function updateLiveStatus() {
       ? override.subjectId
       : dayEntries[state.period.r] ? dayEntries[state.period.r].subjectId : null;
     const subjectName = subjectId ? getSubjectName(subjectId) : t("liveNoSubject");
+    const groupHint = getGroupLabel(currentGroup);
     liveStatusEl.innerHTML = `
       <div class="live-status-row live-status-lesson">
         <span class="live-status-dot"></span>
         <span class="live-status-text">
-          <span class="live-status-label">${t("liveLessonLabel")}</span>
+          <span class="live-status-label">${t("liveLessonLabel")}${groupHint ? ` <span class="live-status-group">(${escapeHtml(groupHint)})</span>` : ""}</span>
           <span class="live-status-subject">${escapeHtml(subjectName)}</span>
         </span>
         <span class="live-status-minutes">${t("minutesLeft")(remaining)}</span>
@@ -2233,11 +2334,12 @@ function updateLiveStatus() {
       ? nextOverride.subjectId
       : dayEntries[state.to.r] ? dayEntries[state.to.r].subjectId : null;
     const nextName = nextSubjectId ? getSubjectName(nextSubjectId) : "";
+    const groupHint = getGroupLabel(currentGroup);
     liveStatusEl.innerHTML = `
       <div class="live-status-row live-status-break">
         <span class="live-status-dot"></span>
         <span class="live-status-text">
-          <span class="live-status-label">${t("liveBreakLabel")}</span>
+          <span class="live-status-label">${t("liveBreakLabel")}${groupHint ? ` <span class="live-status-group">(${escapeHtml(groupHint)})</span>` : ""}</span>
           ${nextName ? `<span class="live-status-subject">${t("nextLessonLabel")}: ${escapeHtml(nextName)}</span>` : ""}
         </span>
         <span class="live-status-minutes">${t("minutesLeft")(remaining)}</span>

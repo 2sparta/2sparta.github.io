@@ -955,7 +955,17 @@ function updateLiveStatus() {
     const time = periodTimes[r] || periodTimes[String(r)];
     const start = time ? parseTimeToMinutes(time.start) : null;
     const end = time ? parseTimeToMinutes(time.end) : null;
-    if (start !== null && end !== null && end > start) periods.push({ r, start, end });
+    // Пропускаємо урок, якщо в цей день для нього немає ні запланованого
+    // предмета, ні активної разової заміни — інакше час дзвінків без уроку
+    // (напр. "порожній" 7-й урок у скорочений день) показувався б як
+    // "Йде урок: Урок" замість перерви/відсутності активного уроку.
+    const override = getActiveOverride(groupSchedule, weekdayKey, r);
+    const hasLesson = override
+      ? !!override.subjectId
+      : !!(dayEntries[r] && dayEntries[r].subjectId);
+    if (start !== null && end !== null && end > start && hasLesson) {
+      periods.push({ r, start, end });
+    }
   }
   periods.sort((a, b) => a.start - b.start);
 

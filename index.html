@@ -71,7 +71,7 @@
 
       <!-- Вкладки зліва, не відцентровані -->
       <nav class="tabs">
-        <button id="tab-points-btn" class="tab-btn active" data-i18n="tabPoints">Бали</button>
+        <button id="tab-points-btn" class="tab-btn active" data-i18n="tabPoints">Учні</button>
         <button id="tab-schedule-btn" class="tab-btn" data-i18n="tabSchedule">Розклад</button>
         <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
         <button id="tab-grades-btn" class="tab-btn" data-i18n="tabGrades">Оцінки</button>
@@ -111,9 +111,10 @@
         <div id="points-panel" class="tab-panel">
           <section class="card">
             <h2 data-i18n="addStudentHeading">Додати учня</h2>
-            <div class="row">
+            <div class="row student-add-row">
               <input id="new-student-name" type="text" data-i18n-placeholder="studentNamePlaceholder" placeholder="Ім'я учня" />
-              <select id="new-student-group"></select>
+              <select id="new-student-class" aria-label="Клас"></select>
+              <select id="new-student-group" aria-label="Група"></select>
               <button id="add-student-btn" data-i18n="addBtn">Додати</button>
             </div>
           </section>
