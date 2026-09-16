@@ -888,6 +888,52 @@ code {
   color: var(--color-primary);
 }
 
+/* ---------- Grades panel (виставлення оцінок за урок/дз) ---------- */
+.grades-panel-inner {
+  margin: 10px 0 0 28px;
+  padding: 12px;
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-md);
+}
+.grades-panel-heading {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.grades-panel-hint {
+  margin: 0 0 10px;
+}
+.grades-student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.grades-student-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grades-student-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.grade-input {
+  width: 52px;
+  flex-shrink: 0;
+  text-align: center;
+  margin-bottom: 0;
+  padding: 5px 4px;
+}
+.grade-saved-hint {
+  font-size: 11px;
+  color: var(--color-success, #2e7d32);
+  flex-shrink: 0;
+  width: 60px;
+}
+.grade-saved-hint.hidden { visibility: hidden; }
+
 /* ---------- Subjects ---------- */
 .subjects-list {
   list-style: none;
@@ -1136,6 +1182,30 @@ th.schedule-table-today {
   color: var(--color-accent);
 }
 
+/* ---------- Grades table (вкладка "Оцінки" учня) ---------- */
+.grades-table-wrap { margin-top: 4px; }
+.grades-table { table-layout: auto; }
+.grades-table-subject {
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  text-align: left;
+  padding: 6px 10px;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 12px;
+}
+.grade-cell-chip {
+  justify-content: center;
+  min-width: 26px;
+  padding: 3px 8px;
+  font-weight: 700;
+}
+.grades-average-cell {
+  font-weight: 800;
+  color: var(--color-accent);
+  background: var(--color-surface-tint);
+}
+
 @media (max-width: 480px) {
   body { padding: 12px; }
   .card { padding: 14px 12px; }
@@ -1146,6 +1216,7 @@ th.schedule-table-today {
   .schedule-table-cell .chip { font-size: 9px; padding: 3px 3px 3px 6px; }
   .schedule-cell-select { font-size: 9px; }
   .schedule-cell-time { font-size: 8px; }
+  .grades-table-subject { font-size: 10px; padding: 4px 6px; }
 }
 
 .chip {

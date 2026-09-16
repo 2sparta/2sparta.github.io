@@ -91,8 +91,12 @@ const pointsHeroValueEl = document.getElementById("points-hero-value");
 
 const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
+const tabGradesBtn = document.getElementById("tab-grades-btn");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
+const gradesPanel = document.getElementById("grades-panel");
+const gradesTableContainer = document.getElementById("grades-table-container");
+const noGradesMsg = document.getElementById("no-grades-msg");
 
 const liveStatusCard = document.getElementById("live-status-card");
 const liveStatusEl = document.getElementById("live-status");
@@ -145,7 +149,9 @@ let lastSubjects = [];
 let lastLessons = [];
 let lastScheduleRaw = {};
 let lastElectives = [];
+let lastGrades = [];
 let unsubscribeElectives = null;
+let unsubscribeGrades = null;
 let currentView = "today"; // "today" | "tomorrow"
 let currentTaskType = "day"; // "day" | "homework" — перемикач всередині вкладки "Завдання"
 let hwSortMode = "date"; // "date" | "subject"
@@ -231,6 +237,7 @@ const translations = {
     pointsLabel: "балів",
     tabSchedule: "Розклад",
     tabTasks: "Завдання",
+    tabGrades: "Оцінки",
     scheduleHeading: "Розклад",
     viewToday: "Сьогодні",
     viewTomorrow: "Завтра",
@@ -251,6 +258,11 @@ const translations = {
     hwMarkDoneLabel: "Виконано",
     subjectsListHeading: "Мої предмети",
     noSubjectsMsg: "Предметів ще немає.",
+    gradesHeading: "Оцінки",
+    gradesHint: "Оцінки виставляє вчитель за уроки та домашні завдання.",
+    noGradesMsg: "Оцінок ще немає.",
+    gradesAverageLabel: "Середній бал",
+    gradesTableSubjectHeader: "Предмет",
     electivesHeading: "Мої факультативи",
     electivesHint: "Видно тільки вам — вчитель і інші учні їх не бачать.",
     electiveNamePlaceholder: "Назва факультативу",
@@ -313,6 +325,7 @@ const translations = {
     pointsLabel: "points",
     tabSchedule: "Schedule",
     tabTasks: "Tasks",
+    tabGrades: "Grades",
     scheduleHeading: "Schedule",
     viewToday: "Today",
     viewTomorrow: "Tomorrow",
@@ -333,6 +346,11 @@ const translations = {
     hwMarkDoneLabel: "Done",
     subjectsListHeading: "My subjects",
     noSubjectsMsg: "No subjects yet.",
+    gradesHeading: "Grades",
+    gradesHint: "Your teacher enters grades for lessons and homework.",
+    noGradesMsg: "No grades yet.",
+    gradesAverageLabel: "Average",
+    gradesTableSubjectHeader: "Subject",
     electivesHeading: "My electives",
     electivesHint: "Only visible to you — your teacher and other students can't see these.",
     electiveNamePlaceholder: "Elective name",
@@ -407,6 +425,7 @@ function applyStaticTranslations() {
   renderElectivesList();
   updateStarostaHwSection();
   updateLiveStatus();
+  renderGradesTable();
 }
 
 // Заповнює <select> вибору дня тижня для факультативу перекладеними
@@ -446,11 +465,14 @@ applyStaticTranslations();
 function showTab(tab) {
   if (tabScheduleBtn) tabScheduleBtn.classList.toggle("active", tab === "schedule");
   if (tabTasksBtn) tabTasksBtn.classList.toggle("active", tab === "tasks");
+  if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
   if (schedulePanel) schedulePanel.classList.toggle("hidden", tab !== "schedule");
   if (tasksPanel) tasksPanel.classList.toggle("hidden", tab !== "tasks");
+  if (gradesPanel) gradesPanel.classList.toggle("hidden", tab !== "grades");
 }
 if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
 if (tabTasksBtn) tabTasksBtn.onclick = () => showTab("tasks");
+if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
 
 // Перемикач всередині вкладки "Завдання": розклад дня (сьогодні/завтра) чи ДЗ.
 function showTaskType(type) {
@@ -529,6 +551,7 @@ function teardownListeners() {
   if (unsubscribeLessons) unsubscribeLessons();
   if (unsubscribeSchedule) unsubscribeSchedule();
   if (unsubscribeElectives) unsubscribeElectives();
+  if (unsubscribeGrades) unsubscribeGrades();
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
@@ -537,6 +560,7 @@ function teardownListeners() {
   studentData = null;
   studentClassId = null;
   lastElectives = [];
+  lastGrades = [];
   hwDoneIds = new Set();
   hwSortMode = "date";
   hwSubjectFilterId = "";
@@ -688,6 +712,7 @@ function startDashboard(user) {
       renderHomeworkContainer();
       updateStarostaHwSection();
       updateLiveStatus();
+      renderGradesTable();
     }
   );
 
@@ -714,6 +739,14 @@ function startDashboard(user) {
       renderElectivesList();
       renderScheduleContainer();
       renderWeeklyScheduleTable();
+    }
+  );
+
+  unsubscribeGrades = onSnapshot(
+    query(collection(db, "grades"), where("studentId", "==", studentId)),
+    (snap) => {
+      lastGrades = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      renderGradesTable();
     }
   );
 }
@@ -770,6 +803,106 @@ function renderSubjectsList() {
     subjectsListEl.appendChild(li);
   });
   noSubjectsMsg.classList.toggle("hidden", lastSubjects.length > 0);
+}
+
+// ---------- Grades (оцінки: дата зверху, предмет зліва) ----------
+function renderGradesTable() {
+  if (!gradesTableContainer) return;
+  gradesTableContainer.innerHTML = "";
+
+  if (lastGrades.length === 0) {
+    if (noGradesMsg) noGradesMsg.classList.remove("hidden");
+    return;
+  }
+  if (noGradesMsg) noGradesMsg.classList.add("hidden");
+
+  // Стовпці — унікальні дати оцінок, за зростанням.
+  const dateSet = new Set(lastGrades.map((g) => g.data.date).filter(Boolean));
+  const dates = [...dateSet].sort((a, b) => a.localeCompare(b));
+
+  // Рядки — предмети, що мають хоча б одну оцінку; спочатку в порядку
+  // зі списку предметів, потім видалені (яких вже немає в lastSubjects).
+  const subjectIdsWithGrades = new Set(lastGrades.map((g) => g.data.subjectId).filter(Boolean));
+  const subjectOrder = lastSubjects.map((s) => s.id).filter((id) => subjectIdsWithGrades.has(id));
+  [...subjectIdsWithGrades]
+    .filter((id) => !subjectOrder.includes(id))
+    .forEach((id) => subjectOrder.push(id));
+
+  if (dates.length === 0 || subjectOrder.length === 0) {
+    if (noGradesMsg) noGradesMsg.classList.remove("hidden");
+    return;
+  }
+
+  // value(subjectId, date) → найновіша оцінка з цим предметом+датою
+  // (на практиці одна, але про всяк випадок беремо останню за updatedAt).
+  function gradeValue(subjectId, date) {
+    const matches = lastGrades.filter((g) => g.data.subjectId === subjectId && g.data.date === date);
+    if (matches.length === 0) return null;
+    matches.sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
+    return matches[0].data.value;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "schedule-table-wrap grades-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "schedule-table grades-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const cornerTh = document.createElement("th");
+  cornerTh.className = "schedule-table-corner";
+  cornerTh.textContent = t("gradesTableSubjectHeader");
+  headRow.appendChild(cornerTh);
+  dates.forEach((date) => {
+    const th = document.createElement("th");
+    th.textContent = date;
+    headRow.appendChild(th);
+  });
+  const avgTh = document.createElement("th");
+  avgTh.textContent = t("gradesAverageLabel");
+  headRow.appendChild(avgTh);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  subjectOrder.forEach((subjectId) => {
+    const tr = document.createElement("tr");
+
+    const rowTh = document.createElement("th");
+    rowTh.className = "grades-table-subject";
+    rowTh.textContent = getSubjectName(subjectId);
+    tr.appendChild(rowTh);
+
+    const values = [];
+    dates.forEach((date) => {
+      const td = document.createElement("td");
+      td.className = "schedule-table-cell";
+      const value = gradeValue(subjectId, date);
+      if (value !== null) {
+        values.push(value);
+        const chip = document.createElement("span");
+        chip.className = "chip grade-cell-chip";
+        chip.textContent = value;
+        td.appendChild(chip);
+      } else {
+        td.classList.add("schedule-table-empty");
+        td.textContent = "–";
+      }
+      tr.appendChild(td);
+    });
+
+    const avgTd = document.createElement("td");
+    avgTd.className = "schedule-table-cell grades-average-cell";
+    avgTd.textContent = values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : "–";
+    tr.appendChild(avgTd);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  wrap.appendChild(table);
+  gradesTableContainer.appendChild(wrap);
 }
 
 // ---------- Live status (як у вчителя, але для фіксованої групи учня) ----------
