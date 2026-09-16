@@ -100,6 +100,13 @@ const gradesPanel = document.getElementById("grades-panel");
 const selfgovPanel = document.getElementById("selfgov-panel");
 const gradesTableContainer = document.getElementById("grades-table-container");
 const noGradesMsg = document.getElementById("no-grades-msg");
+const gradesStatOverall = document.getElementById("grades-stat-overall");
+const gradesStatCount = document.getElementById("grades-stat-count");
+const gradesStatBest = document.getElementById("grades-stat-best");
+const gradesStatTrend = document.getElementById("grades-stat-trend");
+const gradesChartBars = document.getElementById("grades-chart-bars");
+const gradesChartEmpty = document.getElementById("grades-chart-empty");
+const gradesChartTrend = document.getElementById("grades-chart-trend");
 
 const liveStatusCard = document.getElementById("live-status-card");
 const liveStatusEl = document.getElementById("live-status");
@@ -901,14 +908,6 @@ function renderSubjectsList() {
 }
 
 // ---------- Grades analytics + table ----------
-const gradesStatOverall = document.getElementById("grades-stat-overall");
-const gradesStatCount = document.getElementById("grades-stat-count");
-const gradesStatBest = document.getElementById("grades-stat-best");
-const gradesStatTrend = document.getElementById("grades-stat-trend");
-const gradesChartBars = document.getElementById("grades-chart-bars");
-const gradesChartEmpty = document.getElementById("grades-chart-empty");
-const gradesChartTrend = document.getElementById("grades-chart-trend");
-
 const GRADE_SCALE_MAX = 12;
 
 function computeGradesAnalytics() {
