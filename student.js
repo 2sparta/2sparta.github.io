@@ -263,6 +263,8 @@ const translations = {
     noGradesMsg: "Оцінок ще немає.",
     gradesAverageLabel: "Середній бал",
     gradesTableSubjectHeader: "Предмет",
+    gradeTypeLesson: "Урок",
+    gradeTypeHomework: "ДЗ",
     electivesHeading: "Мої факультативи",
     electivesHint: "Видно тільки вам — вчитель і інші учні їх не бачать.",
     electiveNamePlaceholder: "Назва факультативу",
@@ -351,6 +353,8 @@ const translations = {
     noGradesMsg: "No grades yet.",
     gradesAverageLabel: "Average",
     gradesTableSubjectHeader: "Subject",
+    gradeTypeLesson: "Lesson",
+    gradeTypeHomework: "HW",
     electivesHeading: "My electives",
     electivesHint: "Only visible to you — your teacher and other students can't see these.",
     electiveNamePlaceholder: "Elective name",
@@ -833,13 +837,12 @@ function renderGradesTable() {
     return;
   }
 
-  // value(subjectId, date) → найновіша оцінка з цим предметом+датою
-  // (на практиці одна, але про всяк випадок беремо останню за updatedAt).
-  function gradeValue(subjectId, date) {
-    const matches = lastGrades.filter((g) => g.data.subjectId === subjectId && g.data.date === date);
-    if (matches.length === 0) return null;
-    matches.sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
-    return matches[0].data.value;
+  // gradesForCell(subjectId, date) → усі оцінки з цим предметом+датою
+  // (може бути окремо за урок і за ДЗ).
+  function gradesForCell(subjectId, date) {
+    return lastGrades
+      .filter((g) => g.data.subjectId === subjectId && g.data.date === date)
+      .sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
   }
 
   const wrap = document.createElement("div");
@@ -878,16 +881,27 @@ function renderGradesTable() {
     dates.forEach((date) => {
       const td = document.createElement("td");
       td.className = "schedule-table-cell";
-      const value = gradeValue(subjectId, date);
-      if (value !== null) {
-        values.push(value);
-        const chip = document.createElement("span");
-        chip.className = "chip grade-cell-chip";
-        chip.textContent = value;
-        td.appendChild(chip);
-      } else {
+      const matches = gradesForCell(subjectId, date);
+      if (matches.length === 0) {
         td.classList.add("schedule-table-empty");
         td.textContent = "–";
+      } else {
+        matches.forEach((g) => {
+          values.push(g.data.value);
+          const chip = document.createElement("span");
+          chip.className = "chip grade-cell-chip";
+          if (g.data.type === "homework") chip.classList.add("grade-chip-hw");
+          else if (g.data.type === "lesson") chip.classList.add("grade-chip-lesson");
+          const typeLabel =
+            g.data.type === "homework"
+              ? t("gradeTypeHomework")
+              : g.data.type === "lesson"
+                ? t("gradeTypeLesson")
+                : "";
+          chip.textContent = typeLabel ? `${g.data.value} (${typeLabel})` : String(g.data.value);
+          chip.title = typeLabel || "";
+          td.appendChild(chip);
+        });
       }
       tr.appendChild(td);
     });

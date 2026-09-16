@@ -74,6 +74,7 @@
         <button id="tab-points-btn" class="tab-btn active" data-i18n="tabPoints">Бали</button>
         <button id="tab-schedule-btn" class="tab-btn" data-i18n="tabSchedule">Розклад</button>
         <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
+        <button id="tab-grades-btn" class="tab-btn" data-i18n="tabGrades">Оцінки</button>
       </nav>
 
       <!-- Віджети та контент: відцентровані та широкі -->
@@ -243,6 +244,22 @@
           </section>
 
         </div>
+
+        <div id="grades-panel" class="tab-panel hidden">
+          <section class="card card-wide">
+            <h2 data-i18n="teacherGradesHeading">Оцінки учнів</h2>
+            <p class="hint" data-i18n="teacherGradesHint">Оберіть учня, щоб переглянути всі його оцінки за предметами та датами.</p>
+            <label class="date-field teacher-grades-student-field">
+              <span data-i18n="teacherGradesSelectStudent">Учень</span>
+              <select id="teacher-grades-student-select">
+                <option value="" data-i18n="teacherGradesSelectPlaceholder">Оберіть учня...</option>
+              </select>
+            </label>
+            <div id="teacher-grades-table-container"></div>
+            <p id="teacher-no-grades-msg" class="hint hidden" data-i18n="noGradesMsg">Оцінок ще немає.</p>
+          </section>
+        </div>
+
       </div>
     </div>
   </div>

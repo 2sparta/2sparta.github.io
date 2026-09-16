@@ -933,6 +933,36 @@ code {
   width: 60px;
 }
 .grade-saved-hint.hidden { visibility: hidden; }
+.grades-col-labels {
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+.grade-col-label {
+  width: 52px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.teacher-grades-student-field {
+  max-width: 360px;
+  margin-bottom: 14px;
+}
+.grade-chip-lesson {
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+}
+.grade-chip-hw {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+.schedule-table-cell .grade-cell-chip + .grade-cell-chip {
+  margin-left: 4px;
+  margin-top: 2px;
+}
 
 /* ---------- Subjects ---------- */
 .subjects-list {

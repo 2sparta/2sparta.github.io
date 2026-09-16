@@ -211,12 +211,22 @@ const translations = {
     noScheduleForDay: "На цей день розклад ще не задано.",
     noHomeworkForDay: "На цю дату дз ще не задано.",
 
+    tabGrades: "Оцінки",
     gradesBtn: "Оцінки",
     gradesPanelHeading: "Оцінки за завдання",
-    gradesPanelHint: "Виставте оцінку (1–12) для кожного учня. Порожнє поле — оцінки ще немає.",
+    gradesPanelHint: "Виставте оцінку (1–12) для кожного учня. Можна окремо за урок і за ДЗ. Порожнє поле — оцінки ще немає.",
     gradeInputPlaceholder: "—",
     gradeSavedHint: "Збережено",
     noStudentsForGrades: "Немає учнів для оцінювання (перевірте призначені класи).",
+    gradeTypeLesson: "Урок",
+    gradeTypeHomework: "ДЗ",
+    teacherGradesHeading: "Оцінки учнів",
+    teacherGradesHint: "Оберіть учня, щоб переглянути всі його оцінки за предметами та датами.",
+    teacherGradesSelectStudent: "Учень",
+    teacherGradesSelectPlaceholder: "Оберіть учня...",
+    noGradesMsg: "Оцінок ще немає.",
+    gradesAverageLabel: "Середній бал",
+    gradesTableSubjectHeader: "Предмет",
 
     registerSuccess: (uid) =>
       "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
@@ -382,12 +392,22 @@ const translations = {
     noScheduleForDay: "No schedule set for this day yet.",
     noHomeworkForDay: "No homework due on this date yet.",
 
+    tabGrades: "Grades",
     gradesBtn: "Grades",
     gradesPanelHeading: "Grades for this assignment",
-    gradesPanelHint: "Enter a grade (1–12) for each student. An empty field means no grade yet.",
+    gradesPanelHint: "Enter a grade (1–12) for each student. You can grade the lesson and homework separately. An empty field means no grade yet.",
     gradeInputPlaceholder: "—",
     gradeSavedHint: "Saved",
     noStudentsForGrades: "No students to grade (check the assigned classes).",
+    gradeTypeLesson: "Lesson",
+    gradeTypeHomework: "HW",
+    teacherGradesHeading: "Student grades",
+    teacherGradesHint: "Select a student to view all their grades by subject and date.",
+    teacherGradesSelectStudent: "Student",
+    teacherGradesSelectPlaceholder: "Choose a student...",
+    noGradesMsg: "No grades yet.",
+    gradesAverageLabel: "Average",
+    gradesTableSubjectHeader: "Subject",
 
     registerSuccess: (uid) =>
       "Account created. Now in Firebase Console → Firestore → users → " +
@@ -463,6 +483,10 @@ function setLanguage(lang) {
   updateScheduleClipboardButtons();
   const sortSel = document.getElementById("students-sort-select");
   if (sortSel) sortSel.value = studentsSortMode;
+  if (gradesPanelEl && !gradesPanelEl.classList.contains("hidden")) {
+    renderTeacherGradesStudentSelect();
+    renderTeacherGradesTable();
+  }
 }
 
 document.querySelectorAll(".lang-btn").forEach((btn) => {
@@ -944,9 +968,15 @@ const noStudentsSearchMsg = document.getElementById("no-students-search-msg");
 const tabPointsBtn = document.getElementById("tab-points-btn");
 const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
+const tabGradesBtn = document.getElementById("tab-grades-btn");
 const pointsPanel = document.getElementById("points-panel");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
+const gradesPanelEl = document.getElementById("grades-panel");
+const teacherGradesStudentSelect = document.getElementById("teacher-grades-student-select");
+const teacherGradesTableContainer = document.getElementById("teacher-grades-table-container");
+const teacherNoGradesMsg = document.getElementById("teacher-no-grades-msg");
+let teacherGradesSelectedStudentId = "";
 
 const newSubjectName = document.getElementById("new-subject-name");
 const newSubjectLink = document.getElementById("new-subject-link");
@@ -1123,7 +1153,7 @@ let liveStatusInterval = null;
 let lastStudents = []; // [{id, data}]
 let lastLessons = []; // [{id, data}]
 let lastSubjects = []; // [{id, data}]
-let lastGrades = []; // [{id, data:{lessonId, studentId, subjectId, value, date}}]
+let lastGrades = []; // [{id, data:{lessonId, studentId, subjectId, value, date, type?}}]
 let scheduleData = emptySchedule();
 let currentView = "today"; // "today" | "tomorrow" | "all"
 let currentType = "lessons"; // "lessons" | "homework"
@@ -1178,13 +1208,20 @@ function showTab(tab) {
   tabPointsBtn.classList.toggle("active", tab === "points");
   tabScheduleBtn.classList.toggle("active", tab === "schedule");
   tabTasksBtn.classList.toggle("active", tab === "tasks");
+  if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
   pointsPanel.classList.toggle("hidden", tab !== "points");
   schedulePanel.classList.toggle("hidden", tab !== "schedule");
   tasksPanel.classList.toggle("hidden", tab !== "tasks");
+  if (gradesPanelEl) gradesPanelEl.classList.toggle("hidden", tab !== "grades");
+  if (tab === "grades") {
+    renderTeacherGradesStudentSelect();
+    renderTeacherGradesTable();
+  }
 }
 tabPointsBtn.onclick = () => showTab("points");
 tabScheduleBtn.onclick = () => showTab("schedule");
 tabTasksBtn.onclick = () => showTab("tasks");
+if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
 
 // ---------- Auth ----------
 loginBtn.onclick = async () => {
@@ -1341,6 +1378,10 @@ function renderStudentsTable() {
     noStudentsSearchMsg.classList.toggle("hidden", !(lastStudents.length > 0 && filtered.length === 0));
   }
   updateDashboardStats();
+  if (gradesPanelEl && !gradesPanelEl.classList.contains("hidden")) {
+    renderTeacherGradesStudentSelect();
+    renderTeacherGradesTable();
+  }
 }
 
 addStudentBtn.onclick = async () => {
@@ -2216,24 +2257,44 @@ function listenToLessons() {
 }
 
 // ---------- Grades (оцінки за уроки/дз) ----------
-// Документ зберігається з id "<lessonId>_<studentId>", щоб просто перезаписувати
-// (upsert) оцінку, а не шукати попередній запис перед кожним збереженням.
-function gradeDocId(lessonId, studentId) {
-  return `${lessonId}_${studentId}`;
+// Документ id = "<lessonId>_<studentId>_<type>", type ∈ {"lesson","homework"}.
+// Старі записи без type (id = "<lessonId>_<studentId>") читаються як type "lesson"
+// для сумісності, але нові збереження завжди пишуть з type.
+function gradeDocId(lessonId, studentId, type) {
+  return `${lessonId}_${studentId}_${type}`;
 }
 
 function listenToGrades() {
   const q = query(collection(db, "grades"));
   unsubscribeGrades = onSnapshot(q, (snap) => {
     lastGrades = snap.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
-    // Перемальовуємо тільки відкриті панелі оцінок, щоб не блимати всім списком уроків
     if (expandedGradePanels.size > 0) renderLessonsContainer();
+    if (gradesPanelEl && !gradesPanelEl.classList.contains("hidden")) {
+      renderTeacherGradesTable();
+    }
   });
 }
 
-function getGradeValue(lessonId, studentId) {
-  const found = lastGrades.find((g) => g.data.lessonId === lessonId && g.data.studentId === studentId);
-  return found ? found.data.value : null;
+function getGradeValue(lessonId, studentId, type) {
+  // Спочатку шукаємо запис з явним type
+  let found = lastGrades.find(
+    (g) =>
+      g.data.lessonId === lessonId &&
+      g.data.studentId === studentId &&
+      g.data.type === type
+  );
+  if (found) return found.data.value;
+  // Сумісність: старі записи без type (і з id без суфікса) вважаємо оцінкою за урок
+  if (type === "lesson") {
+    found = lastGrades.find(
+      (g) =>
+        g.data.lessonId === lessonId &&
+        g.data.studentId === studentId &&
+        !g.data.type
+    );
+    if (found) return found.data.value;
+  }
+  return null;
 }
 
 // Учні, яким призначено урок: якщо клас(и) не обрано — усі учні,
@@ -2250,18 +2311,36 @@ function studentsForLesson(lessonData) {
   return lastStudents.filter((s) => groupIdSet.has(s.data.group));
 }
 
-async function saveGrade(lessonId, studentId, subjectId, date, rawValue) {
-  const id = gradeDocId(lessonId, studentId);
+async function saveGrade(lessonId, studentId, subjectId, date, rawValue, type) {
+  const gradeType = type === "homework" ? "homework" : "lesson";
+  const id = gradeDocId(lessonId, studentId, gradeType);
   const trimmed = (rawValue || "").trim();
   try {
     if (trimmed === "") {
       await deleteDoc(doc(db, "grades", id));
+      // Прибираємо й старий запис без type, якщо це була оцінка за урок
+      if (gradeType === "lesson") {
+        const legacyId = `${lessonId}_${studentId}`;
+        try {
+          await deleteDoc(doc(db, "grades", legacyId));
+        } catch (_) {
+          /* ignore */
+        }
+      }
       return;
     }
     const value = Math.max(1, Math.min(12, Math.round(Number(trimmed))));
     await setDoc(
       doc(db, "grades", id),
-      { lessonId, studentId, subjectId: subjectId || null, date: date || null, value, updatedAt: Date.now() },
+      {
+        lessonId,
+        studentId,
+        subjectId: subjectId || null,
+        date: date || null,
+        value,
+        type: gradeType,
+        updatedAt: Date.now(),
+      },
       { merge: true }
     );
   } catch (e) {
@@ -2724,8 +2803,8 @@ function renderLessonCard(id, data) {
   return li;
 }
 
-// Панель виставлення оцінок для конкретного уроку/дз: список учнів,
-// яким призначено урок, з полем для оцінки (1–12) навпроти кожного.
+// Панель виставлення оцінок: окремі поля для оцінки за урок і за ДЗ
+// (якщо у записі є відповідна дата). Якщо є лише одна дата — одне поле.
 function buildGradesPanel(lessonId, data) {
   const wrap = document.createElement("div");
   wrap.className = "grades-panel-inner";
@@ -2740,6 +2819,12 @@ function buildGradesPanel(lessonId, data) {
   hint.textContent = t("gradesPanelHint");
   wrap.appendChild(hint);
 
+  const hasLesson = !!data.lessonDate;
+  const hasHw = !!data.homeworkDate;
+  // Якщо жодної дати немає — дозволяємо оцінку за урок з сьогоднішньою датою
+  const showLesson = hasLesson || !hasHw;
+  const showHw = hasHw;
+
   const students = studentsForLesson(data)
     .slice()
     .sort((a, b) => (a.data.name || "").localeCompare(b.data.name || "", currentLang === "uk" ? "uk" : "en"));
@@ -2752,17 +2837,27 @@ function buildGradesPanel(lessonId, data) {
     return wrap;
   }
 
+  if (showLesson && showHw) {
+    const colLabels = document.createElement("div");
+    colLabels.className = "grades-student-row grades-col-labels";
+    const spacer = document.createElement("span");
+    spacer.className = "grades-student-name";
+    const lessonLbl = document.createElement("span");
+    lessonLbl.className = "grade-col-label";
+    lessonLbl.textContent = t("gradeTypeLesson");
+    const hwLbl = document.createElement("span");
+    hwLbl.className = "grade-col-label";
+    hwLbl.textContent = t("gradeTypeHomework");
+    const hintSpacer = document.createElement("span");
+    hintSpacer.className = "grade-saved-hint hidden";
+    colLabels.append(spacer, lessonLbl, hwLbl, hintSpacer);
+    wrap.appendChild(colLabels);
+  }
+
   const list = document.createElement("div");
   list.className = "grades-student-list";
 
-  students.forEach(({ id: studentId, data: studentData }) => {
-    const row = document.createElement("div");
-    row.className = "grades-student-row";
-
-    const name = document.createElement("span");
-    name.className = "grades-student-name";
-    name.textContent = studentData.name;
-
+  function makeGradeInput(studentId, type, date) {
     const input = document.createElement("input");
     input.type = "number";
     input.min = "1";
@@ -2771,7 +2866,8 @@ function buildGradesPanel(lessonId, data) {
     input.inputMode = "numeric";
     input.className = "grade-input";
     input.placeholder = t("gradeInputPlaceholder");
-    const currentValue = getGradeValue(lessonId, studentId);
+    input.title = type === "homework" ? t("gradeTypeHomework") : t("gradeTypeLesson");
+    const currentValue = getGradeValue(lessonId, studentId, type);
     if (currentValue !== null) input.value = currentValue;
 
     const savedHint = document.createElement("span");
@@ -2780,16 +2876,192 @@ function buildGradesPanel(lessonId, data) {
 
     input.onclick = (e) => e.stopPropagation();
     input.onchange = async () => {
-      const date = data.homeworkDate || data.lessonDate || formatDateLocal(new Date());
-      await saveGrade(lessonId, studentId, data.subjectId, date, input.value);
+      await saveGrade(lessonId, studentId, data.subjectId, date, input.value, type);
       savedHint.classList.remove("hidden");
       setTimeout(() => savedHint.classList.add("hidden"), 1200);
     };
+    return { input, savedHint };
+  }
 
-    row.append(name, input, savedHint);
+  students.forEach(({ id: studentId, data: studentData }) => {
+    const row = document.createElement("div");
+    row.className = "grades-student-row";
+
+    const name = document.createElement("span");
+    name.className = "grades-student-name";
+    name.textContent = studentData.name;
+    row.appendChild(name);
+
+    let lastSavedHint = null;
+    if (showLesson) {
+      const date = data.lessonDate || formatDateLocal(new Date());
+      const { input, savedHint } = makeGradeInput(studentId, "lesson", date);
+      row.appendChild(input);
+      lastSavedHint = savedHint;
+    }
+    if (showHw) {
+      const date = data.homeworkDate;
+      const { input, savedHint } = makeGradeInput(studentId, "homework", date);
+      row.appendChild(input);
+      lastSavedHint = savedHint;
+    }
+    if (lastSavedHint) row.appendChild(lastSavedHint);
+
     list.appendChild(row);
   });
 
   wrap.appendChild(list);
   return wrap;
+}
+
+// ---------- Вкладка "Оцінки" вчителя: вибір учня + таблиця ----------
+function renderTeacherGradesStudentSelect() {
+  if (!teacherGradesStudentSelect) return;
+  const prev = teacherGradesSelectedStudentId || teacherGradesStudentSelect.value;
+  teacherGradesStudentSelect.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = t("teacherGradesSelectPlaceholder");
+  teacherGradesStudentSelect.appendChild(placeholder);
+
+  const locale = currentLang === "uk" ? "uk" : "en";
+  const sorted = lastStudents
+    .slice()
+    .sort((a, b) => (a.data.name || "").localeCompare(b.data.name || "", locale));
+  sorted.forEach(({ id, data }) => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = data.name || id;
+    teacherGradesStudentSelect.appendChild(opt);
+  });
+
+  const stillValid = prev && lastStudents.some((s) => s.id === prev);
+  teacherGradesStudentSelect.value = stillValid ? prev : "";
+  teacherGradesSelectedStudentId = teacherGradesStudentSelect.value;
+}
+
+function renderTeacherGradesTable() {
+  if (!teacherGradesTableContainer) return;
+  teacherGradesTableContainer.innerHTML = "";
+
+  const sid = teacherGradesSelectedStudentId;
+  if (!sid) {
+    if (teacherNoGradesMsg) {
+      teacherNoGradesMsg.classList.remove("hidden");
+      teacherNoGradesMsg.textContent = t("teacherGradesSelectPlaceholder");
+    }
+    return;
+  }
+
+  const studentGrades = lastGrades.filter((g) => g.data.studentId === sid);
+  if (studentGrades.length === 0) {
+    if (teacherNoGradesMsg) {
+      teacherNoGradesMsg.classList.remove("hidden");
+      teacherNoGradesMsg.textContent = t("noGradesMsg");
+    }
+    return;
+  }
+  if (teacherNoGradesMsg) teacherNoGradesMsg.classList.add("hidden");
+
+  const dateSet = new Set(studentGrades.map((g) => g.data.date).filter(Boolean));
+  const dates = [...dateSet].sort((a, b) => a.localeCompare(b));
+
+  const subjectIdsWithGrades = new Set(studentGrades.map((g) => g.data.subjectId).filter(Boolean));
+  const subjectOrder = lastSubjects.map((s) => s.id).filter((id) => subjectIdsWithGrades.has(id));
+  [...subjectIdsWithGrades]
+    .filter((id) => !subjectOrder.includes(id))
+    .forEach((id) => subjectOrder.push(id));
+
+  if (dates.length === 0 || subjectOrder.length === 0) {
+    if (teacherNoGradesMsg) {
+      teacherNoGradesMsg.classList.remove("hidden");
+      teacherNoGradesMsg.textContent = t("noGradesMsg");
+    }
+    return;
+  }
+
+  function gradesForCell(subjectId, date) {
+    return studentGrades
+      .filter((g) => g.data.subjectId === subjectId && g.data.date === date)
+      .sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "schedule-table-wrap grades-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "schedule-table grades-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const cornerTh = document.createElement("th");
+  cornerTh.className = "schedule-table-corner";
+  cornerTh.textContent = t("gradesTableSubjectHeader");
+  headRow.appendChild(cornerTh);
+  dates.forEach((date) => {
+    const th = document.createElement("th");
+    th.textContent = date;
+    headRow.appendChild(th);
+  });
+  const avgTh = document.createElement("th");
+  avgTh.textContent = t("gradesAverageLabel");
+  headRow.appendChild(avgTh);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  subjectOrder.forEach((subjectId) => {
+    const tr = document.createElement("tr");
+    const rowTh = document.createElement("th");
+    rowTh.className = "grades-table-subject";
+    rowTh.textContent = getSubjectName(subjectId);
+    tr.appendChild(rowTh);
+
+    const values = [];
+    dates.forEach((date) => {
+      const td = document.createElement("td");
+      td.className = "schedule-table-cell";
+      const matches = gradesForCell(subjectId, date);
+      if (matches.length === 0) {
+        td.classList.add("schedule-table-empty");
+        td.textContent = "–";
+      } else {
+        matches.forEach((g) => {
+          values.push(g.data.value);
+          const chip = document.createElement("span");
+          chip.className = "chip grade-cell-chip";
+          if (g.data.type === "homework") chip.classList.add("grade-chip-hw");
+          else if (g.data.type === "lesson") chip.classList.add("grade-chip-lesson");
+          const typeLabel =
+            g.data.type === "homework"
+              ? t("gradeTypeHomework")
+              : g.data.type === "lesson"
+                ? t("gradeTypeLesson")
+                : "";
+          chip.textContent = typeLabel ? `${g.data.value} (${typeLabel})` : String(g.data.value);
+          chip.title = typeLabel || "";
+          td.appendChild(chip);
+        });
+      }
+      tr.appendChild(td);
+    });
+
+    const avgTd = document.createElement("td");
+    avgTd.className = "schedule-table-cell grades-average-cell";
+    avgTd.textContent = values.length
+      ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)
+      : "–";
+    tr.appendChild(avgTd);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  teacherGradesTableContainer.appendChild(wrap);
+}
+
+if (teacherGradesStudentSelect) {
+  teacherGradesStudentSelect.onchange = () => {
+    teacherGradesSelectedStudentId = teacherGradesStudentSelect.value;
+    renderTeacherGradesTable();
+  };
 }
