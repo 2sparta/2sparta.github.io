@@ -212,6 +212,39 @@
 
         <div id="grades-panel" class="tab-panel hidden">
           <section class="card card-wide">
+            <h2 data-i18n="gradesAnalyticsHeading">Аналітика успішності</h2>
+            <p class="hint" data-i18n="gradesAnalyticsHint">Середні бали, динаміка та розподіл оцінок за предметами.</p>
+            <div id="grades-analytics" class="grades-analytics">
+              <div class="grades-stats-grid">
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesOverallAvg">Загальний середній</span>
+                  <span id="grades-stat-overall" class="grades-stat-value">—</span>
+                </div>
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesCountLabel">Усього оцінок</span>
+                  <span id="grades-stat-count" class="grades-stat-value">0</span>
+                </div>
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesBestSubject">Найкращий предмет</span>
+                  <span id="grades-stat-best" class="grades-stat-value grades-stat-value--sm">—</span>
+                </div>
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesTrendLabel">Тренд</span>
+                  <span id="grades-stat-trend" class="grades-stat-value grades-stat-value--sm">—</span>
+                </div>
+              </div>
+              <div class="grades-chart-wrap">
+                <h3 class="grades-chart-title" data-i18n="gradesChartBySubject">Середній бал за предметами</h3>
+                <div id="grades-chart-bars" class="grades-chart-bars" role="img" aria-label="Графік середніх оцінок"></div>
+                <p id="grades-chart-empty" class="hint hidden" data-i18n="gradesChartEmpty">Недостатньо даних для графіка.</p>
+              </div>
+              <div class="grades-chart-wrap grades-chart-wrap--trend">
+                <h3 class="grades-chart-title" data-i18n="gradesChartTrend">Динаміка оцінок</h3>
+                <div id="grades-chart-trend" class="grades-chart-trend" role="img" aria-label="Лінійний графік динаміки"></div>
+              </div>
+            </div>
+          </section>
+          <section class="card card-wide">
             <h2 data-i18n="gradesHeading">Оцінки</h2>
             <p class="hint" data-i18n="gradesHint">Оцінки виставляє вчитель за уроки та домашні завдання.</p>
             <div id="grades-table-container"></div>

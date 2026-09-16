@@ -268,6 +268,20 @@ const translations = {
     gradesTableSubjectHeader: "Предмет",
     gradeTypeLesson: "Урок",
     gradeTypeHomework: "ДЗ",
+    gradesAnalyticsHeading: "Аналітика успішності",
+    gradesAnalyticsHint: "Середні бали, динаміка та розподіл оцінок за предметами.",
+    gradesOverallAvg: "Загальний середній",
+    gradesCountLabel: "Усього оцінок",
+    gradesBestSubject: "Найкращий предмет",
+    gradesTrendLabel: "Тренд",
+    gradesChartBySubject: "Середній бал за предметами",
+    gradesChartTrend: "Динаміка оцінок",
+    gradesChartEmpty: "Недостатньо даних для графіка.",
+    gradesTrendUp: "Покращення",
+    gradesTrendDown: "Погіршення",
+    gradesTrendStable: "Стабільно",
+    gradesTrendNone: "Немає даних",
+    gradesOfMax: "з 12",
     electivesHeading: "Мої факультативи",
     electivesHint: "Видно тільки вам — вчитель і інші учні їх не бачать.",
     electiveNamePlaceholder: "Назва факультативу",
@@ -384,6 +398,20 @@ const translations = {
     gradesTableSubjectHeader: "Subject",
     gradeTypeLesson: "Lesson",
     gradeTypeHomework: "HW",
+    gradesAnalyticsHeading: "Performance analytics",
+    gradesAnalyticsHint: "Averages, trends and grade distribution by subject.",
+    gradesOverallAvg: "Overall average",
+    gradesCountLabel: "Total grades",
+    gradesBestSubject: "Best subject",
+    gradesTrendLabel: "Trend",
+    gradesChartBySubject: "Average by subject",
+    gradesChartTrend: "Grade trend",
+    gradesChartEmpty: "Not enough data for a chart.",
+    gradesTrendUp: "Improving",
+    gradesTrendDown: "Declining",
+    gradesTrendStable: "Stable",
+    gradesTrendNone: "No data",
+    gradesOfMax: "of 12",
     electivesHeading: "My electives",
     electivesHint: "Only visible to you — your teacher and other students can't see these.",
     electiveNamePlaceholder: "Elective name",
@@ -872,10 +900,248 @@ function renderSubjectsList() {
   noSubjectsMsg.classList.toggle("hidden", lastSubjects.length > 0);
 }
 
-// ---------- Grades (оцінки: дата зверху, предмет зліва) ----------
+// ---------- Grades analytics + table ----------
+const gradesStatOverall = document.getElementById("grades-stat-overall");
+const gradesStatCount = document.getElementById("grades-stat-count");
+const gradesStatBest = document.getElementById("grades-stat-best");
+const gradesStatTrend = document.getElementById("grades-stat-trend");
+const gradesChartBars = document.getElementById("grades-chart-bars");
+const gradesChartEmpty = document.getElementById("grades-chart-empty");
+const gradesChartTrend = document.getElementById("grades-chart-trend");
+
+const GRADE_SCALE_MAX = 12;
+
+function computeGradesAnalytics() {
+  const values = lastGrades
+    .map((g) => Number(g.data.value))
+    .filter((v) => !isNaN(v) && v > 0);
+  const overall =
+    values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+  const bySubject = {};
+  lastGrades.forEach((g) => {
+    const sid = g.data.subjectId;
+    const v = Number(g.data.value);
+    if (!sid || isNaN(v) || v <= 0) return;
+    if (!bySubject[sid]) bySubject[sid] = [];
+    bySubject[sid].push(v);
+  });
+  const subjectAvgs = Object.keys(bySubject).map((sid) => {
+    const arr = bySubject[sid];
+    const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+    return { id: sid, name: getSubjectName(sid), avg, count: arr.length };
+  });
+  subjectAvgs.sort((a, b) => b.avg - a.avg);
+
+  // Chronological series for trend (by date, then updatedAt)
+  const chronological = lastGrades
+    .map((g) => ({
+      date: g.data.date || "",
+      value: Number(g.data.value),
+      at: g.data.updatedAt || 0,
+    }))
+    .filter((x) => x.date && !isNaN(x.value) && x.value > 0)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at);
+
+  let trend = "none";
+  if (chronological.length >= 4) {
+    const half = Math.floor(chronological.length / 2);
+    const first = chronological.slice(0, half);
+    const second = chronological.slice(half);
+    const avg1 = first.reduce((s, x) => s + x.value, 0) / first.length;
+    const avg2 = second.reduce((s, x) => s + x.value, 0) / second.length;
+    const diff = avg2 - avg1;
+    if (diff >= 0.4) trend = "up";
+    else if (diff <= -0.4) trend = "down";
+    else trend = "stable";
+  } else if (chronological.length >= 2) {
+    const first = chronological[0].value;
+    const last = chronological[chronological.length - 1].value;
+    const diff = last - first;
+    if (diff >= 0.5) trend = "up";
+    else if (diff <= -0.5) trend = "down";
+    else trend = "stable";
+  }
+
+  return { overall, count: values.length, subjectAvgs, chronological, trend };
+}
+
+function renderGradesAnalytics() {
+  const stats = computeGradesAnalytics();
+
+  if (gradesStatOverall) {
+    gradesStatOverall.textContent =
+      stats.overall != null
+        ? `${stats.overall.toFixed(1)} ${t("gradesOfMax") || "з 12"}`
+        : "—";
+  }
+  if (gradesStatCount) gradesStatCount.textContent = String(stats.count);
+  if (gradesStatBest) {
+    if (stats.subjectAvgs.length > 0) {
+      const best = stats.subjectAvgs[0];
+      gradesStatBest.textContent = `${best.name} (${best.avg.toFixed(1)})`;
+      gradesStatBest.title = best.name;
+    } else {
+      gradesStatBest.textContent = "—";
+      gradesStatBest.title = "";
+    }
+  }
+  if (gradesStatTrend) {
+    const map = {
+      up: t("gradesTrendUp"),
+      down: t("gradesTrendDown"),
+      stable: t("gradesTrendStable"),
+      none: t("gradesTrendNone"),
+    };
+    gradesStatTrend.textContent = map[stats.trend] || map.none;
+    gradesStatTrend.className =
+      "grades-stat-value grades-stat-value--sm" +
+      (stats.trend === "up"
+        ? " grades-trend-up"
+        : stats.trend === "down"
+          ? " grades-trend-down"
+          : "");
+  }
+
+  // Bar chart by subject
+  if (gradesChartBars) {
+    gradesChartBars.innerHTML = "";
+    if (stats.subjectAvgs.length === 0) {
+      if (gradesChartEmpty) gradesChartEmpty.classList.remove("hidden");
+    } else {
+      if (gradesChartEmpty) gradesChartEmpty.classList.add("hidden");
+      const maxBar = GRADE_SCALE_MAX;
+      stats.subjectAvgs.forEach((s) => {
+        const row = document.createElement("div");
+        row.className = "grades-bar-row";
+
+        const label = document.createElement("div");
+        label.className = "grades-bar-label";
+        label.textContent = s.name;
+        label.title = s.name;
+
+        const track = document.createElement("div");
+        track.className = "grades-bar-track";
+        const fill = document.createElement("div");
+        fill.className = "grades-bar-fill";
+        const pct = Math.min(100, (s.avg / maxBar) * 100);
+        fill.style.width = `${pct}%`;
+        // Color intensity by score
+        if (s.avg >= 10) fill.classList.add("grades-bar-high");
+        else if (s.avg >= 7) fill.classList.add("grades-bar-mid");
+        else fill.classList.add("grades-bar-low");
+        track.appendChild(fill);
+
+        const val = document.createElement("div");
+        val.className = "grades-bar-value";
+        val.textContent = s.avg.toFixed(1);
+
+        row.append(label, track, val);
+        gradesChartBars.appendChild(row);
+      });
+    }
+  }
+
+  // Trend line chart (SVG)
+  if (gradesChartTrend) {
+    gradesChartTrend.innerHTML = "";
+    const series = stats.chronological;
+    if (series.length < 2) {
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = t("gradesChartEmpty");
+      gradesChartTrend.appendChild(p);
+    } else {
+      const w = 320;
+      const h = 120;
+      const padL = 28;
+      const padR = 12;
+      const padT = 12;
+      const padB = 28;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+      const n = series.length;
+      const xs = series.map((_, i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW));
+      const ys = series.map((s) => {
+        const norm = Math.max(0, Math.min(1, (s.value - 1) / (GRADE_SCALE_MAX - 1)));
+        return padT + plotH * (1 - norm);
+      });
+
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+      svg.setAttribute("class", "grades-trend-svg");
+      svg.setAttribute("aria-hidden", "true");
+
+      // Grid lines at 4, 8, 12
+      [4, 8, 12].forEach((g) => {
+        const tNorm = (g - 1) / (GRADE_SCALE_MAX - 1);
+        const y = padT + plotH * (1 - tNorm);
+        const line = document.createElementNS(svgNS, "line");
+        line.setAttribute("x1", String(padL));
+        line.setAttribute("x2", String(w - padR));
+        line.setAttribute("y1", String(y));
+        line.setAttribute("y2", String(y));
+        line.setAttribute("class", "grades-trend-grid");
+        svg.appendChild(line);
+        const txt = document.createElementNS(svgNS, "text");
+        txt.setAttribute("x", String(padL - 4));
+        txt.setAttribute("y", String(y + 3));
+        txt.setAttribute("text-anchor", "end");
+        txt.setAttribute("class", "grades-trend-axis");
+        txt.textContent = String(g);
+        svg.appendChild(txt);
+      });
+
+      // Polyline
+      const points = xs.map((x, i) => `${x},${ys[i]}`).join(" ");
+      const poly = document.createElementNS(svgNS, "polyline");
+      poly.setAttribute("points", points);
+      poly.setAttribute("class", "grades-trend-line");
+      svg.appendChild(poly);
+
+      // Dots
+      xs.forEach((x, i) => {
+        const c = document.createElementNS(svgNS, "circle");
+        c.setAttribute("cx", String(x));
+        c.setAttribute("cy", String(ys[i]));
+        c.setAttribute("r", "3.5");
+        c.setAttribute("class", "grades-trend-dot");
+        const title = document.createElementNS(svgNS, "title");
+        title.textContent = `${series[i].date}: ${series[i].value}`;
+        c.appendChild(title);
+        svg.appendChild(c);
+      });
+
+      // First / last date labels
+      if (series[0]) {
+        const t0 = document.createElementNS(svgNS, "text");
+        t0.setAttribute("x", String(xs[0]));
+        t0.setAttribute("y", String(h - 8));
+        t0.setAttribute("text-anchor", n > 1 ? "start" : "middle");
+        t0.setAttribute("class", "grades-trend-axis");
+        t0.textContent = series[0].date.slice(5); // MM-DD
+        svg.appendChild(t0);
+      }
+      if (n > 1) {
+        const t1 = document.createElementNS(svgNS, "text");
+        t1.setAttribute("x", String(xs[n - 1]));
+        t1.setAttribute("y", String(h - 8));
+        t1.setAttribute("text-anchor", "end");
+        t1.setAttribute("class", "grades-trend-axis");
+        t1.textContent = series[n - 1].date.slice(5);
+        svg.appendChild(t1);
+      }
+
+      gradesChartTrend.appendChild(svg);
+    }
+  }
+}
+
 function renderGradesTable() {
   if (!gradesTableContainer) return;
   gradesTableContainer.innerHTML = "";
+  renderGradesAnalytics();
 
   if (lastGrades.length === 0) {
     if (noGradesMsg) noGradesMsg.classList.remove("hidden");

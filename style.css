@@ -2080,3 +2080,161 @@ select {
   background: var(--color-border);
   color: var(--color-secondary);
 }
+
+/* ---------- Аналітика успішності (кабінет учня) ---------- */
+.grades-analytics {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.grades-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.grades-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.grades-stat-label {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+}
+.grades-stat-value {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--color-accent);
+  line-height: 1.15;
+}
+.grades-stat-value--sm {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grades-trend-up { color: var(--color-accent) !important; }
+.grades-trend-down { color: var(--color-danger) !important; }
+
+.grades-chart-wrap {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.grades-chart-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0 0 12px;
+  color: var(--color-primary);
+}
+.grades-chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.grades-bar-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 120px) 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+.grades-bar-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grades-bar-track {
+  height: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.grades-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  min-width: 4px;
+  transition: width 0.35s ease;
+}
+.grades-bar-fill.grades-bar-high { background: var(--color-accent); }
+.grades-bar-fill.grades-bar-mid { background: #0e7490; }
+.grades-bar-fill.grades-bar-low { background: var(--color-warning); }
+.grades-bar-value {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-accent);
+  text-align: right;
+}
+
+.grades-chart-trend {
+  width: 100%;
+  overflow: hidden;
+}
+.grades-trend-svg {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  display: block;
+}
+.grades-trend-grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.grades-trend-line {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.grades-trend-dot {
+  fill: var(--color-accent);
+  stroke: var(--color-surface);
+  stroke-width: 2;
+}
+.grades-trend-axis {
+  font-size: 10px;
+  fill: var(--color-secondary);
+  font-family: var(--font-body);
+}
+
+@media (max-width: 720px) {
+  .grades-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .grades-bar-row {
+    grid-template-columns: minmax(56px, 90px) 1fr 32px;
+    gap: 6px;
+  }
+  .grades-stat-value { font-size: 18px; }
+  .grades-stat-value--sm { font-size: 13px; }
+}
+
+:root[data-theme="dark"] .grades-bar-fill.grades-bar-mid,
+:root[data-theme="ocean-dark"] .grades-bar-fill.grades-bar-mid,
+:root[data-theme="warm-dark"] .grades-bar-fill.grades-bar-mid {
+  background: #22b8d8;
+}
+:root[data-theme="warm"] .grades-bar-fill.grades-bar-mid {
+  background: #c2410c;
+}
