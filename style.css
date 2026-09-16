@@ -996,14 +996,49 @@ code {
 .grade-chip-lesson {
   background: var(--color-surface-tint);
   color: var(--color-accent);
+  border: 1px solid transparent;
 }
 .grade-chip-hw {
   background: var(--color-warning-bg);
   color: var(--color-warning);
+  border: 1px dashed var(--color-warning);
 }
 .schedule-table-cell .grade-cell-chip + .grade-cell-chip {
   margin-left: 4px;
   margin-top: 2px;
+}
+
+/* Кольорова шкала оцінок (1–12) */
+.grade-val-high {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)) !important;
+  color: var(--color-accent) !important;
+  font-weight: 800;
+}
+.grade-val-mid {
+  background: color-mix(in srgb, #0e7490 14%, var(--color-surface)) !important;
+  color: #0e7490 !important;
+  font-weight: 800;
+}
+.grade-val-low {
+  background: color-mix(in srgb, var(--color-warning) 16%, var(--color-surface)) !important;
+  color: var(--color-warning) !important;
+  font-weight: 800;
+}
+.grades-average-cell.grade-val-high { color: var(--color-accent) !important; }
+.grades-average-cell.grade-val-mid { color: #0e7490 !important; }
+.grades-average-cell.grade-val-low { color: var(--color-warning) !important; }
+
+:root[data-theme="dark"] .grade-val-mid,
+:root[data-theme="ocean-dark"] .grade-val-mid,
+:root[data-theme="warm-dark"] .grade-val-mid,
+:root[data-theme="dark"] .grades-average-cell.grade-val-mid,
+:root[data-theme="ocean-dark"] .grades-average-cell.grade-val-mid,
+:root[data-theme="warm-dark"] .grades-average-cell.grade-val-mid {
+  color: #22b8d8 !important;
+}
+:root[data-theme="warm"] .grade-val-mid,
+:root[data-theme="warm"] .grades-average-cell.grade-val-mid {
+  color: #c2410c !important;
 }
 
 /* ---------- Subjects ---------- */
@@ -1259,28 +1294,136 @@ th.schedule-table-today {
   color: var(--color-accent);
 }
 
-/* ---------- Grades table (вкладка "Оцінки" учня) ---------- */
-.grades-table-wrap { margin-top: 4px; }
-.grades-table { table-layout: auto; }
+/* ---------- Grades table (вкладка "Оцінки") ---------- */
+.grades-table-wrap {
+  margin-top: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow: auto;
+  max-width: 100%;
+  background: var(--color-surface);
+}
+.grades-table {
+  table-layout: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 420px;
+}
+.grades-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface-tint);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-secondary);
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.grades-table-date-th {
+  text-align: center;
+  min-width: 52px;
+}
+.grades-table-avg-th {
+  text-align: center;
+  min-width: 64px;
+  color: var(--color-accent) !important;
+}
 .grades-table-subject {
   background: var(--color-surface-tint);
-  color: var(--color-secondary);
+  color: var(--color-primary);
   text-align: left;
-  padding: 6px 10px;
+  padding: 10px 12px;
   white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+.grades-table-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface-tint);
+}
+.grades-table thead .grades-table-sticky-col {
+  z-index: 3;
+}
+.grades-table-cell {
+  text-align: center;
+  vertical-align: middle;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--color-border);
+  min-width: 48px;
+}
+.grades-cell-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
 }
 .grade-cell-chip {
   justify-content: center;
-  min-width: 26px;
-  padding: 3px 8px;
-  font-weight: 700;
+  min-width: 30px;
+  padding: 4px 8px;
+  font-weight: 800;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
 }
 .grades-average-cell {
-  font-weight: 800;
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 14px;
   color: var(--color-accent);
   background: var(--color-surface-tint);
+  text-align: center;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  min-width: 56px;
+}
+.grades-table tbody tr:hover td,
+.grades-table tbody tr:hover th {
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface));
+}
+.grades-table tbody tr:hover .grades-table-sticky-col,
+.grades-table tbody tr:hover .grades-average-cell {
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-tint));
+}
+.grades-table-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin: 4px 0 10px;
+  font-size: 12px;
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+.grades-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.grades-legend-item .grade-cell-chip {
+  pointer-events: none;
+  font-size: 11px;
+  min-width: 24px;
+  padding: 2px 6px;
+}
+#teacher-grades-analytics {
+  margin: 8px 0 18px;
+}
+#teacher-grades-analytics.hidden {
+  display: none;
 }
 
 @media (max-width: 480px) {
@@ -1293,7 +1436,8 @@ th.schedule-table-today {
   .schedule-table-cell .chip { font-size: 9px; padding: 3px 3px 3px 6px; }
   .schedule-cell-select { font-size: 9px; }
   .schedule-cell-time { font-size: 8px; }
-  .grades-table-subject { font-size: 10px; padding: 4px 6px; }
+  .grades-table-subject { font-size: 11px; padding: 6px 8px; max-width: 100px; }
+  .grade-cell-chip { font-size: 11px; min-width: 26px; padding: 3px 6px; }
 }
 
 .chip {

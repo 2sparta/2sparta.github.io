@@ -1173,6 +1173,25 @@ function renderGradesTable() {
       .sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
   }
 
+  function gradeValueClass(value) {
+    const v = Number(value);
+    if (isNaN(v) || v <= 0) return "";
+    if (v >= 10) return "grade-val-high";
+    if (v >= 7) return "grade-val-mid";
+    return "grade-val-low";
+  }
+  function formatGradeDateShort(isoDate) {
+    if (!isoDate || isoDate.length < 10) return isoDate || "";
+    return `${isoDate.slice(8, 10)}.${isoDate.slice(5, 7)}`;
+  }
+
+  const legend = document.createElement("div");
+  legend.className = "grades-table-legend";
+  legend.innerHTML = `
+    <span class="grades-legend-item"><span class="chip grade-cell-chip grade-chip-lesson grade-val-mid">10</span> ${t("gradeTypeLesson")}</span>
+    <span class="grades-legend-item"><span class="chip grade-cell-chip grade-chip-hw grade-val-mid">10</span> ${t("gradeTypeHomework")}</span>
+  `;
+
   const wrap = document.createElement("div");
   wrap.className = "schedule-table-wrap grades-table-wrap";
 
@@ -1182,15 +1201,18 @@ function renderGradesTable() {
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   const cornerTh = document.createElement("th");
-  cornerTh.className = "schedule-table-corner";
+  cornerTh.className = "schedule-table-corner grades-table-sticky-col";
   cornerTh.textContent = t("gradesTableSubjectHeader");
   headRow.appendChild(cornerTh);
   dates.forEach((date) => {
     const th = document.createElement("th");
-    th.textContent = date;
+    th.className = "grades-table-date-th";
+    th.textContent = formatGradeDateShort(date);
+    th.title = date;
     headRow.appendChild(th);
   });
   const avgTh = document.createElement("th");
+  avgTh.className = "grades-table-avg-th";
   avgTh.textContent = t("gradesAverageLabel");
   headRow.appendChild(avgTh);
   thead.appendChild(headRow);
@@ -1201,23 +1223,26 @@ function renderGradesTable() {
     const tr = document.createElement("tr");
 
     const rowTh = document.createElement("th");
-    rowTh.className = "grades-table-subject";
+    rowTh.className = "grades-table-subject grades-table-sticky-col";
     rowTh.textContent = getSubjectName(subjectId);
+    rowTh.title = getSubjectName(subjectId);
     tr.appendChild(rowTh);
 
     const values = [];
     dates.forEach((date) => {
       const td = document.createElement("td");
-      td.className = "schedule-table-cell";
+      td.className = "schedule-table-cell grades-table-cell";
       const matches = gradesForCell(subjectId, date);
       if (matches.length === 0) {
         td.classList.add("schedule-table-empty");
         td.textContent = "–";
       } else {
+        const cellInner = document.createElement("div");
+        cellInner.className = "grades-cell-stack";
         matches.forEach((g) => {
           values.push(g.data.value);
           const chip = document.createElement("span");
-          chip.className = "chip grade-cell-chip";
+          chip.className = "chip grade-cell-chip " + gradeValueClass(g.data.value);
           if (g.data.type === "homework") chip.classList.add("grade-chip-hw");
           else if (g.data.type === "lesson") chip.classList.add("grade-chip-lesson");
           const typeLabel =
@@ -1226,17 +1251,26 @@ function renderGradesTable() {
               : g.data.type === "lesson"
                 ? t("gradeTypeLesson")
                 : "";
-          chip.textContent = typeLabel ? `${g.data.value} (${typeLabel})` : String(g.data.value);
-          chip.title = typeLabel || "";
-          td.appendChild(chip);
+          chip.textContent = String(g.data.value);
+          chip.title = typeLabel
+            ? `${g.data.value} — ${typeLabel} (${date})`
+            : `${g.data.value} (${date})`;
+          cellInner.appendChild(chip);
         });
+        td.appendChild(cellInner);
       }
       tr.appendChild(td);
     });
 
     const avgTd = document.createElement("td");
     avgTd.className = "schedule-table-cell grades-average-cell";
-    avgTd.textContent = values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : "–";
+    if (values.length) {
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      avgTd.textContent = avg.toFixed(1);
+      avgTd.classList.add(gradeValueClass(avg));
+    } else {
+      avgTd.textContent = "–";
+    }
     tr.appendChild(avgTd);
 
     tbody.appendChild(tr);
@@ -1244,6 +1278,7 @@ function renderGradesTable() {
   table.appendChild(tbody);
 
   wrap.appendChild(table);
+  gradesTableContainer.appendChild(legend);
   gradesTableContainer.appendChild(wrap);
 }
 

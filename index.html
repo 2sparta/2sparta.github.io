@@ -257,6 +257,35 @@
                 <option value="" data-i18n="teacherGradesSelectPlaceholder">Оберіть учня...</option>
               </select>
             </label>
+            <div id="teacher-grades-analytics" class="grades-analytics hidden">
+              <div class="grades-stats-grid">
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesOverallAvg">Загальний середній</span>
+                  <span id="teacher-grades-stat-overall" class="grades-stat-value">—</span>
+                </div>
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesCountLabel">Усього оцінок</span>
+                  <span id="teacher-grades-stat-count" class="grades-stat-value">0</span>
+                </div>
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesBestSubject">Найкращий предмет</span>
+                  <span id="teacher-grades-stat-best" class="grades-stat-value grades-stat-value--sm">—</span>
+                </div>
+                <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesTrendLabel">Тренд</span>
+                  <span id="teacher-grades-stat-trend" class="grades-stat-value grades-stat-value--sm">—</span>
+                </div>
+              </div>
+              <div class="grades-chart-wrap">
+                <h3 class="grades-chart-title" data-i18n="gradesChartBySubject">Середній бал за предметами</h3>
+                <div id="teacher-grades-chart-bars" class="grades-chart-bars" role="img" aria-label="Графік середніх оцінок"></div>
+                <p id="teacher-grades-chart-empty" class="hint hidden" data-i18n="gradesChartEmpty">Недостатньо даних для графіка.</p>
+              </div>
+              <div class="grades-chart-wrap grades-chart-wrap--trend">
+                <h3 class="grades-chart-title" data-i18n="gradesChartTrend">Динаміка оцінок</h3>
+                <div id="teacher-grades-chart-trend" class="grades-chart-trend" role="img" aria-label="Лінійний графік динаміки"></div>
+              </div>
+            </div>
             <div id="teacher-grades-table-container"></div>
             <p id="teacher-no-grades-msg" class="hint hidden" data-i18n="noGradesMsg">Оцінок ще немає.</p>
           </section>

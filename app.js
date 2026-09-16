@@ -230,6 +230,20 @@ const translations = {
     noGradesMsg: "Оцінок ще немає.",
     gradesAverageLabel: "Середній бал",
     gradesTableSubjectHeader: "Предмет",
+    gradesOverallAvg: "Загальний середній",
+    gradesCountLabel: "Усього оцінок",
+    gradesBestSubject: "Найкращий предмет",
+    gradesTrendLabel: "Тренд",
+    gradesChartBySubject: "Середній бал за предметами",
+    gradesChartTrend: "Динаміка оцінок",
+    gradesChartEmpty: "Недостатньо даних для графіка.",
+    gradesTrendUp: "Покращення",
+    gradesTrendDown: "Погіршення",
+    gradesTrendStable: "Стабільно",
+    gradesTrendNone: "Немає даних",
+    gradesOfMax: "з 12",
+    gradesLegendLesson: "Урок",
+    gradesLegendHw: "ДЗ",
 
     tabSelfGov: "Самоврядування",
     selfGovHeading: "Самоврядування",
@@ -442,6 +456,20 @@ const translations = {
     noGradesMsg: "No grades yet.",
     gradesAverageLabel: "Average",
     gradesTableSubjectHeader: "Subject",
+    gradesOverallAvg: "Overall average",
+    gradesCountLabel: "Total grades",
+    gradesBestSubject: "Best subject",
+    gradesTrendLabel: "Trend",
+    gradesChartBySubject: "Average by subject",
+    gradesChartTrend: "Grade trend",
+    gradesChartEmpty: "Not enough data for a chart.",
+    gradesTrendUp: "Improving",
+    gradesTrendDown: "Declining",
+    gradesTrendStable: "Stable",
+    gradesTrendNone: "No data",
+    gradesOfMax: "of 12",
+    gradesLegendLesson: "Lesson",
+    gradesLegendHw: "HW",
 
     tabSelfGov: "Self-government",
     selfGovHeading: "Self-government",
@@ -1044,7 +1072,16 @@ const selfgovPanelEl = document.getElementById("selfgov-panel");
 const teacherGradesStudentSelect = document.getElementById("teacher-grades-student-select");
 const teacherGradesTableContainer = document.getElementById("teacher-grades-table-container");
 const teacherNoGradesMsg = document.getElementById("teacher-no-grades-msg");
+const teacherGradesAnalyticsEl = document.getElementById("teacher-grades-analytics");
+const teacherGradesStatOverall = document.getElementById("teacher-grades-stat-overall");
+const teacherGradesStatCount = document.getElementById("teacher-grades-stat-count");
+const teacherGradesStatBest = document.getElementById("teacher-grades-stat-best");
+const teacherGradesStatTrend = document.getElementById("teacher-grades-stat-trend");
+const teacherGradesChartBars = document.getElementById("teacher-grades-chart-bars");
+const teacherGradesChartEmpty = document.getElementById("teacher-grades-chart-empty");
+const teacherGradesChartTrend = document.getElementById("teacher-grades-chart-trend");
 let teacherGradesSelectedStudentId = "";
+const GRADE_SCALE_MAX = 12;
 
 const newSubjectName = document.getElementById("new-subject-name");
 const newSubjectLink = document.getElementById("new-subject-link");
@@ -3113,12 +3150,229 @@ function renderTeacherGradesStudentSelect() {
   teacherGradesSelectedStudentId = teacherGradesStudentSelect.value;
 }
 
+function gradeValueClass(value) {
+  const v = Number(value);
+  if (isNaN(v) || v <= 0) return "";
+  if (v >= 10) return "grade-val-high";
+  if (v >= 7) return "grade-val-mid";
+  return "grade-val-low";
+}
+
+function formatGradeDateShort(isoDate) {
+  if (!isoDate || isoDate.length < 10) return isoDate || "";
+  return `${isoDate.slice(8, 10)}.${isoDate.slice(5, 7)}`;
+}
+
+function computeGradesAnalyticsFromList(gradesList) {
+  const values = gradesList
+    .map((g) => Number(g.data.value))
+    .filter((v) => !isNaN(v) && v > 0);
+  const overall =
+    values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+  const bySubject = {};
+  gradesList.forEach((g) => {
+    const sid = g.data.subjectId;
+    const v = Number(g.data.value);
+    if (!sid || isNaN(v) || v <= 0) return;
+    if (!bySubject[sid]) bySubject[sid] = [];
+    bySubject[sid].push(v);
+  });
+  const subjectAvgs = Object.keys(bySubject).map((sid) => {
+    const arr = bySubject[sid];
+    const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+    return { id: sid, name: getSubjectName(sid), avg, count: arr.length };
+  });
+  subjectAvgs.sort((a, b) => b.avg - a.avg);
+
+  const chronological = gradesList
+    .map((g) => ({
+      date: g.data.date || "",
+      value: Number(g.data.value),
+      at: g.data.updatedAt || 0,
+    }))
+    .filter((x) => x.date && !isNaN(x.value) && x.value > 0)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at);
+
+  let trend = "none";
+  if (chronological.length >= 4) {
+    const half = Math.floor(chronological.length / 2);
+    const first = chronological.slice(0, half);
+    const second = chronological.slice(half);
+    const avg1 = first.reduce((s, x) => s + x.value, 0) / first.length;
+    const avg2 = second.reduce((s, x) => s + x.value, 0) / second.length;
+    const diff = avg2 - avg1;
+    if (diff >= 0.4) trend = "up";
+    else if (diff <= -0.4) trend = "down";
+    else trend = "stable";
+  } else if (chronological.length >= 2) {
+    const first = chronological[0].value;
+    const last = chronological[chronological.length - 1].value;
+    const diff = last - first;
+    if (diff >= 0.5) trend = "up";
+    else if (diff <= -0.5) trend = "down";
+    else trend = "stable";
+  }
+
+  return { overall, count: values.length, subjectAvgs, chronological, trend };
+}
+
+function renderTeacherGradesAnalytics(studentGrades) {
+  if (!teacherGradesAnalyticsEl) return;
+  if (!studentGrades || studentGrades.length === 0) {
+    teacherGradesAnalyticsEl.classList.add("hidden");
+    return;
+  }
+  teacherGradesAnalyticsEl.classList.remove("hidden");
+  const stats = computeGradesAnalyticsFromList(studentGrades);
+
+  if (teacherGradesStatOverall) {
+    teacherGradesStatOverall.textContent =
+      stats.overall != null
+        ? `${stats.overall.toFixed(1)} ${t("gradesOfMax") || "з 12"}`
+        : "—";
+  }
+  if (teacherGradesStatCount) teacherGradesStatCount.textContent = String(stats.count);
+  if (teacherGradesStatBest) {
+    if (stats.subjectAvgs.length > 0) {
+      const best = stats.subjectAvgs[0];
+      teacherGradesStatBest.textContent = `${best.name} (${best.avg.toFixed(1)})`;
+      teacherGradesStatBest.title = best.name;
+    } else {
+      teacherGradesStatBest.textContent = "—";
+      teacherGradesStatBest.title = "";
+    }
+  }
+  if (teacherGradesStatTrend) {
+    const map = {
+      up: t("gradesTrendUp"),
+      down: t("gradesTrendDown"),
+      stable: t("gradesTrendStable"),
+      none: t("gradesTrendNone"),
+    };
+    teacherGradesStatTrend.textContent = map[stats.trend] || map.none;
+    teacherGradesStatTrend.className =
+      "grades-stat-value grades-stat-value--sm" +
+      (stats.trend === "up"
+        ? " grades-trend-up"
+        : stats.trend === "down"
+          ? " grades-trend-down"
+          : "");
+  }
+
+  if (teacherGradesChartBars) {
+    teacherGradesChartBars.innerHTML = "";
+    if (stats.subjectAvgs.length === 0) {
+      if (teacherGradesChartEmpty) teacherGradesChartEmpty.classList.remove("hidden");
+    } else {
+      if (teacherGradesChartEmpty) teacherGradesChartEmpty.classList.add("hidden");
+      stats.subjectAvgs.forEach((s) => {
+        const row = document.createElement("div");
+        row.className = "grades-bar-row";
+        const label = document.createElement("div");
+        label.className = "grades-bar-label";
+        label.textContent = s.name;
+        label.title = s.name;
+        const track = document.createElement("div");
+        track.className = "grades-bar-track";
+        const fill = document.createElement("div");
+        fill.className = "grades-bar-fill";
+        fill.style.width = `${Math.min(100, (s.avg / GRADE_SCALE_MAX) * 100)}%`;
+        if (s.avg >= 10) fill.classList.add("grades-bar-high");
+        else if (s.avg >= 7) fill.classList.add("grades-bar-mid");
+        else fill.classList.add("grades-bar-low");
+        track.appendChild(fill);
+        const val = document.createElement("div");
+        val.className = "grades-bar-value";
+        val.textContent = s.avg.toFixed(1);
+        row.append(label, track, val);
+        teacherGradesChartBars.appendChild(row);
+      });
+    }
+  }
+
+  if (teacherGradesChartTrend) {
+    teacherGradesChartTrend.innerHTML = "";
+    const series = stats.chronological;
+    if (series.length >= 2) {
+      const svgNS = "http://www.w3.org/2000/svg";
+      const w = 440;
+      const h = 140;
+      const padL = 28;
+      const padR = 12;
+      const padT = 12;
+      const padB = 28;
+      const n = series.length;
+      const xs = series.map((_, i) => padL + (i / Math.max(1, n - 1)) * (w - padL - padR));
+      const ys = series.map((p) => {
+        const ratio = Math.min(1, Math.max(0, p.value / GRADE_SCALE_MAX));
+        return padT + (1 - ratio) * (h - padT - padB);
+      });
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+      svg.setAttribute("class", "grades-trend-svg");
+      [3, 6, 9, 12].forEach((g) => {
+        const y = padT + (1 - g / GRADE_SCALE_MAX) * (h - padT - padB);
+        const line = document.createElementNS(svgNS, "line");
+        line.setAttribute("x1", String(padL));
+        line.setAttribute("x2", String(w - padR));
+        line.setAttribute("y1", String(y));
+        line.setAttribute("y2", String(y));
+        line.setAttribute("class", "grades-trend-grid");
+        svg.appendChild(line);
+        const txt = document.createElementNS(svgNS, "text");
+        txt.setAttribute("x", String(padL - 4));
+        txt.setAttribute("y", String(y + 3));
+        txt.setAttribute("text-anchor", "end");
+        txt.setAttribute("class", "grades-trend-axis");
+        txt.textContent = String(g);
+        svg.appendChild(txt);
+      });
+      const poly = document.createElementNS(svgNS, "polyline");
+      poly.setAttribute("points", xs.map((x, i) => `${x},${ys[i]}`).join(" "));
+      poly.setAttribute("class", "grades-trend-line");
+      svg.appendChild(poly);
+      xs.forEach((x, i) => {
+        const c = document.createElementNS(svgNS, "circle");
+        c.setAttribute("cx", String(x));
+        c.setAttribute("cy", String(ys[i]));
+        c.setAttribute("r", "3.5");
+        c.setAttribute("class", "grades-trend-dot");
+        const title = document.createElementNS(svgNS, "title");
+        title.textContent = `${series[i].date}: ${series[i].value}`;
+        c.appendChild(title);
+        svg.appendChild(c);
+      });
+      if (series[0]) {
+        const t0 = document.createElementNS(svgNS, "text");
+        t0.setAttribute("x", String(xs[0]));
+        t0.setAttribute("y", String(h - 8));
+        t0.setAttribute("text-anchor", n > 1 ? "start" : "middle");
+        t0.setAttribute("class", "grades-trend-axis");
+        t0.textContent = series[0].date.slice(5);
+        svg.appendChild(t0);
+      }
+      if (n > 1) {
+        const t1 = document.createElementNS(svgNS, "text");
+        t1.setAttribute("x", String(xs[n - 1]));
+        t1.setAttribute("y", String(h - 8));
+        t1.setAttribute("text-anchor", "end");
+        t1.setAttribute("class", "grades-trend-axis");
+        t1.textContent = series[n - 1].date.slice(5);
+        svg.appendChild(t1);
+      }
+      teacherGradesChartTrend.appendChild(svg);
+    }
+  }
+}
+
 function renderTeacherGradesTable() {
   if (!teacherGradesTableContainer) return;
   teacherGradesTableContainer.innerHTML = "";
 
   const sid = teacherGradesSelectedStudentId;
   if (!sid) {
+    if (teacherGradesAnalyticsEl) teacherGradesAnalyticsEl.classList.add("hidden");
     if (teacherNoGradesMsg) {
       teacherNoGradesMsg.classList.remove("hidden");
       teacherNoGradesMsg.textContent = t("teacherGradesSelectPlaceholder");
@@ -3128,6 +3382,7 @@ function renderTeacherGradesTable() {
 
   const studentGrades = lastGrades.filter((g) => g.data.studentId === sid);
   if (studentGrades.length === 0) {
+    if (teacherGradesAnalyticsEl) teacherGradesAnalyticsEl.classList.add("hidden");
     if (teacherNoGradesMsg) {
       teacherNoGradesMsg.classList.remove("hidden");
       teacherNoGradesMsg.textContent = t("noGradesMsg");
@@ -3135,6 +3390,8 @@ function renderTeacherGradesTable() {
     return;
   }
   if (teacherNoGradesMsg) teacherNoGradesMsg.classList.add("hidden");
+
+  renderTeacherGradesAnalytics(studentGrades);
 
   const dateSet = new Set(studentGrades.map((g) => g.data.date).filter(Boolean));
   const dates = [...dateSet].sort((a, b) => a.localeCompare(b));
@@ -3159,6 +3416,13 @@ function renderTeacherGradesTable() {
       .sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
   }
 
+  const legend = document.createElement("div");
+  legend.className = "grades-table-legend";
+  legend.innerHTML = `
+    <span class="grades-legend-item"><span class="chip grade-cell-chip grade-chip-lesson grade-val-mid">10</span> ${t("gradesLegendLesson") || t("gradeTypeLesson")}</span>
+    <span class="grades-legend-item"><span class="chip grade-cell-chip grade-chip-hw grade-val-mid">10</span> ${t("gradesLegendHw") || t("gradeTypeHomework")}</span>
+  `;
+
   const wrap = document.createElement("div");
   wrap.className = "schedule-table-wrap grades-table-wrap";
 
@@ -3168,15 +3432,18 @@ function renderTeacherGradesTable() {
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   const cornerTh = document.createElement("th");
-  cornerTh.className = "schedule-table-corner";
+  cornerTh.className = "schedule-table-corner grades-table-sticky-col";
   cornerTh.textContent = t("gradesTableSubjectHeader");
   headRow.appendChild(cornerTh);
   dates.forEach((date) => {
     const th = document.createElement("th");
-    th.textContent = date;
+    th.className = "grades-table-date-th";
+    th.textContent = formatGradeDateShort(date);
+    th.title = date;
     headRow.appendChild(th);
   });
   const avgTh = document.createElement("th");
+  avgTh.className = "grades-table-avg-th";
   avgTh.textContent = t("gradesAverageLabel");
   headRow.appendChild(avgTh);
   thead.appendChild(headRow);
@@ -3186,23 +3453,26 @@ function renderTeacherGradesTable() {
   subjectOrder.forEach((subjectId) => {
     const tr = document.createElement("tr");
     const rowTh = document.createElement("th");
-    rowTh.className = "grades-table-subject";
+    rowTh.className = "grades-table-subject grades-table-sticky-col";
     rowTh.textContent = getSubjectName(subjectId);
+    rowTh.title = getSubjectName(subjectId);
     tr.appendChild(rowTh);
 
     const values = [];
     dates.forEach((date) => {
       const td = document.createElement("td");
-      td.className = "schedule-table-cell";
+      td.className = "schedule-table-cell grades-table-cell";
       const matches = gradesForCell(subjectId, date);
       if (matches.length === 0) {
         td.classList.add("schedule-table-empty");
         td.textContent = "–";
       } else {
+        const cellInner = document.createElement("div");
+        cellInner.className = "grades-cell-stack";
         matches.forEach((g) => {
           values.push(g.data.value);
           const chip = document.createElement("span");
-          chip.className = "chip grade-cell-chip";
+          chip.className = "chip grade-cell-chip " + gradeValueClass(g.data.value);
           if (g.data.type === "homework") chip.classList.add("grade-chip-hw");
           else if (g.data.type === "lesson") chip.classList.add("grade-chip-lesson");
           const typeLabel =
@@ -3211,24 +3481,32 @@ function renderTeacherGradesTable() {
               : g.data.type === "lesson"
                 ? t("gradeTypeLesson")
                 : "";
-          chip.textContent = typeLabel ? `${g.data.value} (${typeLabel})` : String(g.data.value);
-          chip.title = typeLabel || "";
-          td.appendChild(chip);
+          chip.textContent = String(g.data.value);
+          chip.title = typeLabel
+            ? `${g.data.value} — ${typeLabel} (${date})`
+            : `${g.data.value} (${date})`;
+          cellInner.appendChild(chip);
         });
+        td.appendChild(cellInner);
       }
       tr.appendChild(td);
     });
 
     const avgTd = document.createElement("td");
     avgTd.className = "schedule-table-cell grades-average-cell";
-    avgTd.textContent = values.length
-      ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)
-      : "–";
+    if (values.length) {
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      avgTd.textContent = avg.toFixed(1);
+      avgTd.classList.add(gradeValueClass(avg));
+    } else {
+      avgTd.textContent = "–";
+    }
     tr.appendChild(avgTd);
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
+  teacherGradesTableContainer.appendChild(legend);
   teacherGradesTableContainer.appendChild(wrap);
 }
 
@@ -3238,6 +3516,7 @@ if (teacherGradesStudentSelect) {
     renderTeacherGradesTable();
   };
 }
+
 
 // ==========================================================
 // Самоврядування — вибори старости (панель вчителя)
