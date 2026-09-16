@@ -16,25 +16,33 @@ export const firebaseConfig = {
 
 // ---------- Тема (світла / темна / ocean / warm) ----------
 export const THEME_STORAGE_KEY = "schooleballs-theme";
-export const THEME_ORDER = ["light", "ocean", "warm", "dark"];
+export const THEME_ORDER = ["light", "ocean", "warm", "dark", "ocean-dark", "warm-dark"];
+
+// Теми, що вважаються "темними" (темний фон, іконка місяця на перемикачі,
+// color-scheme: dark для нативних елементів браузера).
+const DARK_THEMES = ["dark", "ocean-dark", "warm-dark"];
 
 const THEME_LABELS = {
   light: "Світла",
   ocean: "Океан",
   warm: "Тепла",
   dark: "Темна",
+  "ocean-dark": "Океан (темна)",
+  "warm-dark": "Тепла (темна)",
 };
 
 // Застосовує тему до <html data-theme="..."> і синхронізує стан усіх
 // кнопок-перемикачів теми на сторінці (іконка + aria + title).
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  const isDark = theme === "dark";
+  const isDark = DARK_THEMES.includes(theme);
   document.querySelectorAll(".theme-toggle-btn").forEach((btn) => {
     btn.setAttribute("aria-pressed", isDark ? "true" : "false");
     btn.classList.toggle("is-dark", isDark);
     btn.classList.toggle("is-ocean", theme === "ocean");
     btn.classList.toggle("is-warm", theme === "warm");
+    btn.classList.toggle("is-ocean-dark", theme === "ocean-dark");
+    btn.classList.toggle("is-warm-dark", theme === "warm-dark");
     const label = THEME_LABELS[theme] || theme;
     btn.setAttribute("aria-label", `Тема: ${label}. Натисніть, щоб змінити`);
     btn.title = `Тема: ${label}`;
@@ -44,7 +52,7 @@ function applyTheme(theme) {
 // Викликається один раз при завантаженні сторінки (app.js / student.js):
 // читає збережену тему (або системну), застосовує її та вішає обробники
 // кліків на всі елементи .theme-toggle-btn, які є в HTML.
-// Кнопка циклічно перемикає: light → ocean → warm → dark → light.
+// Кнопка циклічно перемикає: light → ocean → warm → dark → ocean-dark → warm-dark → light.
 export function initThemeToggle() {
   const saved = localStorage.getItem(THEME_STORAGE_KEY);
   const systemPrefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;

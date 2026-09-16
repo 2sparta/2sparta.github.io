@@ -92,9 +92,51 @@
   --color-purple-border: #e9d5ff;
 }
 
+/* ---------- Океан темна (темний варіант "Океан") ---------- */
+:root[data-theme="ocean-dark"] {
+  --color-bg: #071a24;
+  --color-surface: #0d2733;
+  --color-surface-tint: #123340;
+  --color-primary: #e0f2fe;
+  --color-secondary: #7fa8bf;
+  --color-accent: #22b8d8;
+  --color-accent-hover: #3fd0ee;
+  --color-accent-soft: #123350;
+  --color-border: #1c3c4a;
+  --color-avatar-bg: #163c4a;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-warning-bg: #3a2f14;
+  --color-purple: #a5b4fc;
+  --color-purple-bg: #1e2350;
+  --color-purple-border: #33397a;
+}
+
+/* ---------- Тепла темна (темний варіант "Тепла") ---------- */
+:root[data-theme="warm-dark"] {
+  --color-bg: #1c1410;
+  --color-surface: #241a14;
+  --color-surface-tint: #2e2119;
+  --color-primary: #f5e9dd;
+  --color-secondary: #baa08c;
+  --color-accent: #e2733a;
+  --color-accent-hover: #f08c52;
+  --color-accent-soft: #3a2416;
+  --color-border: #3a2c22;
+  --color-avatar-bg: #3a2a1e;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-warning-bg: #3a2f14;
+  --color-purple: #c9a0fa;
+  --color-purple-bg: #2b2038;
+  --color-purple-border: #4a3a5c;
+}
+
 * { box-sizing: border-box; }
 html { color-scheme: light; }
-html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="dark"],
+html[data-theme="ocean-dark"],
+html[data-theme="warm-dark"] { color-scheme: dark; }
 html[data-theme="ocean"],
 html[data-theme="warm"] { color-scheme: light; }
 body {
@@ -1208,6 +1250,11 @@ code {
 :root[data-theme="warm"] .schedule-table-today {
   background: #ffedd5;
 }
+:root[data-theme="dark"] .schedule-table-today,
+:root[data-theme="ocean-dark"] .schedule-table-today,
+:root[data-theme="warm-dark"] .schedule-table-today {
+  background: var(--color-surface-tint);
+}
 th.schedule-table-today {
   color: var(--color-accent);
 }
@@ -1726,6 +1773,24 @@ select {
   color: #9a3412;
   border-color: #c2410c;
 }
+.theme-toggle-btn.is-ocean-dark {
+  color: #3fd0ee;
+  border-color: #1c3c4a;
+}
+.theme-toggle-btn.is-warm-dark {
+  color: #f08c52;
+  border-color: #3a2c22;
+}
+.theme-toggle-btn.is-ocean-dark:hover {
+  background: #123350;
+  color: #7fe3f7;
+  border-color: #22b8d8;
+}
+.theme-toggle-btn.is-warm-dark:hover {
+  background: #3a2416;
+  color: #f5a878;
+  border-color: #e2733a;
+}
 
 
 /* ---------- Староста / дозвіл на запис ДЗ учнями ---------- */
@@ -1800,35 +1865,59 @@ select {
    (елементи нижче задані не через --color-*, а прямими hex-значеннями,
    бо в світлій темі це насичені "плашки"-акценти; у темній їх варто
    притлумити, інакше вони світяться занадто яскраво на темному фоні) ---------- */
-:root[data-theme="dark"] .class-delete-btn:hover:not(:disabled) {
+:root[data-theme="dark"] .class-delete-btn:hover:not(:disabled),
+:root[data-theme="ocean-dark"] .class-delete-btn:hover:not(:disabled),
+:root[data-theme="warm-dark"] .class-delete-btn:hover:not(:disabled) {
   background: #3a1f1f;
 }
-:root[data-theme="dark"] .subject-item-link::placeholder {
+:root[data-theme="dark"] .subject-item-link::placeholder,
+:root[data-theme="ocean-dark"] .subject-item-link::placeholder,
+:root[data-theme="warm-dark"] .subject-item-link::placeholder {
   color: #5c7a70;
 }
 :root[data-theme="dark"] .schedule-table-today {
   background: #33291a;
 }
-:root[data-theme="dark"] .chip-override {
+:root[data-theme="ocean-dark"] .schedule-table-today {
+  background: #163044;
+}
+:root[data-theme="warm-dark"] .schedule-table-today {
+  background: #3a2a14;
+}
+:root[data-theme="dark"] .chip-override,
+:root[data-theme="ocean-dark"] .chip-override,
+:root[data-theme="warm-dark"] .chip-override {
   background: #402c14;
   color: #f0a15f;
 }
-:root[data-theme="dark"] .chip-swap:hover {
+:root[data-theme="dark"] .chip-swap:hover,
+:root[data-theme="ocean-dark"] .chip-swap:hover,
+:root[data-theme="warm-dark"] .chip-swap:hover {
   background: transparent;
   color: #f0a15f;
 }
-:root[data-theme="dark"] .date-badge.scheduled {
+:root[data-theme="dark"] .date-badge.scheduled,
+:root[data-theme="ocean-dark"] .date-badge.scheduled,
+:root[data-theme="warm-dark"] .date-badge.scheduled {
   background: #232a4a;
   color: #b8c2f5;
 }
-:root[data-theme="dark"] .live-status-break .live-status-dot {
+:root[data-theme="dark"] .live-status-break .live-status-dot,
+:root[data-theme="ocean-dark"] .live-status-break .live-status-dot,
+:root[data-theme="warm-dark"] .live-status-break .live-status-dot {
   background: #d99a2b;
 }
 :root[data-theme="dark"] .card,
-:root[data-theme="dark"] .greeting-card {
+:root[data-theme="dark"] .greeting-card,
+:root[data-theme="ocean-dark"] .card,
+:root[data-theme="ocean-dark"] .greeting-card,
+:root[data-theme="warm-dark"] .card,
+:root[data-theme="warm-dark"] .greeting-card {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
-:root[data-theme="dark"] .tab-btn.active {
+:root[data-theme="dark"] .tab-btn.active,
+:root[data-theme="ocean-dark"] .tab-btn.active,
+:root[data-theme="warm-dark"] .tab-btn.active {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
