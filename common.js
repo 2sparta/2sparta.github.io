@@ -503,5 +503,4 @@ export function initSettingsPanel(tFn) {
   syncToggle();
   return { openPanel, closePanel, refreshI18n };
 }
-;
-}
+
