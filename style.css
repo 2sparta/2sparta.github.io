@@ -3381,3 +3381,18 @@ html.no-glass-bg .settings-fab {
 #settings-bell-apply-all {
   width: 100%;
 }
+
+
+/* Оцінка «Н» (відсутність) */
+.grade-val-absent,
+.chip.grade-val-absent,
+.grade-cell-chip.grade-val-absent {
+  color: var(--color-secondary) !important;
+  background: var(--color-border) !important;
+  border-color: var(--color-border) !important;
+  font-weight: 800;
+}
+.grade-input {
+  text-align: center;
+  text-transform: none;
+}

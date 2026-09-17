@@ -1005,7 +1005,7 @@ const GRADE_SCALE_MAX = 12;
 function computeGradesAnalytics() {
   const values = lastGrades
     .map((g) => Number(g.data.value))
-    .filter((v) => !isNaN(v) && v > 0);
+    .filter((v) => !isNaN(v) && v >= 1 && v <= 12);
   const overall =
     values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
 
@@ -1013,7 +1013,7 @@ function computeGradesAnalytics() {
   lastGrades.forEach((g) => {
     const sid = g.data.subjectId;
     const v = Number(g.data.value);
-    if (!sid || isNaN(v) || v <= 0) return;
+    if (!sid || isNaN(v) || v < 1 || v > 12) return;
     if (!bySubject[sid]) bySubject[sid] = [];
     bySubject[sid].push(v);
   });
@@ -1031,7 +1031,7 @@ function computeGradesAnalytics() {
       value: Number(g.data.value),
       at: g.data.updatedAt || 0,
     }))
-    .filter((x) => x.date && !isNaN(x.value) && x.value > 0)
+    .filter((x) => x.date && !isNaN(x.value) && x.value >= 1 && x.value <= 12)
     .sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at);
 
   let trend = "none";
@@ -1266,6 +1266,7 @@ function renderGradesTable() {
   }
 
   function gradeValueClass(value) {
+    if (value === "Н" || value === "н" || String(value).toUpperCase() === "Н") return "grade-val-absent";
     const v = Number(value);
     if (isNaN(v) || v <= 0) return "";
     if (v >= 10) return "grade-val-high";

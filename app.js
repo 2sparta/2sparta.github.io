@@ -264,7 +264,7 @@ const translations = {
     tabGrades: "Оцінки",
     gradesBtn: "Оцінки",
     gradesPanelHeading: "Оцінки за завдання",
-    gradesPanelHint: "Виставте оцінку (1–12) для кожного учня. Можна окремо за урок і за ДЗ. Порожнє поле — оцінки ще немає.",
+    gradesPanelHint: "Виставте оцінку (1–12) або «Н» (відсутність) для кожного учня. Можна окремо за урок і за ДЗ. Порожнє поле — оцінки ще немає.",
     gradeInputPlaceholder: "—",
     gradeSavedHint: "Збережено",
     noStudentsForGrades: "Немає учнів для оцінювання (перевірте призначені класи).",
@@ -551,7 +551,7 @@ const translations = {
     tabGrades: "Grades",
     gradesBtn: "Grades",
     gradesPanelHeading: "Grades for this assignment",
-    gradesPanelHint: "Enter a grade (1–12) for each student. You can grade the lesson and homework separately. An empty field means no grade yet.",
+    gradesPanelHint: "Enter a grade (1–12) or «Н» (absent) for each student. You can grade the lesson and homework separately. An empty field means no grade yet.",
     gradeInputPlaceholder: "—",
     gradeSavedHint: "Saved",
     noStudentsForGrades: "No students to grade (check the assigned classes).",
@@ -2998,6 +2998,24 @@ function studentsForLesson(lessonData) {
   return lastStudents.filter((s) => groupIdSet.has(s.data.group));
 }
 
+/** Парсить введену оцінку: 1–12 або «Н» (відсутність). Повертає число, "Н" або null (невалідно / порожньо). */
+function parseGradeInput(rawValue) {
+  const trimmed = String(rawValue || "").trim();
+  if (trimmed === "") return null;
+  // н / Н / n (латиниця) → «Н»
+  if (/^[нНnN]$/u.test(trimmed)) return "Н";
+  const num = Number(trimmed.replace(",", "."));
+  if (!Number.isFinite(num)) return null;
+  const rounded = Math.round(num);
+  if (rounded < 1 || rounded > 12) return null;
+  return rounded;
+}
+
+function isNumericGrade(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 1 && n <= 12;
+}
+
 async function saveGrade(lessonId, studentId, subjectId, date, rawValue, type, comment) {
   const gradeType = type === "homework" ? "homework" : "lesson";
   const id = gradeDocId(lessonId, studentId, gradeType);
@@ -3017,7 +3035,11 @@ async function saveGrade(lessonId, studentId, subjectId, date, rawValue, type, c
       }
       return;
     }
-    const value = Math.max(1, Math.min(12, Math.round(Number(trimmed))));
+    const value = parseGradeInput(trimmed);
+    if (value === null) {
+      // Невалідне значення — не зберігаємо
+      return;
+    }
     const payload = {
       lessonId,
       studentId,
@@ -3613,16 +3635,23 @@ function buildGradesPanel(lessonId, data) {
     col.className = "grade-inputs-col";
 
     const input = document.createElement("input");
-    input.type = "number";
-    input.min = "1";
-    input.max = "12";
-    input.step = "1";
-    input.inputMode = "numeric";
+    input.type = "text";
+    input.inputMode = "text";
+    input.autocomplete = "off";
     input.className = "grade-input";
     input.placeholder = t("gradeInputPlaceholder");
     input.title = type === "homework" ? t("gradeTypeHomework") : t("gradeTypeLesson");
+    input.setAttribute("aria-label", input.title);
     const currentValue = getGradeValue(lessonId, studentId, type);
-    if (currentValue !== null) input.value = currentValue;
+    if (currentValue !== null && currentValue !== undefined) input.value = String(currentValue);
+
+    // Автоматично н/n → Н під час введення
+    input.addEventListener("input", () => {
+      const v = input.value;
+      if (/^[нn]$/u.test(v.trim())) {
+        input.value = "Н";
+      }
+    });
 
     const commentInput = document.createElement("input");
     commentInput.type = "text";
@@ -3635,6 +3664,15 @@ function buildGradesPanel(lessonId, data) {
     savedHint.textContent = t("gradeSavedHint");
 
     const persist = async () => {
+      const parsed = parseGradeInput(input.value);
+      if (input.value.trim() !== "" && parsed === null) {
+        // Невалідне — відновлюємо попереднє значення
+        const prev = getGradeValue(lessonId, studentId, type);
+        input.value = prev !== null && prev !== undefined ? String(prev) : "";
+        return;
+      }
+      if (parsed === "Н") input.value = "Н";
+      else if (typeof parsed === "number") input.value = String(parsed);
       await saveGrade(
         lessonId,
         studentId,
@@ -3651,6 +3689,11 @@ function buildGradesPanel(lessonId, data) {
     input.onclick = (e) => e.stopPropagation();
     commentInput.onclick = (e) => e.stopPropagation();
     input.onchange = persist;
+    input.onblur = () => {
+      const parsed = parseGradeInput(input.value);
+      if (parsed === "Н") input.value = "Н";
+      else if (typeof parsed === "number") input.value = String(parsed);
+    };
     commentInput.onchange = persist;
 
     col.append(input, commentInput);
@@ -3715,6 +3758,7 @@ function renderTeacherGradesStudentSelect() {
 }
 
 function gradeValueClass(value) {
+  if (value === "Н" || value === "н" || String(value).toUpperCase() === "Н") return "grade-val-absent";
   const v = Number(value);
   if (isNaN(v) || v <= 0) return "";
   if (v >= 10) return "grade-val-high";
@@ -3730,7 +3774,7 @@ function formatGradeDateShort(isoDate) {
 function computeGradesAnalyticsFromList(gradesList) {
   const values = gradesList
     .map((g) => Number(g.data.value))
-    .filter((v) => !isNaN(v) && v > 0);
+    .filter((v) => !isNaN(v) && v >= 1 && v <= 12);
   const overall =
     values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
 
@@ -3738,7 +3782,7 @@ function computeGradesAnalyticsFromList(gradesList) {
   gradesList.forEach((g) => {
     const sid = g.data.subjectId;
     const v = Number(g.data.value);
-    if (!sid || isNaN(v) || v <= 0) return;
+    if (!sid || isNaN(v) || v < 1 || v > 12) return;
     if (!bySubject[sid]) bySubject[sid] = [];
     bySubject[sid].push(v);
   });
@@ -3755,7 +3799,7 @@ function computeGradesAnalyticsFromList(gradesList) {
       value: Number(g.data.value),
       at: g.data.updatedAt || 0,
     }))
-    .filter((x) => x.date && !isNaN(x.value) && x.value > 0)
+    .filter((x) => x.date && !isNaN(x.value) && x.value >= 1 && x.value <= 12)
     .sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at);
 
   let trend = "none";
