@@ -338,16 +338,24 @@ const translations = {
     setupNameLabel: "ПІБ",
     setupNamePlaceholder: "Прізвище Ім'я По батькові",
     setupRoleLabel: "Роль",
-    setupRoleTeacher: "Вчитель (лише свої предмети)",
-    setupRoleAdmin: "Адміністратор (повний доступ)",
+    setupRoleTeacher: "Вчитель",
+    setupRoleTeacherDesc: "Керуєте уроками й оцінками зі своїх предметів",
+    setupRoleAdmin: "Адміністратор",
+    setupRoleAdminDesc: "Повний доступ до всіх класів, предметів і налаштувань",
     setupSubjectsLabel: "Мої предмети",
     setupSubjectsHint: "Оберіть один або кілька предметів. Уроки інших предметів вам будуть недоступні.",
+    setupSubjectsSelected: (n) => n === 0 ? "Нічого не обрано" : `Обрано: ${n}`,
     setupNoSubjects: "Предметів у системі ще немає. Зверніться до адміністратора або створіть предмети після входу як адмін.",
     setupSaveBtn: "Зберегти і продовжити",
     setupNeedName: "Вкажіть ПІБ.",
     setupNeedSubjects: "Оберіть хоча б один предмет (або роль адміністратора).",
     setupSaved: "Профіль збережено.",
     teacherOnlySubjectsHint: "Показано лише ваші предмети.",
+    pointsLeaderboardHeading: "Топ за балами",
+    pointsLeaderboardHint: "Рейтинг учнів за балами",
+    pointsLeaderboardEmpty: "Ще немає учнів з балами.",
+    pointsLeaderboardPoints: "балів",
+    pointsLeaderboardRank: "Місце",
     errors: {
       "auth/invalid-email": "Некоректний email.",
       "auth/user-not-found": "Користувача не знайдено.",
@@ -597,16 +605,24 @@ const translations = {
     setupNameLabel: "Full name",
     setupNamePlaceholder: "Full name",
     setupRoleLabel: "Role",
-    setupRoleTeacher: "Teacher (own subjects only)",
-    setupRoleAdmin: "Administrator (full access)",
+    setupRoleTeacher: "Teacher",
+    setupRoleTeacherDesc: "Manage lessons and grades for your subjects",
+    setupRoleAdmin: "Administrator",
+    setupRoleAdminDesc: "Full access to all classes, subjects and settings",
     setupSubjectsLabel: "My subjects",
     setupSubjectsHint: "Select one or more subjects. Lessons for other subjects will be hidden.",
+    setupSubjectsSelected: (n) => n === 0 ? "None selected" : `Selected: ${n}`,
     setupNoSubjects: "No subjects in the system yet. Ask an admin or create subjects after signing in as admin.",
     setupSaveBtn: "Save and continue",
     setupNeedName: "Please enter your full name.",
     setupNeedSubjects: "Select at least one subject (or choose administrator).",
     setupSaved: "Profile saved.",
     teacherOnlySubjectsHint: "Only your subjects are shown.",
+    pointsLeaderboardHeading: "Points leaderboard",
+    pointsLeaderboardHint: "Student ranking by points",
+    pointsLeaderboardEmpty: "No students with points yet.",
+    pointsLeaderboardPoints: "points",
+    pointsLeaderboardRank: "Rank",
     errors: {
       "auth/invalid-email": "Invalid email.",
       "auth/user-not-found": "User not found.",
@@ -1143,6 +1159,9 @@ const setupDisplayName = document.getElementById("setup-display-name");
 const setupSubjectsList = document.getElementById("setup-subjects-list");
 const setupNoSubjects = document.getElementById("setup-no-subjects");
 const setupSubjectsBlock = document.getElementById("setup-subjects-block");
+const setupSubjectsCount = document.getElementById("setup-subjects-count");
+const pointsLeaderboardEl = document.getElementById("points-leaderboard");
+const pointsLeaderboardEmpty = document.getElementById("points-leaderboard-empty");
 const setupSaveBtn = document.getElementById("setup-save-btn");
 const setupLogoutBtn = document.getElementById("setup-logout-btn");
 const setupError = document.getElementById("setup-error");
@@ -1556,6 +1575,15 @@ function toggleSetupSubjectsVisibility() {
   if (setupSubjectsBlock) setupSubjectsBlock.classList.toggle("hidden", !!isAdm);
 }
 
+function updateSetupSubjectsCount() {
+  if (!setupSubjectsCount || !setupSubjectsList) return;
+  const n = setupSubjectsList.querySelectorAll('input[type="checkbox"]:checked').length;
+  const fn = translations[currentLang] && translations[currentLang].setupSubjectsSelected;
+  setupSubjectsCount.textContent = typeof fn === "function" ? fn(n) : (n === 0 ? "—" : String(n));
+  setupSubjectsCount.classList.toggle("is-empty", n === 0);
+  setupSubjectsCount.classList.toggle("is-filled", n > 0);
+}
+
 function renderSetupSubjectsList() {
   if (!setupSubjectsList) return;
   setupSubjectsList.innerHTML = "";
@@ -1566,21 +1594,33 @@ function renderSetupSubjectsList() {
   );
   if (lastSubjects.length === 0) {
     if (setupNoSubjects) setupNoSubjects.classList.remove("hidden");
+    updateSetupSubjectsCount();
     return;
   }
   if (setupNoSubjects) setupNoSubjects.classList.add("hidden");
   lastSubjects.forEach(({ id, data }) => {
     const label = document.createElement("label");
-    label.className = "class-option-item";
+    label.className = "setup-subject-chip";
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.value = id;
     cb.checked = selected.has(id);
-    const span = document.createElement("span");
-    span.textContent = data.name || id;
-    label.append(cb, span);
+    cb.addEventListener("change", () => {
+      label.classList.toggle("is-selected", cb.checked);
+      updateSetupSubjectsCount();
+    });
+    const check = document.createElement("span");
+    check.className = "setup-subject-check";
+    check.setAttribute("aria-hidden", "true");
+    check.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const name = document.createElement("span");
+    name.className = "setup-subject-name";
+    name.textContent = data.name || id;
+    label.classList.toggle("is-selected", cb.checked);
+    label.append(cb, check, name);
     setupSubjectsList.appendChild(label);
   });
+  updateSetupSubjectsCount();
 }
 
 if (setupSaveBtn) {
@@ -1720,6 +1760,58 @@ function sortStudentsList(list) {
   return arr;
 }
 
+function renderPointsLeaderboard() {
+  if (!pointsLeaderboardEl) return;
+  pointsLeaderboardEl.innerHTML = "";
+  const ranked = lastStudents
+    .filter((s) => (s.data.points || 0) > 0)
+    .slice()
+    .sort(
+      (a, b) =>
+        (b.data.points || 0) - (a.data.points || 0) ||
+        (a.data.name || "").localeCompare(b.data.name || "", currentLang === "uk" ? "uk" : "en")
+    )
+    .slice(0, 10);
+  if (pointsLeaderboardEmpty) {
+    pointsLeaderboardEmpty.classList.toggle("hidden", ranked.length > 0);
+  }
+  if (ranked.length === 0) return;
+  ranked.forEach(({ data }, index) => {
+    const pts = data.points || 0;
+    const row = document.createElement("div");
+    row.className = "points-leader-row" + (index < 3 ? ` rank-${index + 1}` : "");
+    const rank = document.createElement("span");
+    rank.className = "points-leader-rank";
+    if (index === 0) rank.textContent = "🥇";
+    else if (index === 1) rank.textContent = "🥈";
+    else if (index === 2) rank.textContent = "🥉";
+    else rank.textContent = String(index + 1);
+    const avatar = document.createElement("span");
+    avatar.className = "points-leader-avatar";
+    const nameStr = data.name || "?";
+    avatar.textContent = nameStr.trim().charAt(0).toUpperCase() || "?";
+    const info = document.createElement("div");
+    info.className = "points-leader-info";
+    const nameEl = document.createElement("span");
+    nameEl.className = "points-leader-name";
+    nameEl.textContent = nameStr;
+    const meta = document.createElement("span");
+    meta.className = "points-leader-meta";
+    meta.textContent = getGroupLabel(data.group) || "";
+    info.append(nameEl, meta);
+    const score = document.createElement("span");
+    score.className = "points-leader-score";
+    const unit = document.createElement("span");
+    unit.className = "points-leader-unit";
+    unit.textContent = t("pointsLeaderboardPoints") || t("pointsLabel");
+    const strong = document.createElement("strong");
+    strong.textContent = String(pts);
+    score.append(strong, document.createTextNode(" "), unit);
+    row.append(rank, avatar, info, score);
+    pointsLeaderboardEl.appendChild(row);
+  });
+}
+
 function renderStudentsTable() {
   studentsTbody.innerHTML = "";
   let filtered = studentsSearchQuery
@@ -1733,6 +1825,7 @@ function renderStudentsTable() {
   if (noStudentsSearchMsg) {
     noStudentsSearchMsg.classList.toggle("hidden", !(lastStudents.length > 0 && filtered.length === 0));
   }
+  renderPointsLeaderboard();
   updateDashboardStats();
   if (gradesPanelEl && !gradesPanelEl.classList.contains("hidden")) {
     renderTeacherGradesStudentSelect();

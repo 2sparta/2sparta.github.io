@@ -2596,32 +2596,346 @@ select {
 
 /* ---------- Онбординг профілю вчителя ---------- */
 .setup-card {
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto;
+  padding: 28px 28px 24px;
+}
+.setup-card h1 {
+  margin-bottom: 8px;
+}
+.setup-card > .hint {
+  margin-top: 0;
+  margin-bottom: 18px;
 }
 .setup-role-block {
-  margin: 12px 0 16px;
+  margin: 16px 0 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+.setup-role-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .setup-role-option {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 12px;
   font-size: 14px;
   color: var(--color-primary);
   cursor: pointer;
-  padding: 8px 10px;
+  padding: 14px 16px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-border);
   background: var(--color-bg);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+.setup-role-option:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
 }
 .setup-role-option:has(input:checked) {
   border-color: var(--color-accent);
   background: var(--color-surface-tint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 .setup-role-option input {
-  width: auto;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
   margin: 0;
+}
+.setup-role-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+}
+.setup-role-option:has(input:checked) .setup-role-icon {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+.setup-role-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.setup-role-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 2px;
+}
+.setup-role-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--color-primary);
+}
+.setup-role-desc {
+  font-size: 12px;
+  color: var(--color-secondary);
+  line-height: 1.35;
+}
+
+.setup-subjects-block {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.setup-subjects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.setup-subjects-header .class-assign-label {
+  margin-bottom: 0;
+}
+.setup-subjects-count {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  color: var(--color-secondary);
+  white-space: nowrap;
+}
+.setup-subjects-count.is-filled {
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+}
+.setup-subjects-block .class-assign-hint {
+  margin: 0 0 12px;
+}
+.setup-subjects-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.setup-subject-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 10px 12px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.setup-subject-chip:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  transform: translateY(-1px);
+}
+.setup-subject-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+.setup-subject-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg);
+  color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.setup-subject-check svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.setup-subject-chip.is-selected {
+  border-color: var(--color-accent);
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+}
+.setup-subject-chip.is-selected .setup-subject-check {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+.setup-subject-chip.is-selected .setup-subject-check svg {
+  opacity: 1;
+}
+.setup-subject-name {
+  line-height: 1.2;
+}
+
+#setup-save-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 12px 16px;
+  font-size: 15px;
+}
+#setup-logout-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* ---------- Топ за балами (вкладка Учні) ---------- */
+.points-leaderboard-card {
+  margin-bottom: 16px;
+}
+.points-leaderboard-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+.points-leaderboard-header h2 {
+  margin: 0;
+}
+.points-leaderboard-sub {
+  font-size: 12px;
+  color: var(--color-secondary);
+  font-weight: 500;
+}
+.points-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.points-leader-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease;
+}
+.points-leader-row:hover {
+  border-color: var(--color-accent);
+}
+.points-leader-row.rank-1 {
+  background: color-mix(in srgb, #fbbf24 12%, var(--color-surface));
+  border-color: color-mix(in srgb, #fbbf24 45%, var(--color-border));
+}
+.points-leader-row.rank-2 {
+  background: color-mix(in srgb, #94a3b8 12%, var(--color-surface));
+  border-color: color-mix(in srgb, #94a3b8 40%, var(--color-border));
+}
+.points-leader-row.rank-3 {
+  background: color-mix(in srgb, #d97706 10%, var(--color-surface));
+  border-color: color-mix(in srgb, #d97706 35%, var(--color-border));
+}
+.points-leader-rank {
+  width: 28px;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 16px;
+  color: var(--color-secondary);
+  flex-shrink: 0;
+}
+.points-leader-row.rank-1 .points-leader-rank,
+.points-leader-row.rank-2 .points-leader-rank,
+.points-leader-row.rank-3 .points-leader-rank {
+  font-size: 20px;
+}
+.points-leader-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-avatar-bg);
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.points-leader-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.points-leader-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.points-leader-meta {
+  font-size: 11px;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.points-leader-score {
+  flex-shrink: 0;
+  text-align: right;
+  font-family: var(--font-heading);
+}
+.points-leader-score strong {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--color-accent);
+}
+.points-leader-unit {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+:root[data-theme="dark"] .points-leader-row.rank-1,
+:root[data-theme="ocean-dark"] .points-leader-row.rank-1,
+:root[data-theme="warm-dark"] .points-leader-row.rank-1 {
+  background: #3a3218;
+  border-color: #6b5a1e;
+}
+:root[data-theme="dark"] .points-leader-row.rank-2,
+:root[data-theme="ocean-dark"] .points-leader-row.rank-2,
+:root[data-theme="warm-dark"] .points-leader-row.rank-2 {
+  background: #2a3038;
+  border-color: #4a5568;
+}
+:root[data-theme="dark"] .points-leader-row.rank-3,
+:root[data-theme="ocean-dark"] .points-leader-row.rank-3,
+:root[data-theme="warm-dark"] .points-leader-row.rank-3 {
+  background: #3a2814;
+  border-color: #6b4a1e;
 }

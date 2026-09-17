@@ -62,19 +62,36 @@
       </label>
       <div class="setup-role-block">
         <span class="class-assign-label" data-i18n="setupRoleLabel">Роль</span>
-        <label class="setup-role-option">
-          <input type="radio" name="setup-role" value="teacher" checked />
-          <span data-i18n="setupRoleTeacher">Вчитель (лише свої предмети)</span>
-        </label>
-        <label class="setup-role-option">
-          <input type="radio" name="setup-role" value="admin" />
-          <span data-i18n="setupRoleAdmin">Адміністратор (повний доступ)</span>
-        </label>
+        <div class="setup-role-cards">
+          <label class="setup-role-option setup-role-teacher">
+            <input type="radio" name="setup-role" value="teacher" checked />
+            <span class="setup-role-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3l9 4.5v2.25c0 4.14-3.36 8.5-9 10.5C6.36 18.25 3 13.89 3 9.75V7.5L12 3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="setup-role-text">
+              <span class="setup-role-title" data-i18n="setupRoleTeacher">Вчитель (лише свої предмети)</span>
+              <span class="setup-role-desc" data-i18n="setupRoleTeacherDesc">Керуєте уроками й оцінками зі своїх предметів</span>
+            </span>
+          </label>
+          <label class="setup-role-option setup-role-admin">
+            <input type="radio" name="setup-role" value="admin" />
+            <span class="setup-role-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3 6 6.5.9-4.7 4.6 1.1 6.5L12 17.3 6.1 20l1.1-6.5L2.5 8.9 9 8l3-6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="setup-role-text">
+              <span class="setup-role-title" data-i18n="setupRoleAdmin">Адміністратор (повний доступ)</span>
+              <span class="setup-role-desc" data-i18n="setupRoleAdminDesc">Повний доступ до всіх класів, предметів і налаштувань</span>
+            </span>
+          </label>
+        </div>
       </div>
-      <div id="setup-subjects-block" class="class-assign-block">
-        <label class="class-assign-label" data-i18n="setupSubjectsLabel">Мої предмети</label>
+      <div id="setup-subjects-block" class="setup-subjects-block">
+        <div class="setup-subjects-header">
+          <label class="class-assign-label" data-i18n="setupSubjectsLabel">Мої предмети</label>
+          <span id="setup-subjects-count" class="setup-subjects-count"></span>
+        </div>
         <p class="hint class-assign-hint" data-i18n="setupSubjectsHint">Оберіть один або кілька предметів. Уроки інших предметів вам будуть недоступні.</p>
-        <div id="setup-subjects-list" class="class-options-list"></div>
+        <div id="setup-subjects-list" class="setup-subjects-grid" role="group" aria-label="Предмети"></div>
         <p id="setup-no-subjects" class="hint hidden" data-i18n="setupNoSubjects">Предметів у системі ще немає. Зверніться до адміністратора або створіть предмети після входу як адмін.</p>
       </div>
       <button id="setup-save-btn" data-i18n="setupSaveBtn">Зберегти і продовжити</button>
@@ -149,6 +166,14 @@
         </section>
 
         <div id="points-panel" class="tab-panel">
+          <section class="card points-leaderboard-card">
+            <div class="points-leaderboard-header">
+              <h2 data-i18n="pointsLeaderboardHeading">Топ за балами</h2>
+              <span class="points-leaderboard-sub" data-i18n="pointsLeaderboardHint">Рейтинг учнів за балами з меню «Учні»</span>
+            </div>
+            <div id="points-leaderboard" class="points-leaderboard"></div>
+            <p id="points-leaderboard-empty" class="hint hidden" data-i18n="pointsLeaderboardEmpty">Ще немає учнів з балами.</p>
+          </section>
           <section class="card">
             <h2 data-i18n="addStudentHeading">Додати учня</h2>
             <div class="row student-add-row">
