@@ -304,11 +304,13 @@ export function initBackgroundParticles(count = 28) {
   }
 }
 
-/** Панель налаштувань (FAB поруч із повідомленнями). */
+/** Повноекранні налаштування (FAB + екран з вкладками зліва, як у кабінеті). */
 export function initSettingsPanel(tFn) {
   if (typeof document === "undefined") return;
 
   const t = typeof tFn === "function" ? tFn : (k) => k;
+  const GEAR_SPIN_MS = 420;
+  const TRANSITION_MS = 320;
 
   let fab = document.getElementById("settings-fab");
   if (!fab) {
@@ -318,76 +320,188 @@ export function initSettingsPanel(tFn) {
     fab.type = "button";
     fab.setAttribute("aria-label", t("settingsTitle") || "Налаштування");
     fab.title = t("settingsTitle") || "Налаштування";
-    fab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.9 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+    fab.innerHTML = `<svg class="settings-fab-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.9 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
     document.body.appendChild(fab);
   }
 
-  let panel = document.getElementById("settings-panel");
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "settings-panel";
-    panel.className = "settings-panel hidden";
-    panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-labelledby", "settings-panel-title");
-    panel.innerHTML = `
-      <div class="settings-panel-header">
-        <h2 id="settings-panel-title">${t("settingsTitle") || "Налаштування"}</h2>
-        <button id="settings-panel-close" class="messages-panel-close" type="button" aria-label="✕">✕</button>
-      </div>
-      <div class="settings-panel-body">
-        <label class="settings-toggle-row">
-          <span class="settings-toggle-text">
-            <span class="settings-toggle-label">${t("settingsGlassLabel") || "Матове скло на фоні"}</span>
-            <span class="settings-toggle-hint">${t("settingsGlassHint") || "Частинки та ефект розмиття карток. Вимкніть для звичайного фону."}</span>
-          </span>
-          <input type="checkbox" id="settings-glass-toggle" class="settings-toggle-input" />
-        </label>
+  let screen = document.getElementById("settings-screen");
+  if (!screen) {
+    screen = document.createElement("div");
+    screen.id = "settings-screen";
+    screen.className = "settings-screen";
+    screen.setAttribute("role", "dialog");
+    screen.setAttribute("aria-modal", "true");
+    screen.setAttribute("aria-labelledby", "settings-screen-title");
+    screen.setAttribute("aria-hidden", "true");
+    screen.innerHTML = `
+      <div class="settings-screen-inner">
+        <header class="settings-screen-header">
+          <div class="settings-screen-header-left">
+            <button id="settings-back-btn" class="settings-back-btn" type="button" aria-label="Back">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span id="settings-back-label">${t("settingsBack") || "Назад"}</span>
+            </button>
+            <h1 id="settings-screen-title" class="settings-screen-title">${t("settingsTitle") || "Налаштування"}</h1>
+          </div>
+        </header>
+        <div class="settings-screen-body">
+          <nav class="settings-tabs" id="settings-tabs" aria-label="Settings sections">
+            <button type="button" class="settings-tab-btn active" data-settings-section="appearance">
+              ${t("settingsTabAppearance") || "Оформлення"}
+            </button>
+          </nav>
+          <div class="settings-main" id="settings-main">
+            <section id="settings-section-appearance" class="settings-section card" data-settings-section="appearance">
+              <h2 class="settings-section-title">${t("settingsTabAppearance") || "Оформлення"}</h2>
+              <label class="settings-toggle-row">
+                <span class="settings-toggle-text">
+                  <span class="settings-toggle-label">${t("settingsGlassLabel") || "Матове скло на фоні"}</span>
+                  <span class="settings-toggle-hint">${t("settingsGlassHint") || "Частинки та ефект розмиття карток. Вимкніть для звичайного фону."}</span>
+                </span>
+                <input type="checkbox" id="settings-glass-toggle" class="settings-toggle-input" />
+              </label>
+            </section>
+          </div>
+        </div>
       </div>
     `;
-    document.body.appendChild(panel);
+    document.body.appendChild(screen);
   }
 
-  const closeBtn = document.getElementById("settings-panel-close");
+  // Прибрати стару плаваючу панель, якщо лишилась після попередньої версії
+  const legacyPanel = document.getElementById("settings-panel");
+  if (legacyPanel) legacyPanel.remove();
+
+  const backBtn = document.getElementById("settings-back-btn");
   const glassToggle = document.getElementById("settings-glass-toggle");
-  const titleEl = document.getElementById("settings-panel-title");
-  const labelEl = panel.querySelector(".settings-toggle-label");
-  const hintEl = panel.querySelector(".settings-toggle-hint");
+  const titleEl = document.getElementById("settings-screen-title");
+  const backLabelEl = document.getElementById("settings-back-label");
+  const tabsNav = document.getElementById("settings-tabs");
+  const settingsMain = document.getElementById("settings-main");
+  const labelEl = screen.querySelector(".settings-toggle-label");
+  const hintEl = screen.querySelector(".settings-toggle-hint");
+  const appearanceTabBtn = screen.querySelector('.settings-tab-btn[data-settings-section="appearance"]');
+  const appearanceSectionTitle = screen.querySelector("#settings-section-appearance .settings-section-title");
+
+  let isOpen = false;
+  let isAnimating = false;
 
   function syncToggle() {
     if (glassToggle) glassToggle.checked = isGlassBackgroundEnabled();
   }
 
-  function openPanel() {
-    panel.classList.remove("hidden");
-    fab.classList.add("is-open");
-    syncToggle();
+  function setActiveTab(sectionId) {
+    if (!tabsNav) return;
+    tabsNav.querySelectorAll(".settings-tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-settings-section") === sectionId);
+    });
   }
+
+  function scrollToSection(sectionId) {
+    const el = document.getElementById(`settings-section-${sectionId}`);
+    if (!el || !settingsMain) return;
+    setActiveTab(sectionId);
+    const top = el.offsetTop - 12;
+    settingsMain.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }
+
+  function spinGear(direction) {
+    fab.classList.remove("is-spinning");
+    void fab.offsetWidth;
+    if (direction === "open") {
+      fab.classList.add("is-spinning");
+      fab.classList.add("is-open");
+      window.setTimeout(() => fab.classList.remove("is-spinning"), GEAR_SPIN_MS + 40);
+    } else {
+      fab.classList.remove("is-open");
+    }
+  }
+
+  function openPanel() {
+    if (isOpen || isAnimating) return;
+    isAnimating = true;
+    spinGear("open");
+    syncToggle();
+
+    window.setTimeout(() => {
+      screen.setAttribute("aria-hidden", "false");
+      screen.classList.add("is-visible");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          screen.classList.add("is-open");
+          document.body.classList.add("settings-open");
+        });
+      });
+      isOpen = true;
+      window.setTimeout(() => {
+        isAnimating = false;
+      }, TRANSITION_MS + 40);
+    }, Math.min(GEAR_SPIN_MS * 0.55, 280));
+  }
+
   function closePanel() {
-    panel.classList.add("hidden");
-    fab.classList.remove("is-open");
+    if (!isOpen || isAnimating) return;
+    isAnimating = true;
+    spinGear("close");
+    screen.classList.remove("is-open");
+    document.body.classList.remove("settings-open");
+    window.setTimeout(() => {
+      screen.classList.remove("is-visible");
+      screen.setAttribute("aria-hidden", "true");
+      isOpen = false;
+      isAnimating = false;
+    }, TRANSITION_MS + 40);
   }
 
   fab.onclick = () => {
-    if (panel.classList.contains("hidden")) openPanel();
-    else closePanel();
+    if (isOpen) closePanel();
+    else openPanel();
   };
-  if (closeBtn) closeBtn.onclick = () => closePanel();
+  if (backBtn) backBtn.onclick = () => closePanel();
+
+  if (tabsNav) {
+    tabsNav.addEventListener("click", (e) => {
+      const btn = e.target.closest(".settings-tab-btn");
+      if (!btn) return;
+      const sectionId = btn.getAttribute("data-settings-section");
+      if (sectionId) scrollToSection(sectionId);
+    });
+  }
+
   if (glassToggle) {
     glassToggle.onchange = () => {
       setGlassBackgroundEnabled(!!glassToggle.checked);
     };
   }
 
-  // Оновлення підписів при зміні мови
-  panel._refreshI18n = (tr) => {
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen) {
+      e.preventDefault();
+      closePanel();
+    }
+  });
+
+  function refreshI18n(tr) {
     const tt = typeof tr === "function" ? tr : t;
     fab.setAttribute("aria-label", tt("settingsTitle") || "Settings");
     fab.title = tt("settingsTitle") || "Settings";
     if (titleEl) titleEl.textContent = tt("settingsTitle") || "Settings";
+    if (backLabelEl) backLabelEl.textContent = tt("settingsBack") || "Back";
     if (labelEl) labelEl.textContent = tt("settingsGlassLabel") || "Frosted glass background";
-    if (hintEl) hintEl.textContent = tt("settingsGlassHint") || "Particles and card blur. Turn off for a plain background.";
-  };
+    if (hintEl) {
+      hintEl.textContent =
+        tt("settingsGlassHint") || "Particles and card blur. Turn off for a plain background.";
+    }
+    if (appearanceTabBtn) {
+      appearanceTabBtn.textContent = tt("settingsTabAppearance") || "Appearance";
+    }
+    if (appearanceSectionTitle) {
+      appearanceSectionTitle.textContent = tt("settingsTabAppearance") || "Appearance";
+    }
+  }
 
   syncToggle();
-  return { openPanel, closePanel, refreshI18n: panel._refreshI18n };
+  return { openPanel, closePanel, refreshI18n };
+}
+;
 }

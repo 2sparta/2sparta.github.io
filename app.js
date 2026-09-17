@@ -370,6 +370,8 @@ const translations = {
     lbModeSchool: "Вся школа",
     lbModeClass: "Клас",
     settingsTitle: "Налаштування",
+    settingsBack: "Назад",
+    settingsTabAppearance: "Оформлення",
     settingsGlassLabel: "Матове скло на фоні",
     settingsGlassHint: "Частинки та ефект розмиття карток. Вимкніть для звичайного фону.",
     errors: {
@@ -642,6 +644,8 @@ const translations = {
     lbModeSchool: "Whole school",
     lbModeClass: "Class",
     settingsTitle: "Settings",
+    settingsBack: "Back",
+    settingsTabAppearance: "Appearance",
     settingsGlassLabel: "Frosted glass background",
     settingsGlassHint: "Particles and card blur. Turn off for a plain background.",
     errors: {
