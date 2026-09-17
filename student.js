@@ -52,12 +52,21 @@ import {
   escapeHtml,
   initThemeToggle,
   initBackgroundParticles,
+  initSettingsPanel,
 } from "./common.js";
 
 // Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
 // щоб уникнути "блимання" світлою темою при завантаженні.
 initThemeToggle();
 initBackgroundParticles();
+let settingsPanelApi = null;
+function ensureSettingsPanel() {
+  if (!settingsPanelApi) {
+    settingsPanelApi = initSettingsPanel((k) => (typeof t === "function" ? t(k) : k));
+  } else if (settingsPanelApi.refreshI18n) {
+    settingsPanelApi.refreshI18n((k) => (typeof t === "function" ? t(k) : k));
+  }
+}
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -274,6 +283,9 @@ const translations = {
     lbModeSchool: "Вся школа",
     lbModeClass: "Клас",
     groupSwitchLabel: "Клас:",
+    settingsTitle: "Налаштування",
+    settingsGlassLabel: "Матове скло на фоні",
+    settingsGlassHint: "Частинки та ефект розмиття карток. Вимкніть для звичайного фону.",
     scheduleHeading: "Розклад",
     viewToday: "Сьогодні",
     viewTomorrow: "Завтра",
@@ -415,6 +427,9 @@ const translations = {
     lbModeSchool: "Whole school",
     lbModeClass: "Class",
     groupSwitchLabel: "Class:",
+    settingsTitle: "Settings",
+    settingsGlassLabel: "Frosted glass background",
+    settingsGlassHint: "Particles and card blur. Turn off for a plain background.",
     scheduleHeading: "Schedule",
     viewToday: "Today",
     viewTomorrow: "Tomorrow",
@@ -588,12 +603,14 @@ function setLanguage(lang) {
   currentLang = lang;
   localStorage.setItem(LANG_STORAGE_KEY, currentLang);
   applyStaticTranslations();
+  ensureSettingsPanel();
 }
 
 document.querySelectorAll(".lang-btn").forEach((btn) => {
   btn.addEventListener("click", () => setLanguage(btn.dataset.lang));
 });
 applyStaticTranslations();
+ensureSettingsPanel();
 
 // ---------- Tabs ----------
 function showTab(tab) {

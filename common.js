@@ -232,8 +232,29 @@ export function escapeHtml(str) {
 
 
 // ---------- Фон: матове скло + рухомі частинки ----------
-export function initBackgroundParticles(count = 28) {
-  if (typeof document === "undefined") return;
+export const GLASS_BG_STORAGE_KEY = "schooleballs-glass-bg";
+
+/** Чи увімкнене матове скло (за замовчуванням — так). */
+export function isGlassBackgroundEnabled() {
+  try {
+    const v = localStorage.getItem(GLASS_BG_STORAGE_KEY);
+    if (v === null || v === undefined) return true;
+    return v !== "0" && v !== "false";
+  } catch (e) {
+    return true;
+  }
+}
+
+export function setGlassBackgroundEnabled(enabled) {
+  try {
+    localStorage.setItem(GLASS_BG_STORAGE_KEY, enabled ? "1" : "0");
+  } catch (e) {
+    /* ignore */
+  }
+  applyGlassBackground(enabled);
+}
+
+function ensureParticlesLayer(count) {
   let layer = document.getElementById("bg-particles");
   if (!layer) {
     layer = document.createElement("div");
@@ -241,18 +262,132 @@ export function initBackgroundParticles(count = 28) {
     layer.setAttribute("aria-hidden", "true");
     document.body.prepend(layer);
   }
-  layer.innerHTML = "";
-  for (let i = 0; i < count; i++) {
-    const el = document.createElement("span");
-    el.className = "bg-particle";
-    const size = 4 + Math.random() * 14;
-    el.style.width = `${size}px`;
-    el.style.height = `${size}px`;
-    el.style.left = `${Math.random() * 100}%`;
-    el.style.top = `${Math.random() * 100}%`;
-    el.style.animationDuration = `${12 + Math.random() * 22}s`;
-    el.style.animationDelay = `${-Math.random() * 20}s`;
-    el.style.opacity = String(0.15 + Math.random() * 0.35);
-    layer.appendChild(el);
+  if (layer.childElementCount === 0) {
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement("span");
+      el.className = "bg-particle";
+      const size = 4 + Math.random() * 14;
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.left = `${Math.random() * 100}%`;
+      el.style.top = `${Math.random() * 100}%`;
+      el.style.animationDuration = `${12 + Math.random() * 22}s`;
+      el.style.animationDelay = `${-Math.random() * 20}s`;
+      el.style.opacity = String(0.15 + Math.random() * 0.35);
+      layer.appendChild(el);
+    }
   }
+  return layer;
+}
+
+export function applyGlassBackground(enabled) {
+  if (typeof document === "undefined") return;
+  const on = !!enabled;
+  document.documentElement.classList.toggle("no-glass-bg", !on);
+  const layer = document.getElementById("bg-particles");
+  if (on) {
+    ensureParticlesLayer(28);
+    if (layer) layer.classList.remove("hidden");
+  } else if (layer) {
+    layer.classList.add("hidden");
+  }
+}
+
+/** Ініціалізація частинок і застосування збереженого стану. */
+export function initBackgroundParticles(count = 28) {
+  if (typeof document === "undefined") return;
+  if (isGlassBackgroundEnabled()) {
+    ensureParticlesLayer(count);
+    applyGlassBackground(true);
+  } else {
+    applyGlassBackground(false);
+  }
+}
+
+/** Панель налаштувань (FAB поруч із повідомленнями). */
+export function initSettingsPanel(tFn) {
+  if (typeof document === "undefined") return;
+
+  const t = typeof tFn === "function" ? tFn : (k) => k;
+
+  let fab = document.getElementById("settings-fab");
+  if (!fab) {
+    fab = document.createElement("button");
+    fab.id = "settings-fab";
+    fab.className = "settings-fab";
+    fab.type = "button";
+    fab.setAttribute("aria-label", t("settingsTitle") || "Налаштування");
+    fab.title = t("settingsTitle") || "Налаштування";
+    fab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.9 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+    document.body.appendChild(fab);
+  }
+
+  let panel = document.getElementById("settings-panel");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "settings-panel";
+    panel.className = "settings-panel hidden";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-labelledby", "settings-panel-title");
+    panel.innerHTML = `
+      <div class="settings-panel-header">
+        <h2 id="settings-panel-title">${t("settingsTitle") || "Налаштування"}</h2>
+        <button id="settings-panel-close" class="messages-panel-close" type="button" aria-label="✕">✕</button>
+      </div>
+      <div class="settings-panel-body">
+        <label class="settings-toggle-row">
+          <span class="settings-toggle-text">
+            <span class="settings-toggle-label">${t("settingsGlassLabel") || "Матове скло на фоні"}</span>
+            <span class="settings-toggle-hint">${t("settingsGlassHint") || "Частинки та ефект розмиття карток. Вимкніть для звичайного фону."}</span>
+          </span>
+          <input type="checkbox" id="settings-glass-toggle" class="settings-toggle-input" />
+        </label>
+      </div>
+    `;
+    document.body.appendChild(panel);
+  }
+
+  const closeBtn = document.getElementById("settings-panel-close");
+  const glassToggle = document.getElementById("settings-glass-toggle");
+  const titleEl = document.getElementById("settings-panel-title");
+  const labelEl = panel.querySelector(".settings-toggle-label");
+  const hintEl = panel.querySelector(".settings-toggle-hint");
+
+  function syncToggle() {
+    if (glassToggle) glassToggle.checked = isGlassBackgroundEnabled();
+  }
+
+  function openPanel() {
+    panel.classList.remove("hidden");
+    fab.classList.add("is-open");
+    syncToggle();
+  }
+  function closePanel() {
+    panel.classList.add("hidden");
+    fab.classList.remove("is-open");
+  }
+
+  fab.onclick = () => {
+    if (panel.classList.contains("hidden")) openPanel();
+    else closePanel();
+  };
+  if (closeBtn) closeBtn.onclick = () => closePanel();
+  if (glassToggle) {
+    glassToggle.onchange = () => {
+      setGlassBackgroundEnabled(!!glassToggle.checked);
+    };
+  }
+
+  // Оновлення підписів при зміні мови
+  panel._refreshI18n = (tr) => {
+    const tt = typeof tr === "function" ? tr : t;
+    fab.setAttribute("aria-label", tt("settingsTitle") || "Settings");
+    fab.title = tt("settingsTitle") || "Settings";
+    if (titleEl) titleEl.textContent = tt("settingsTitle") || "Settings";
+    if (labelEl) labelEl.textContent = tt("settingsGlassLabel") || "Frosted glass background";
+    if (hintEl) hintEl.textContent = tt("settingsGlassHint") || "Particles and card blur. Turn off for a plain background.";
+  };
+
+  syncToggle();
+  return { openPanel, closePanel, refreshI18n: panel._refreshI18n };
 }

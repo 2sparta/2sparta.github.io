@@ -3033,3 +3033,145 @@ body::before {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+
+
+/* ---------- Налаштування (FAB + панель) ---------- */
+.settings-fab {
+  position: fixed;
+  left: 20px;
+  bottom: 88px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 14px rgba(23, 53, 44, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.settings-fab:hover,
+.settings-fab.is-open {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+.settings-fab svg {
+  width: 22px;
+  height: 22px;
+}
+.settings-panel {
+  position: fixed;
+  left: 20px;
+  bottom: 144px;
+  z-index: 101;
+  width: min(340px, calc(100vw - 32px));
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 28px rgba(23, 53, 44, 0.16);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.settings-panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.settings-panel-body {
+  padding: 14px 16px 18px;
+}
+.settings-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.settings-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.settings-toggle-label {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--color-primary);
+}
+.settings-toggle-hint {
+  font-size: 12px;
+  color: var(--color-secondary);
+  line-height: 1.4;
+}
+.settings-toggle-input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .settings-fab {
+    left: 12px;
+    bottom: 76px;
+    width: 42px;
+    height: 42px;
+  }
+  .settings-panel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: 128px;
+  }
+}
+
+:root[data-theme="dark"] .settings-fab,
+:root[data-theme="ocean-dark"] .settings-fab,
+:root[data-theme="warm-dark"] .settings-fab {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme="dark"] .settings-panel,
+:root[data-theme="ocean-dark"] .settings-panel,
+:root[data-theme="warm-dark"] .settings-panel {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* Коли матове скло вимкнено — звичайний фон і суцільні картки */
+html.no-glass-bg body::before {
+  display: none;
+}
+html.no-glass-bg #bg-particles {
+  display: none !important;
+}
+html.no-glass-bg .card,
+html.no-glass-bg .greeting-card,
+html.no-glass-bg .auth-card,
+html.no-glass-bg .messages-panel,
+html.no-glass-bg .settings-panel,
+html.no-glass-bg .stat-card {
+  background: var(--color-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.no-glass-bg .messages-fab,
+html.no-glass-bg .settings-fab {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

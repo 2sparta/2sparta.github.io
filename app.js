@@ -48,12 +48,21 @@ import {
   escapeHtml,
   initThemeToggle,
   initBackgroundParticles,
+  initSettingsPanel,
 } from "./common.js";
 
 // Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
 // щоб уникнути "блимання" світлою темою при завантаженні.
 initThemeToggle();
 initBackgroundParticles();
+let settingsPanelApi = null;
+function ensureSettingsPanel() {
+  if (!settingsPanelApi) {
+    settingsPanelApi = initSettingsPanel((k) => (typeof t === "function" ? t(k) : k));
+  } else if (settingsPanelApi.refreshI18n) {
+    settingsPanelApi.refreshI18n((k) => (typeof t === "function" ? t(k) : k));
+  }
+}
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -360,6 +369,9 @@ const translations = {
     pointsLeaderboardRank: "Місце",
     lbModeSchool: "Вся школа",
     lbModeClass: "Клас",
+    settingsTitle: "Налаштування",
+    settingsGlassLabel: "Матове скло на фоні",
+    settingsGlassHint: "Частинки та ефект розмиття карток. Вимкніть для звичайного фону.",
     errors: {
       "auth/invalid-email": "Некоректний email.",
       "auth/user-not-found": "Користувача не знайдено.",
@@ -629,6 +641,9 @@ const translations = {
     pointsLeaderboardRank: "Rank",
     lbModeSchool: "Whole school",
     lbModeClass: "Class",
+    settingsTitle: "Settings",
+    settingsGlassLabel: "Frosted glass background",
+    settingsGlassHint: "Particles and card blur. Turn off for a plain background.",
     errors: {
       "auth/invalid-email": "Invalid email.",
       "auth/user-not-found": "User not found.",
@@ -682,6 +697,7 @@ function setLanguage(lang) {
   currentLang = lang;
   localStorage.setItem(LANG_STORAGE_KEY, currentLang);
   applyStaticTranslations();
+  ensureSettingsPanel();
   updateSubjectsToggleBtn();
   renderClassSwitch();
   renderNewStudentClassOptions();
@@ -708,6 +724,7 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
 });
 
 applyStaticTranslations();
+ensureSettingsPanel();
 
 // ==========================================================
 // Класи та групи.
