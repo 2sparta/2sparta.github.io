@@ -2387,7 +2387,7 @@ select {
 .messages-fab {
   position: fixed;
   left: 20px;
-  bottom: 24px;
+  bottom: 88px;
   z-index: 100;
   width: 52px;
   height: 52px;
@@ -2431,7 +2431,7 @@ select {
 .messages-panel {
   position: fixed;
   left: 20px;
-  bottom: 88px;
+  bottom: 152px;
   z-index: 101;
   width: min(380px, calc(100vw - 32px));
   max-height: min(520px, calc(100vh - 120px));
@@ -2570,7 +2570,7 @@ select {
 @media (max-width: 480px) {
   .messages-fab {
     left: 12px;
-    bottom: 16px;
+    bottom: 76px;
     width: 48px;
     height: 48px;
   }
@@ -2578,7 +2578,7 @@ select {
     left: 12px;
     right: 12px;
     width: auto;
-    bottom: 76px;
+    bottom: 136px;
   }
 }
 
@@ -3039,7 +3039,7 @@ body::before {
 .settings-fab {
   position: fixed;
   left: 20px;
-  bottom: 88px;
+  bottom: 24px;
   z-index: 100;
   width: 52px;
   height: 52px;
@@ -3315,7 +3315,7 @@ body.settings-open .settings-fab {
 @media (max-width: 480px) {
   .settings-fab {
     left: 12px;
-    bottom: 76px;
+    bottom: 16px;
     width: 52px;
     height: 52px;
   }
