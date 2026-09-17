@@ -240,6 +240,13 @@ export function escapeHtml(str) {
   return div.innerHTML;
 }
 
+/** Чи є значення оцінки числовим балом (1–12), а не "Н" (відсутність) чи іншим нечисловим маркером. */
+export function isNumericGrade(value) {
+  if (value === "Н" || value === "н" || String(value).toUpperCase() === "Н") return false;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 1 && n <= 12;
+}
+
 
 // ---------- Фон: матове скло + рухомі частинки ----------
 export const GLASS_BG_STORAGE_KEY = "schooleballs-glass-bg";

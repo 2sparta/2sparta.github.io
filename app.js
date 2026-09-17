@@ -49,6 +49,7 @@ import {
   initThemeToggle,
   initBackgroundParticles,
   initSettingsPanel,
+  isNumericGrade,
 } from "./common.js";
 
 // Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
@@ -3011,11 +3012,6 @@ function parseGradeInput(rawValue) {
   return rounded;
 }
 
-function isNumericGrade(value) {
-  const n = Number(value);
-  return Number.isFinite(n) && n >= 1 && n <= 12;
-}
-
 async function saveGrade(lessonId, studentId, subjectId, date, rawValue, type, comment) {
   const gradeType = type === "homework" ? "homework" : "lesson";
   const id = gradeDocId(lessonId, studentId, gradeType);
@@ -4078,7 +4074,7 @@ function renderTeacherGradesTable() {
         const cellInner = document.createElement("div");
         cellInner.className = "grades-cell-stack";
         matches.forEach((g) => {
-          values.push(g.data.value);
+          if (isNumericGrade(g.data.value)) values.push(Number(g.data.value));
           const chip = document.createElement("span");
           chip.className = "chip grade-cell-chip " + gradeValueClass(g.data.value);
           if (g.data.type === "homework") chip.classList.add("grade-chip-hw");
@@ -4829,33 +4825,26 @@ async function applyBellDefaultsToAllGroups() {
     return;
   }
   try {
-    // Пишемо по групах: поле times/dayTimes замінюється цілком через updateDoc
-    // (або setDoc merge, якщо документа групи ще немає).
+    // Пишемо по групах: піддокумент кожної групи замінюється ЦІЛКОМ
+    // (times/dayTimes перезаписуються, а не глибоко зливаються), інакше
+    // старі періоди (наприклад times[5]..times[7]), яких немає в нових
+    // дефолтах, лишилися б висіти в Firestore.
     const weekRef = doc(db, "schedule", "week");
     const weekSnap = await getDoc(weekRef);
     const existing = weekSnap.exists() ? weekSnap.data() : {};
-    const batchPayload = {};
-    ids.forEach((gid) => {
+    for (const gid of ids) {
       const prev = existing[gid] && typeof existing[gid] === "object" ? existing[gid] : {};
-      batchPayload[gid] = {
-        ...prev,
-        times: { ...times },
-        dayTimes: JSON.parse(JSON.stringify(dayTimes)),
-      };
-    });
-    await setDoc(weekRef, batchPayload, { merge: true });
-    // Firestore deep-merge може лишити зайві ключі periods — додатково
-    // перезаписуємо times/dayTimes через update з dot-path для повної заміни.
-    const updates = {};
-    ids.forEach((gid) => {
-      updates[`${gid}.times`] = { ...times };
-      updates[`${gid}.dayTimes`] = JSON.parse(JSON.stringify(dayTimes));
-    });
-    try {
-      await updateDoc(weekRef, updates);
-    } catch (e) {
-      // якщо документа ще не було — setDoc вище вже записав
-      console.warn("applyBellDefaults updateDoc", e);
+      await setDoc(
+        weekRef,
+        {
+          [gid]: {
+            ...prev,
+            times: { ...times },
+            dayTimes: JSON.parse(JSON.stringify(dayTimes)),
+          },
+        },
+        { mergeFields: [gid] }
+      );
     }
     alert(t("settingsBellApplyAllDone"));
   } catch (e) {
@@ -4870,6 +4859,10 @@ function maxPeriodCountFromTimes(timesMap) {
 }
 
 function renderBellPeriodRows(container, timesMap, onChange) {
+  // Якщо користувач саме редагує час усередині цього контейнера (наприклад,
+  // клацнув у <input type="time">), не перемальовуємо рядки: onSnapshot із
+  // сервера інакше скидає innerHTML і "з'їдає" фокус/незбережене введення.
+  if (container.contains(document.activeElement)) return;
   container.innerHTML = "";
   const count = maxPeriodCountFromTimes(timesMap);
   for (let r = 0; r < count; r++) {
