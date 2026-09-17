@@ -44,6 +44,45 @@
     </div>
   </div>
 
+
+  <!-- ---------- Налаштування профілю вчителя (ПІБ + предмети / адмін) ---------- -->
+  <div id="setup-screen" class="screen hidden">
+    <div class="card auth-card setup-card">
+      <div class="auth-brand">
+        <span class="brand-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19V7a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 5v4a1 1 0 0 0 1 1h4" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-name">Класний простір</span>
+      </div>
+      <h1 data-i18n="setupHeading">Налаштування профілю</h1>
+      <p class="hint" data-i18n="setupHint">Вкажіть ПІБ (буде видно учням у повідомленнях) та оберіть предмети, які ви викладаєте. Або увійдіть як адміністратор з повним доступом.</p>
+      <label class="date-field">
+        <span data-i18n="setupNameLabel">ПІБ</span>
+        <input id="setup-display-name" type="text" data-i18n-placeholder="setupNamePlaceholder" placeholder="Прізвище Ім'я По батькові" autocomplete="name" />
+      </label>
+      <div class="setup-role-block">
+        <span class="class-assign-label" data-i18n="setupRoleLabel">Роль</span>
+        <label class="setup-role-option">
+          <input type="radio" name="setup-role" value="teacher" checked />
+          <span data-i18n="setupRoleTeacher">Вчитель (лише свої предмети)</span>
+        </label>
+        <label class="setup-role-option">
+          <input type="radio" name="setup-role" value="admin" />
+          <span data-i18n="setupRoleAdmin">Адміністратор (повний доступ)</span>
+        </label>
+      </div>
+      <div id="setup-subjects-block" class="class-assign-block">
+        <label class="class-assign-label" data-i18n="setupSubjectsLabel">Мої предмети</label>
+        <p class="hint class-assign-hint" data-i18n="setupSubjectsHint">Оберіть один або кілька предметів. Уроки інших предметів вам будуть недоступні.</p>
+        <div id="setup-subjects-list" class="class-options-list"></div>
+        <p id="setup-no-subjects" class="hint hidden" data-i18n="setupNoSubjects">Предметів у системі ще немає. Зверніться до адміністратора або створіть предмети після входу як адмін.</p>
+      </div>
+      <button id="setup-save-btn" data-i18n="setupSaveBtn">Зберегти і продовжити</button>
+      <button id="setup-logout-btn" class="secondary" data-i18n="logout">Вийти</button>
+      <p id="setup-error" class="error"></p>
+    </div>
+  </div>
+
   <div id="app-screen" class="screen hidden">
 
     <header class="app-header">

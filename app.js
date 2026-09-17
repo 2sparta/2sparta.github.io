@@ -57,6 +57,42 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Профіль поточного вчителя/адміна (users/{uid})
+let currentUserProfile = null;
+function isAdmin() {
+  return !!(currentUserProfile && currentUserProfile.role === "admin");
+}
+function teacherSubjectIds() {
+  const ids = currentUserProfile && currentUserProfile.subjectIds;
+  return Array.isArray(ids) ? ids : [];
+}
+function teacherOwnsSubject(subjectId) {
+  if (isAdmin()) return true;
+  if (!subjectId) return false;
+  return teacherSubjectIds().includes(subjectId);
+}
+function lessonOwnedByTeacher(lessonData) {
+  if (isAdmin()) return true;
+  return teacherOwnsSubject(lessonData && lessonData.subjectId);
+}
+function myDisplayName() {
+  if (currentUserProfile && currentUserProfile.displayName) return currentUserProfile.displayName;
+  const u = auth.currentUser;
+  return (u && u.email) || "Teacher";
+}
+function profileNeedsSetup(data) {
+  if (!data) return true;
+  if (data.role === "admin") {
+    return !data.displayName || !String(data.displayName).trim();
+  }
+  if (data.role === "teacher" || data.role === "pending-teacher") {
+    const nameOk = data.displayName && String(data.displayName).trim();
+    const subjectsOk = Array.isArray(data.subjectIds) && data.subjectIds.length > 0;
+    return !(nameOk && subjectsOk);
+  }
+  return true;
+}
+
 // ==========================================================
 // Локалізація (i18n)
 // ==========================================================
@@ -295,8 +331,23 @@ const translations = {
       "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
       uid + " встановіть role = teacher, після чого увійдіть знову.",
     noTeacherRole:
-      "У цього акаунта немає прав вчителя (role != teacher). " +
+      "У цього акаунта немає прав вчителя (role != teacher/admin). " +
       "Перевірте роль у Firestore або використайте інший акаунт.",
+    setupHeading: "Налаштування профілю",
+    setupHint: "Вкажіть ПІБ (буде видно учням у повідомленнях) та оберіть предмети, які ви викладаєте. Або увійдіть як адміністратор з повним доступом.",
+    setupNameLabel: "ПІБ",
+    setupNamePlaceholder: "Прізвище Ім'я По батькові",
+    setupRoleLabel: "Роль",
+    setupRoleTeacher: "Вчитель (лише свої предмети)",
+    setupRoleAdmin: "Адміністратор (повний доступ)",
+    setupSubjectsLabel: "Мої предмети",
+    setupSubjectsHint: "Оберіть один або кілька предметів. Уроки інших предметів вам будуть недоступні.",
+    setupNoSubjects: "Предметів у системі ще немає. Зверніться до адміністратора або створіть предмети після входу як адмін.",
+    setupSaveBtn: "Зберегти і продовжити",
+    setupNeedName: "Вкажіть ПІБ.",
+    setupNeedSubjects: "Оберіть хоча б один предмет (або роль адміністратора).",
+    setupSaved: "Профіль збережено.",
+    teacherOnlySubjectsHint: "Показано лише ваші предмети.",
     errors: {
       "auth/invalid-email": "Некоректний email.",
       "auth/user-not-found": "Користувача не знайдено.",
@@ -539,8 +590,23 @@ const translations = {
       "Account created. Now in Firebase Console → Firestore → users → " +
       uid + " set role = teacher, then sign in again.",
     noTeacherRole:
-      "This account doesn't have teacher rights (role != teacher). " +
+      "This account doesn't have teacher rights (role != teacher/admin). " +
       "Check the role in Firestore or use a different account.",
+    setupHeading: "Profile setup",
+    setupHint: "Enter your full name (shown to students in messages) and select the subjects you teach. Or sign in as an administrator with full access.",
+    setupNameLabel: "Full name",
+    setupNamePlaceholder: "Full name",
+    setupRoleLabel: "Role",
+    setupRoleTeacher: "Teacher (own subjects only)",
+    setupRoleAdmin: "Administrator (full access)",
+    setupSubjectsLabel: "My subjects",
+    setupSubjectsHint: "Select one or more subjects. Lessons for other subjects will be hidden.",
+    setupNoSubjects: "No subjects in the system yet. Ask an admin or create subjects after signing in as admin.",
+    setupSaveBtn: "Save and continue",
+    setupNeedName: "Please enter your full name.",
+    setupNeedSubjects: "Select at least one subject (or choose administrator).",
+    setupSaved: "Profile saved.",
+    teacherOnlySubjectsHint: "Only your subjects are shown.",
     errors: {
       "auth/invalid-email": "Invalid email.",
       "auth/user-not-found": "User not found.",
@@ -1071,6 +1137,15 @@ async function deleteClassFlow(classId) {
 
 // ---------- DOM refs ----------
 const authScreen = document.getElementById("auth-screen");
+
+const setupScreen = document.getElementById("setup-screen");
+const setupDisplayName = document.getElementById("setup-display-name");
+const setupSubjectsList = document.getElementById("setup-subjects-list");
+const setupNoSubjects = document.getElementById("setup-no-subjects");
+const setupSubjectsBlock = document.getElementById("setup-subjects-block");
+const setupSaveBtn = document.getElementById("setup-save-btn");
+const setupLogoutBtn = document.getElementById("setup-logout-btn");
+const setupError = document.getElementById("setup-error");
 const appScreen = document.getElementById("app-screen");
 const avatarEl = document.getElementById("avatar");
 const greetingDateEl = document.getElementById("greeting-date");
@@ -1316,9 +1391,9 @@ function updateGreetingDate() {
 
 function updateAvatar(user) {
   if (!avatarEl || !user) return;
-  const source = user.email || "?";
+  const source = myDisplayName() || user.email || "?";
   avatarEl.textContent = source.charAt(0).toUpperCase();
-  avatarEl.title = user.email || "";
+  avatarEl.title = myDisplayName() + (user.email ? ` (${user.email})` : "");
 }
 
 function countScheduleLessonsToday() {
@@ -1415,18 +1490,32 @@ onAuthStateChanged(auth, async (user) => {
   if (isRegistering) return;
 
   if (!user) {
+    currentUserProfile = null;
     showAuthScreen();
     return;
   }
   const userDoc = await getDoc(doc(db, "users", user.uid));
-  const role = userDoc.exists() ? userDoc.data().role : null;
+  const data = userDoc.exists() ? userDoc.data() : null;
+  const role = data ? data.role : null;
 
-  if (role !== "teacher") {
+  if (role !== "teacher" && role !== "admin" && role !== "pending-teacher") {
     authError.textContent = t("noTeacherRole");
     await signOut(auth);
     return;
   }
 
+  currentUserProfile = { ...(data || {}), uid: user.uid };
+
+  if (profileNeedsSetup(currentUserProfile)) {
+    showSetupScreen();
+    listenToSubjects();
+    return;
+  }
+
+  enterApp(user);
+});
+
+function enterApp(user) {
   showAppScreen();
   updateAvatar(user);
   updateGreetingDate();
@@ -1439,11 +1528,118 @@ onAuthStateChanged(auth, async (user) => {
   subscribeElectionsAndHistory();
   subscribeTeacherNotifications();
   showMessagesFab(true);
-});
+}
+
+function showSetupScreen() {
+  if (authScreen) authScreen.classList.add("hidden");
+  if (appScreen) appScreen.classList.add("hidden");
+  if (setupScreen) setupScreen.classList.remove("hidden");
+  if (setupError) setupError.textContent = "";
+  if (setupDisplayName) {
+    setupDisplayName.value = (currentUserProfile && currentUserProfile.displayName) || "";
+  }
+  const role = (currentUserProfile && currentUserProfile.role) || "teacher";
+  const roleVal = role === "admin" ? "admin" : "teacher";
+  document.querySelectorAll('input[name="setup-role"]').forEach((r) => {
+    r.checked = r.value === roleVal;
+  });
+  toggleSetupSubjectsVisibility();
+  renderSetupSubjectsList();
+  document.querySelectorAll('input[name="setup-role"]').forEach((r) => {
+    r.onchange = () => toggleSetupSubjectsVisibility();
+  });
+}
+
+function toggleSetupSubjectsVisibility() {
+  const roleInput = document.querySelector('input[name="setup-role"]:checked');
+  const isAdm = roleInput && roleInput.value === "admin";
+  if (setupSubjectsBlock) setupSubjectsBlock.classList.toggle("hidden", !!isAdm);
+}
+
+function renderSetupSubjectsList() {
+  if (!setupSubjectsList) return;
+  setupSubjectsList.innerHTML = "";
+  const selected = new Set(
+    currentUserProfile && Array.isArray(currentUserProfile.subjectIds)
+      ? currentUserProfile.subjectIds
+      : []
+  );
+  if (lastSubjects.length === 0) {
+    if (setupNoSubjects) setupNoSubjects.classList.remove("hidden");
+    return;
+  }
+  if (setupNoSubjects) setupNoSubjects.classList.add("hidden");
+  lastSubjects.forEach(({ id, data }) => {
+    const label = document.createElement("label");
+    label.className = "class-option-item";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = id;
+    cb.checked = selected.has(id);
+    const span = document.createElement("span");
+    span.textContent = data.name || id;
+    label.append(cb, span);
+    setupSubjectsList.appendChild(label);
+  });
+}
+
+if (setupSaveBtn) {
+  setupSaveBtn.onclick = async () => {
+    if (setupError) setupError.textContent = "";
+    const name = setupDisplayName ? setupDisplayName.value.trim() : "";
+    if (!name) {
+      if (setupError) setupError.textContent = t("setupNeedName");
+      return;
+    }
+    const roleInput = document.querySelector('input[name="setup-role"]:checked');
+    const role = roleInput ? roleInput.value : "teacher";
+    let subjectIds = [];
+    if (role === "teacher") {
+      subjectIds = setupSubjectsList
+        ? [...setupSubjectsList.querySelectorAll('input[type="checkbox"]:checked')].map((cb) => cb.value)
+        : [];
+      if (subjectIds.length === 0) {
+        if (setupError) setupError.textContent = t("setupNeedSubjects");
+        return;
+      }
+    }
+    const uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid) return;
+    try {
+      await setDoc(
+        doc(db, "users", uid),
+        {
+          role,
+          displayName: name,
+          subjectIds: role === "admin" ? [] : subjectIds,
+          email: auth.currentUser.email || null,
+          profileCompletedAt: Date.now(),
+        },
+        { merge: true }
+      );
+      currentUserProfile = {
+        ...(currentUserProfile || {}),
+        role,
+        displayName: name,
+        subjectIds: role === "admin" ? [] : subjectIds,
+        uid,
+      };
+      if (setupScreen) setupScreen.classList.add("hidden");
+      enterApp(auth.currentUser);
+    } catch (e) {
+      if (setupError) setupError.textContent = errorText(e);
+    }
+  };
+}
+if (setupLogoutBtn) {
+  setupLogoutBtn.onclick = () => signOut(auth);
+}
 
 function showAuthScreen() {
   authScreen.classList.remove("hidden");
   appScreen.classList.add("hidden");
+  if (setupScreen) setupScreen.classList.add("hidden");
+  currentUserProfile = null;
   if (unsubscribeClasses) unsubscribeClasses();
   if (unsubscribeStudents) unsubscribeStudents();
   if (unsubscribeLessons) unsubscribeLessons();
@@ -1463,6 +1659,7 @@ function showAuthScreen() {
 
 function showAppScreen() {
   authScreen.classList.add("hidden");
+  if (setupScreen) setupScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
   showTab("points");
   if (!liveStatusInterval) {
@@ -1806,6 +2003,9 @@ function listenToSubjects() {
   const q = query(collection(db, "subjects"), orderBy("name"));
   unsubscribeSubjects = onSnapshot(q, (snap) => {
     lastSubjects = snap.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+    if (setupScreen && !setupScreen.classList.contains("hidden")) {
+      renderSetupSubjectsList();
+    }
     renderSubjectsList();
     renderSubjectSelects();
     renderSchedule();
@@ -1822,7 +2022,10 @@ function getSubjectName(subjectId) {
 
 function renderSubjectsList() {
   subjectsList.innerHTML = "";
-  lastSubjects.forEach(({ id, data }) => {
+  const subjects = isAdmin()
+    ? lastSubjects
+    : lastSubjects.filter((s) => teacherOwnsSubject(s.id));
+  subjects.forEach(({ id, data }) => {
     const li = document.createElement("li");
     li.className = "subject-item";
 
@@ -1886,7 +2089,17 @@ addSubjectBtn.onclick = async () => {
   if (!name) return;
   const meetingLink = newSubjectLink.value.trim();
   try {
-    await addDoc(collection(db, "subjects"), { name, meetingLink, createdAt: Date.now() });
+    const ref = await addDoc(collection(db, "subjects"), { name, meetingLink, createdAt: Date.now() });
+    // Якщо вчитель (не адмін) — додаємо новий предмет до його subjectIds
+    if (!isAdmin() && auth.currentUser) {
+      const next = [...new Set([...teacherSubjectIds(), ref.id])];
+      await setDoc(
+        doc(db, "users", auth.currentUser.uid),
+        { subjectIds: next },
+        { merge: true }
+      );
+      if (currentUserProfile) currentUserProfile.subjectIds = next;
+    }
     newSubjectName.value = "";
     newSubjectLink.value = "";
   } catch (e) {
@@ -1895,13 +2108,16 @@ addSubjectBtn.onclick = async () => {
 };
 
 function renderSubjectSelects() {
-  const options = lastSubjects.map((s) => `<option value="${s.id}">${escapeHtml(s.data.name)}</option>`).join("");
-  const placeholder = `<option value="" disabled ${lastSubjects.length ? "" : "selected"}>${t("selectSubjectPlaceholder")}</option>`;
+  const forLesson = isAdmin()
+    ? lastSubjects
+    : lastSubjects.filter((s) => teacherOwnsSubject(s.id));
+  const options = forLesson.map((s) => `<option value="${s.id}">${escapeHtml(s.data.name)}</option>`).join("");
+  const placeholder = `<option value="" disabled ${forLesson.length ? "" : "selected"}>${t("selectSubjectPlaceholder")}</option>`;
 
-  // Форма додавання уроку
+  // Форма додавання уроку (лише предмети вчителя)
   const prevLessonSelectValue = newLessonSubject.value;
   newLessonSubject.innerHTML = placeholder + options;
-  if (lastSubjects.some((s) => s.id === prevLessonSelectValue)) {
+  if (forLesson.some((s) => s.id === prevLessonSelectValue)) {
     newLessonSubject.value = prevLessonSelectValue;
   }
 
@@ -2725,6 +2941,10 @@ addLessonBtn.onclick = async () => {
     alert(t("selectSubjectPlaceholder"));
     return;
   }
+  if (!teacherOwnsSubject(subjectId)) {
+    alert(t("selectSubjectPlaceholder"));
+    return;
+  }
   if (!title) return;
 
   try {
@@ -2735,6 +2955,8 @@ addLessonBtn.onclick = async () => {
       lessonDate,
       homeworkDate,
       createdAt: Date.now(),
+      teacherId: auth.currentUser ? auth.currentUser.uid : null,
+      teacherName: myDisplayName(),
     };
     if (assignedClassIds.length > 0) payload.assignedClassIds = assignedClassIds;
     if (publishAt) payload.publishAt = publishAt;
@@ -2776,7 +2998,9 @@ function getFilteredAllLessons() {
     currentType === "homework"
       ? lastLessons.filter((l) => !!l.data.homeworkDate)
       : lastLessons;
-  return base.filter((l) => lessonVisibleForCurrentClass(l.data));
+  return base.filter(
+    (l) => lessonVisibleForCurrentClass(l.data) && lessonOwnedByTeacher(l.data)
+  );
 }
 
 function renderLessonsContainer() {
@@ -2835,7 +3059,8 @@ function renderDayLessons(target, targetDateStr) {
       (l) =>
         l.data.subjectId === subjectId &&
         l.data.lessonDate === targetDateStr &&
-        lessonVisibleForCurrentClass(l.data)
+        lessonVisibleForCurrentClass(l.data) &&
+        lessonOwnedByTeacher(l.data)
     );
 
     if (matchingLessons.length === 0) {
@@ -2857,7 +3082,10 @@ function renderDayHomework(targetDateStr) {
   // ДЗ прив'язане до дати здачі, а не до розкладу дня — тож шукаємо серед
   // усіх уроків незалежно від того, чи предмет стоїть у розкладі на targetDateStr
   const matching = lastLessons.filter(
-    (l) => l.data.homeworkDate === targetDateStr && lessonVisibleForCurrentClass(l.data)
+    (l) =>
+      l.data.homeworkDate === targetDateStr &&
+      lessonVisibleForCurrentClass(l.data) &&
+      lessonOwnedByTeacher(l.data)
   );
 
   if (matching.length === 0) {
@@ -4085,6 +4313,13 @@ function renderMessagesList() {
     body.className = "message-item-body";
     body.textContent = data.body || "";
     el.append(title, body);
+    if (data.senderName) {
+      const from = document.createElement("div");
+      from.className = "message-item-meta";
+      from.style.marginBottom = "4px";
+      from.textContent = data.senderName;
+      el.insertBefore(from, body);
+    }
     if (data.comment) {
       const c = document.createElement("div");
       c.className = "message-item-comment";
@@ -4167,7 +4402,7 @@ async function notifyStudentsAboutLesson(payload) {
   }
   const now = Date.now();
   const senderUid = auth.currentUser ? auth.currentUser.uid : null;
-  // Ліміт batch 500 — шлемо по одному для простоти
+  const senderName = payload.teacherName || myDisplayName();
   for (const s of targets) {
     try {
       await addDoc(collection(db, "notifications"), {
@@ -4179,6 +4414,7 @@ async function notifyStudentsAboutLesson(payload) {
         createdAt: now,
         read: false,
         senderUid,
+        senderName,
       });
     } catch (e) {
       console.warn("notify lesson", e);
@@ -4252,6 +4488,7 @@ if (messagesSendBtn) {
         createdAt: Date.now(),
         read: false,
         senderUid: auth.currentUser ? auth.currentUser.uid : null,
+        senderName: myDisplayName(),
       });
       if (messagesComposeText) messagesComposeText.value = "";
       alert(t("messagesSent"));

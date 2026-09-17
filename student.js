@@ -2362,6 +2362,13 @@ function renderMessagesList() {
     body.className = "message-item-body";
     body.textContent = data.body || "";
     el.append(title, body);
+    if (data.senderName) {
+      const from = document.createElement("div");
+      from.className = "message-item-meta";
+      from.style.marginBottom = "4px";
+      from.textContent = data.senderName;
+      el.insertBefore(from, body);
+    }
     if (data.comment) {
       const c = document.createElement("div");
       c.className = "message-item-comment";

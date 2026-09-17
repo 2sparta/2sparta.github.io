@@ -2592,3 +2592,36 @@ select {
 :root[data-theme="warm-dark"] .messages-panel {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
 }
+
+
+/* ---------- Онбординг профілю вчителя ---------- */
+.setup-card {
+  max-width: 480px;
+  margin: 0 auto;
+}
+.setup-role-block {
+  margin: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.setup-role-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+.setup-role-option:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-surface-tint);
+}
+.setup-role-option input {
+  width: auto;
+  margin: 0;
+}
