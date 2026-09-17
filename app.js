@@ -273,6 +273,24 @@ const translations = {
     selfGovTo: "по",
     selfGovProgress: "Прогрес голосування",
     selfGovTotalVotes: "Усього голосів",
+    messagesTitle: "Повідомлення",
+    messagesEmpty: "Повідомлень ще немає.",
+    messagesComposeHeading: "Написати учню",
+    messagesSelectStudent: "Оберіть учня...",
+    messagesComposePlaceholder: "Текст повідомлення...",
+    messagesSendBtn: "Надіслати",
+    messagesSent: "Повідомлення надіслано.",
+    messagesNeedRecipient: "Оберіть учня з прив'язаним акаунтом.",
+    messagesNeedText: "Введіть текст повідомлення.",
+    messagesMarkAllRead: "Позначити всі прочитаними",
+    notifNewGrade: (value, subject, typeLabel) => `Нова оцінка: ${value} — ${subject} (${typeLabel})`,
+    notifGradeComment: "Коментар учителя",
+    notifNewHomework: (subject, title) => `Нове ДЗ: ${subject}${title ? " — " + title : ""}`,
+    notifNewLesson: (subject, title) => `Новий урок: ${subject}${title ? " — " + title : ""}`,
+    notifElectionAnnounced: "Оголошено вибори старости",
+    notifElectionResult: (name) => `Новий староста: ${name}`,
+    notifAnnouncement: "Повідомлення від учителя",
+    gradeCommentPlaceholder: "Коментар (необов'язково)",
     registerSuccess: (uid) =>
       "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
       uid + " встановіть role = teacher, після чого увійдіть знову.",
@@ -499,6 +517,24 @@ const translations = {
     selfGovTo: "to",
     selfGovProgress: "Voting progress",
     selfGovTotalVotes: "Total votes",
+    messagesTitle: "Messages",
+    messagesEmpty: "No messages yet.",
+    messagesComposeHeading: "Message a student",
+    messagesSelectStudent: "Select a student...",
+    messagesComposePlaceholder: "Message text...",
+    messagesSendBtn: "Send",
+    messagesSent: "Message sent.",
+    messagesNeedRecipient: "Select a linked student.",
+    messagesNeedText: "Enter a message.",
+    messagesMarkAllRead: "Mark all as read",
+    notifNewGrade: (value, subject, typeLabel) => `New grade: ${value} — ${subject} (${typeLabel})`,
+    notifGradeComment: "Teacher comment",
+    notifNewHomework: (subject, title) => `New homework: ${subject}${title ? " — " + title : ""}`,
+    notifNewLesson: (subject, title) => `New lesson: ${subject}${title ? " — " + title : ""}`,
+    notifElectionAnnounced: "Class monitor elections announced",
+    notifElectionResult: (name) => `New class monitor: ${name}`,
+    notifAnnouncement: "Message from teacher",
+    gradeCommentPlaceholder: "Comment (optional)",
     registerSuccess: (uid) =>
       "Account created. Now in Firebase Console → Firestore → users → " +
       uid + " set role = teacher, then sign in again.",
@@ -1401,6 +1437,8 @@ onAuthStateChanged(auth, async (user) => {
   listenToLessons();
   listenToGrades();
   subscribeElectionsAndHistory();
+  subscribeTeacherNotifications();
+  showMessagesFab(true);
 });
 
 function showAuthScreen() {
@@ -1414,10 +1452,13 @@ function showAuthScreen() {
   if (unsubscribeGrades) unsubscribeGrades();
   if (unsubscribeElections) { unsubscribeElections(); unsubscribeElections = null; }
   if (unsubscribeStarostaHistory) { unsubscribeStarostaHistory(); unsubscribeStarostaHistory = null; }
+  if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
   }
+  showMessagesFab(false);
+  closeMessagesPanel();
 }
 
 function showAppScreen() {
@@ -2521,10 +2562,11 @@ function studentsForLesson(lessonData) {
   return lastStudents.filter((s) => groupIdSet.has(s.data.group));
 }
 
-async function saveGrade(lessonId, studentId, subjectId, date, rawValue, type) {
+async function saveGrade(lessonId, studentId, subjectId, date, rawValue, type, comment) {
   const gradeType = type === "homework" ? "homework" : "lesson";
   const id = gradeDocId(lessonId, studentId, gradeType);
   const trimmed = (rawValue || "").trim();
+  const commentTrimmed = (comment || "").trim();
   try {
     if (trimmed === "") {
       await deleteDoc(doc(db, "grades", id));
@@ -2540,21 +2582,50 @@ async function saveGrade(lessonId, studentId, subjectId, date, rawValue, type) {
       return;
     }
     const value = Math.max(1, Math.min(12, Math.round(Number(trimmed))));
-    await setDoc(
-      doc(db, "grades", id),
-      {
-        lessonId,
-        studentId,
-        subjectId: subjectId || null,
-        date: date || null,
-        value,
-        type: gradeType,
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
+    const payload = {
+      lessonId,
+      studentId,
+      subjectId: subjectId || null,
+      date: date || null,
+      value,
+      type: gradeType,
+      updatedAt: Date.now(),
+    };
+    if (commentTrimmed) payload.comment = commentTrimmed;
+    else payload.comment = deleteField();
+    await setDoc(doc(db, "grades", id), payload, { merge: true });
+    // Сповіщення учню (якщо прив'язаний)
+    await notifyStudentAboutGrade(studentId, subjectId, value, gradeType, commentTrimmed);
   } catch (e) {
     reportSaveError(e, "Не вдалося зберегти оцінку. Перевірте правила Firestore для колекції grades", "Failed to save the grade. Check Firestore Rules for the grades collection");
+  }
+}
+
+async function notifyStudentAboutGrade(studentId, subjectId, value, gradeType, comment) {
+  const student = lastStudents.find((s) => s.id === studentId);
+  const authUid = student && student.data && student.data.authUid;
+  if (!authUid) return;
+  const subjectName = getSubjectName(subjectId) || "";
+  const typeLabel = gradeType === "homework" ? t("gradeTypeHomework") : t("gradeTypeLesson");
+  const title = t("notifNewGrade")(value, subjectName, typeLabel);
+  let body = title;
+  try {
+    await addDoc(collection(db, "notifications"), {
+      recipientUid: authUid,
+      studentId,
+      type: "grade",
+      title,
+      body,
+      comment: comment || null,
+      subjectId: subjectId || null,
+      value,
+      gradeType,
+      createdAt: Date.now(),
+      read: false,
+      senderUid: auth.currentUser ? auth.currentUser.uid : null,
+    });
+  } catch (e) {
+    console.warn("notifyStudentAboutGrade", e);
   }
 }
 
@@ -2669,6 +2740,8 @@ addLessonBtn.onclick = async () => {
     if (publishAt) payload.publishAt = publishAt;
 
     await addDoc(collection(db, "lessons"), payload);
+    // Сповіщення учням про новий урок / ДЗ
+    notifyStudentsAboutLesson(payload).catch((err) => console.warn(err));
     newLessonTitle.value = "";
     newLessonContent.value = "";
     newLessonDate.value = "";
@@ -3067,7 +3140,30 @@ function buildGradesPanel(lessonId, data) {
   const list = document.createElement("div");
   list.className = "grades-student-list";
 
+  function getGradeComment(lessonId, studentId, type) {
+    let found = lastGrades.find(
+      (g) =>
+        g.data.lessonId === lessonId &&
+        g.data.studentId === studentId &&
+        g.data.type === type
+    );
+    if (found) return found.data.comment || "";
+    if (type === "lesson") {
+      found = lastGrades.find(
+        (g) =>
+          g.data.lessonId === lessonId &&
+          g.data.studentId === studentId &&
+          !g.data.type
+      );
+      if (found) return found.data.comment || "";
+    }
+    return "";
+  }
+
   function makeGradeInput(studentId, type, date) {
+    const col = document.createElement("div");
+    col.className = "grade-inputs-col";
+
     const input = document.createElement("input");
     input.type = "number";
     input.min = "1";
@@ -3080,17 +3176,37 @@ function buildGradesPanel(lessonId, data) {
     const currentValue = getGradeValue(lessonId, studentId, type);
     if (currentValue !== null) input.value = currentValue;
 
+    const commentInput = document.createElement("input");
+    commentInput.type = "text";
+    commentInput.className = "grade-comment-input";
+    commentInput.placeholder = t("gradeCommentPlaceholder");
+    commentInput.value = getGradeComment(lessonId, studentId, type);
+
     const savedHint = document.createElement("span");
     savedHint.className = "grade-saved-hint hidden";
     savedHint.textContent = t("gradeSavedHint");
 
-    input.onclick = (e) => e.stopPropagation();
-    input.onchange = async () => {
-      await saveGrade(lessonId, studentId, data.subjectId, date, input.value, type);
+    const persist = async () => {
+      await saveGrade(
+        lessonId,
+        studentId,
+        data.subjectId,
+        date,
+        input.value,
+        type,
+        commentInput.value
+      );
       savedHint.classList.remove("hidden");
       setTimeout(() => savedHint.classList.add("hidden"), 1200);
     };
-    return { input, savedHint };
+
+    input.onclick = (e) => e.stopPropagation();
+    commentInput.onclick = (e) => e.stopPropagation();
+    input.onchange = persist;
+    commentInput.onchange = persist;
+
+    col.append(input, commentInput);
+    return { col, savedHint };
   }
 
   students.forEach(({ id: studentId, data: studentData }) => {
@@ -3105,14 +3221,14 @@ function buildGradesPanel(lessonId, data) {
     let lastSavedHint = null;
     if (showLesson) {
       const date = data.lessonDate || formatDateLocal(new Date());
-      const { input, savedHint } = makeGradeInput(studentId, "lesson", date);
-      row.appendChild(input);
+      const { col, savedHint } = makeGradeInput(studentId, "lesson", date);
+      row.appendChild(col);
       lastSavedHint = savedHint;
     }
     if (showHw) {
       const date = data.homeworkDate;
-      const { input, savedHint } = makeGradeInput(studentId, "homework", date);
-      row.appendChild(input);
+      const { col, savedHint } = makeGradeInput(studentId, "homework", date);
+      row.appendChild(col);
       lastSavedHint = savedHint;
     }
     if (lastSavedHint) row.appendChild(lastSavedHint);
@@ -3482,9 +3598,11 @@ function renderTeacherGradesTable() {
                 ? t("gradeTypeLesson")
                 : "";
           chip.textContent = String(g.data.value);
-          chip.title = typeLabel
+          let tip = typeLabel
             ? `${g.data.value} — ${typeLabel} (${date})`
             : `${g.data.value} (${date})`;
+          if (g.data.comment) tip += ` — ${g.data.comment}`;
+          chip.title = tip;
           cellInner.appendChild(chip);
         });
         td.appendChild(cellInner);
@@ -3684,6 +3802,7 @@ async function closeElectionAndSetStarosta(electionId, electionData) {
       electionId,
       createdAt: now,
     });
+    notifyClassAboutElection(classId, "election_result", winnerName).catch((err) => console.warn(err));
   }
 }
 
@@ -3847,6 +3966,7 @@ if (announceElectionBtn) {
         closed: false,
         winnerStudentId: null,
       });
+      notifyClassAboutElection(classId, "election_announced").catch((err) => console.warn(err));
       if (electionStartInput) electionStartInput.value = "";
       if (electionEndInput) electionEndInput.value = "";
       alert(t("selfGovAnnounced"));
@@ -3887,3 +4007,256 @@ function subscribeElectionsAndHistory() {
 
 // Hook into auth success — find where students listener starts
 const _origSubscribeNote = "subscribeElectionsAndHistory will be called from onAuth";
+
+
+// ==========================================================
+// Повідомлення / сповіщення (панель вчителя)
+// ==========================================================
+let lastNotifications = [];
+let unsubscribeNotifications = null;
+let messagesPanelOpen = false;
+
+const messagesFab = document.getElementById("messages-fab");
+const messagesBadge = document.getElementById("messages-badge");
+const messagesPanel = document.getElementById("messages-panel");
+const messagesPanelClose = document.getElementById("messages-panel-close");
+const messagesList = document.getElementById("messages-list");
+const messagesEmpty = document.getElementById("messages-empty");
+const messagesRecipientSelect = document.getElementById("messages-recipient-select");
+const messagesComposeText = document.getElementById("messages-compose-text");
+const messagesSendBtn = document.getElementById("messages-send-btn");
+
+function showMessagesFab(show) {
+  if (messagesFab) messagesFab.classList.toggle("hidden", !show);
+  if (!show && messagesPanel) messagesPanel.classList.add("hidden");
+}
+
+function closeMessagesPanel() {
+  messagesPanelOpen = false;
+  if (messagesPanel) messagesPanel.classList.add("hidden");
+}
+
+function openMessagesPanel() {
+  messagesPanelOpen = true;
+  if (messagesPanel) messagesPanel.classList.remove("hidden");
+  renderMessagesRecipientSelect();
+  renderMessagesList();
+  markAllNotificationsRead().catch(() => {});
+}
+
+function renderMessagesRecipientSelect() {
+  if (!messagesRecipientSelect) return;
+  const prev = messagesRecipientSelect.value;
+  messagesRecipientSelect.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = t("messagesSelectStudent");
+  messagesRecipientSelect.appendChild(ph);
+  const locale = currentLang === "uk" ? "uk" : "en";
+  lastStudents
+    .filter((s) => s.data && s.data.authUid)
+    .slice()
+    .sort((a, b) => (a.data.name || "").localeCompare(b.data.name || "", locale))
+    .forEach(({ id, data }) => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = data.name || id;
+      messagesRecipientSelect.appendChild(opt);
+    });
+  if (prev && [...messagesRecipientSelect.options].some((o) => o.value === prev)) {
+    messagesRecipientSelect.value = prev;
+  }
+}
+
+function renderMessagesList() {
+  if (!messagesList) return;
+  messagesList.innerHTML = "";
+  const items = lastNotifications
+    .slice()
+    .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+  if (messagesEmpty) messagesEmpty.classList.toggle("hidden", items.length > 0);
+  items.forEach(({ id, data }) => {
+    const el = document.createElement("div");
+    el.className = "message-item" + (data.read ? "" : " unread");
+    const title = document.createElement("div");
+    title.className = "message-item-title";
+    title.textContent = data.title || t("notifAnnouncement");
+    const body = document.createElement("div");
+    body.className = "message-item-body";
+    body.textContent = data.body || "";
+    el.append(title, body);
+    if (data.comment) {
+      const c = document.createElement("div");
+      c.className = "message-item-comment";
+      c.textContent = `${t("notifGradeComment")}: ${data.comment}`;
+      el.appendChild(c);
+    }
+    const meta = document.createElement("div");
+    meta.className = "message-item-meta";
+    const d = data.createdAt ? new Date(data.createdAt) : null;
+    meta.textContent = d
+      ? d.toLocaleString(currentLang === "uk" ? "uk-UA" : "en-US", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "";
+    el.appendChild(meta);
+    el.onclick = () => {
+      if (!data.read) {
+        updateDoc(doc(db, "notifications", id), { read: true }).catch(() => {});
+      }
+    };
+    messagesList.appendChild(el);
+  });
+  updateMessagesBadge();
+}
+
+function updateMessagesBadge() {
+  if (!messagesBadge) return;
+  const unread = lastNotifications.filter((n) => !n.data.read).length;
+  if (unread > 0) {
+    messagesBadge.textContent = unread > 99 ? "99+" : String(unread);
+    messagesBadge.classList.remove("hidden");
+  } else {
+    messagesBadge.classList.add("hidden");
+  }
+}
+
+async function markAllNotificationsRead() {
+  const unread = lastNotifications.filter((n) => !n.data.read);
+  if (unread.length === 0) return;
+  const batch = writeBatch(db);
+  unread.forEach(({ id }) => {
+    batch.update(doc(db, "notifications", id), { read: true });
+  });
+  await batch.commit();
+}
+
+function subscribeTeacherNotifications() {
+  if (unsubscribeNotifications) unsubscribeNotifications();
+  const uid = auth.currentUser && auth.currentUser.uid;
+  if (!uid) return;
+  const q = query(collection(db, "notifications"), where("recipientUid", "==", uid));
+  unsubscribeNotifications = onSnapshot(
+    q,
+    (snap) => {
+      lastNotifications = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      updateMessagesBadge();
+      if (messagesPanelOpen) renderMessagesList();
+    },
+    (err) => console.warn("notifications", err)
+  );
+}
+
+async function notifyStudentsAboutLesson(payload) {
+  const subjectName = getSubjectName(payload.subjectId) || "";
+  const hasHw = !!payload.homeworkDate;
+  const title = hasHw
+    ? t("notifNewHomework")(subjectName, payload.title || "")
+    : t("notifNewLesson")(subjectName, payload.title || "");
+  const type = hasHw ? "homework" : "lesson";
+  let targets = lastStudents.filter((s) => s.data && s.data.authUid);
+  if (payload.assignedClassIds && payload.assignedClassIds.length > 0) {
+    const groupIds = new Set();
+    payload.assignedClassIds.forEach((cid) => {
+      groupsOfClass(cid).forEach((g) => groupIds.add(g.id));
+    });
+    targets = targets.filter((s) => groupIds.has(s.data.group));
+  }
+  const now = Date.now();
+  const senderUid = auth.currentUser ? auth.currentUser.uid : null;
+  // Ліміт batch 500 — шлемо по одному для простоти
+  for (const s of targets) {
+    try {
+      await addDoc(collection(db, "notifications"), {
+        recipientUid: s.data.authUid,
+        studentId: s.id,
+        type,
+        title,
+        body: payload.content || title,
+        createdAt: now,
+        read: false,
+        senderUid,
+      });
+    } catch (e) {
+      console.warn("notify lesson", e);
+    }
+  }
+}
+
+async function notifyClassAboutElection(classId, kind, winnerName) {
+  const groupIds = new Set(groupsOfClass(classId).map((g) => g.id));
+  const targets = lastStudents.filter(
+    (s) => s.data && s.data.authUid && groupIds.has(s.data.group)
+  );
+  const title =
+    kind === "election_result"
+      ? t("notifElectionResult")(winnerName || "")
+      : t("notifElectionAnnounced");
+  const now = Date.now();
+  const senderUid = auth.currentUser ? auth.currentUser.uid : null;
+  for (const s of targets) {
+    try {
+      await addDoc(collection(db, "notifications"), {
+        recipientUid: s.data.authUid,
+        studentId: s.id,
+        type: kind,
+        title,
+        body: title,
+        createdAt: now,
+        read: false,
+        senderUid,
+      });
+    } catch (e) {
+      console.warn("notify election", e);
+    }
+  }
+}
+
+if (messagesFab) {
+  messagesFab.onclick = () => {
+    if (messagesPanelOpen) closeMessagesPanel();
+    else openMessagesPanel();
+  };
+}
+if (messagesPanelClose) {
+  messagesPanelClose.onclick = () => closeMessagesPanel();
+}
+if (messagesSendBtn) {
+  messagesSendBtn.onclick = async () => {
+    const studentId = messagesRecipientSelect ? messagesRecipientSelect.value : "";
+    const text = messagesComposeText ? messagesComposeText.value.trim() : "";
+    if (!studentId) {
+      alert(t("messagesNeedRecipient"));
+      return;
+    }
+    if (!text) {
+      alert(t("messagesNeedText"));
+      return;
+    }
+    const student = lastStudents.find((s) => s.id === studentId);
+    const authUid = student && student.data && student.data.authUid;
+    if (!authUid) {
+      alert(t("messagesNeedRecipient"));
+      return;
+    }
+    try {
+      await addDoc(collection(db, "notifications"), {
+        recipientUid: authUid,
+        studentId,
+        type: "announcement",
+        title: t("notifAnnouncement"),
+        body: text,
+        createdAt: Date.now(),
+        read: false,
+        senderUid: auth.currentUser ? auth.currentUser.uid : null,
+      });
+      if (messagesComposeText) messagesComposeText.value = "";
+      alert(t("messagesSent"));
+    } catch (e) {
+      reportSaveError(e, "Не вдалося надіслати повідомлення", "Failed to send message");
+    }
+  };
+}

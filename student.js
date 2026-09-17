@@ -348,6 +348,9 @@ const translations = {
     starostaHwAdded: "Домашнє завдання додано.",
     addedByStarostaBadge: "Від старости",
     selectSubjectPlaceholder: "Оберіть предмет",
+    messagesTitle: "Повідомлення",
+    messagesEmpty: "Повідомлень ще немає.",
+    notifGradeComment: "Коментар учителя",
     errors: {
       "auth/invalid-email": "Некоректний email.",
       "auth/user-not-found": "Користувача не знайдено.",
@@ -478,6 +481,9 @@ const translations = {
     starostaHwAdded: "Homework added.",
     addedByStarostaBadge: "By class monitor",
     selectSubjectPlaceholder: "Choose a subject",
+    messagesTitle: "Messages",
+    messagesEmpty: "No messages yet.",
+    notifGradeComment: "Teacher comment",
     errors: {
       "auth/invalid-email": "Invalid email.",
       "auth/user-not-found": "User not found.",
@@ -652,15 +658,19 @@ function teardownListeners() {
   if (unsubscribeGrades) unsubscribeGrades();
   if (unsubscribeElections) { unsubscribeElections(); unsubscribeElections = null; }
   if (unsubscribeStarostaHistory) { unsubscribeStarostaHistory(); unsubscribeStarostaHistory = null; }
+  if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
   }
+  showMessagesFab(false);
+  closeMessagesPanel();
   studentId = null;
   studentData = null;
   studentClassId = null;
   lastElectives = [];
   lastGrades = [];
+  lastNotifications = [];
   hwDoneIds = new Set();
   hwSortMode = "date";
   hwSubjectFilterId = "";
@@ -851,6 +861,8 @@ function startDashboard(user) {
   );
 
   subscribeStudentElections();
+  subscribeStudentNotifications();
+  showMessagesFab(true);
 }
 
 // Розклад свого класу будується "на льоту" з сирого документа schedule/week —
@@ -1252,9 +1264,11 @@ function renderGradesTable() {
                 ? t("gradeTypeLesson")
                 : "";
           chip.textContent = String(g.data.value);
-          chip.title = typeLabel
+          let tip = typeLabel
             ? `${g.data.value} — ${typeLabel} (${date})`
             : `${g.data.value} (${date})`;
+          if (g.data.comment) tip += ` — ${g.data.comment}`;
+          chip.title = tip;
           cellInner.appendChild(chip);
         });
         td.appendChild(cellInner);
@@ -2297,4 +2311,128 @@ function subscribeStudentElections() {
     lastStarostaHistory = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
     if (selfgovPanel && !selfgovPanel.classList.contains("hidden")) renderSelfGovStudent();
   });
+}
+
+
+// ==========================================================
+// Повідомлення / сповіщення (кабінет учня)
+// ==========================================================
+let lastNotifications = [];
+let unsubscribeNotifications = null;
+let messagesPanelOpen = false;
+
+const messagesFab = document.getElementById("messages-fab");
+const messagesBadge = document.getElementById("messages-badge");
+const messagesPanel = document.getElementById("messages-panel");
+const messagesPanelClose = document.getElementById("messages-panel-close");
+const messagesList = document.getElementById("messages-list");
+const messagesEmpty = document.getElementById("messages-empty");
+
+function showMessagesFab(show) {
+  if (messagesFab) messagesFab.classList.toggle("hidden", !show);
+  if (!show && messagesPanel) messagesPanel.classList.add("hidden");
+}
+
+function closeMessagesPanel() {
+  messagesPanelOpen = false;
+  if (messagesPanel) messagesPanel.classList.add("hidden");
+}
+
+function openMessagesPanel() {
+  messagesPanelOpen = true;
+  if (messagesPanel) messagesPanel.classList.remove("hidden");
+  renderMessagesList();
+  markAllNotificationsRead().catch(() => {});
+}
+
+function renderMessagesList() {
+  if (!messagesList) return;
+  messagesList.innerHTML = "";
+  const items = lastNotifications
+    .slice()
+    .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+  if (messagesEmpty) messagesEmpty.classList.toggle("hidden", items.length > 0);
+  items.forEach(({ id, data }) => {
+    const el = document.createElement("div");
+    el.className = "message-item" + (data.read ? "" : " unread");
+    const title = document.createElement("div");
+    title.className = "message-item-title";
+    title.textContent = data.title || "";
+    const body = document.createElement("div");
+    body.className = "message-item-body";
+    body.textContent = data.body || "";
+    el.append(title, body);
+    if (data.comment) {
+      const c = document.createElement("div");
+      c.className = "message-item-comment";
+      c.textContent = `${t("notifGradeComment")}: ${data.comment}`;
+      el.appendChild(c);
+    }
+    const meta = document.createElement("div");
+    meta.className = "message-item-meta";
+    const d = data.createdAt ? new Date(data.createdAt) : null;
+    meta.textContent = d
+      ? d.toLocaleString(currentLang === "uk" ? "uk-UA" : "en-US", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "";
+    el.appendChild(meta);
+    el.onclick = () => {
+      if (!data.read) {
+        updateDoc(doc(db, "notifications", id), { read: true }).catch(() => {});
+      }
+    };
+    messagesList.appendChild(el);
+  });
+  updateMessagesBadge();
+}
+
+function updateMessagesBadge() {
+  if (!messagesBadge) return;
+  const unread = lastNotifications.filter((n) => !n.data.read).length;
+  if (unread > 0) {
+    messagesBadge.textContent = unread > 99 ? "99+" : String(unread);
+    messagesBadge.classList.remove("hidden");
+  } else {
+    messagesBadge.classList.add("hidden");
+  }
+}
+
+async function markAllNotificationsRead() {
+  const unread = lastNotifications.filter((n) => !n.data.read);
+  if (unread.length === 0) return;
+  const batch = writeBatch(db);
+  unread.forEach(({ id }) => {
+    batch.update(doc(db, "notifications", id), { read: true });
+  });
+  await batch.commit();
+}
+
+function subscribeStudentNotifications() {
+  if (unsubscribeNotifications) unsubscribeNotifications();
+  const uid = auth.currentUser && auth.currentUser.uid;
+  if (!uid) return;
+  const q = query(collection(db, "notifications"), where("recipientUid", "==", uid));
+  unsubscribeNotifications = onSnapshot(
+    q,
+    (snap) => {
+      lastNotifications = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      updateMessagesBadge();
+      if (messagesPanelOpen) renderMessagesList();
+    },
+    (err) => console.warn("notifications", err)
+  );
+}
+
+if (messagesFab) {
+  messagesFab.onclick = () => {
+    if (messagesPanelOpen) closeMessagesPanel();
+    else openMessagesPanel();
+  };
+}
+if (messagesPanelClose) {
+  messagesPanelClose.onclick = () => closeMessagesPanel();
 }

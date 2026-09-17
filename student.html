@@ -281,6 +281,23 @@
 
   </div>
 
+
+  <!-- Повідомлення: плаваюча кнопка + панель -->
+  <button id="messages-fab" class="messages-fab hidden" type="button" aria-label="Повідомлення" title="Повідомлення">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4H6a2 2 0 0 1-2-2V6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <span id="messages-badge" class="messages-badge hidden">0</span>
+  </button>
+  <div id="messages-panel" class="messages-panel hidden" role="dialog" aria-labelledby="messages-panel-title">
+    <div class="messages-panel-header">
+      <h2 id="messages-panel-title" data-i18n="messagesTitle">Повідомлення</h2>
+      <button id="messages-panel-close" class="messages-panel-close" type="button" aria-label="Закрити">✕</button>
+    </div>
+    <div id="messages-list" class="messages-list"></div>
+    <p id="messages-empty" class="hint messages-empty hidden" data-i18n="messagesEmpty">Повідомлень ще немає.</p>
+  </div>
+
   <script type="module" src="student.js"></script>
 </body>
 </html>
