@@ -47,11 +47,13 @@ import {
   formatDateLocal,
   escapeHtml,
   initThemeToggle,
+  initBackgroundParticles,
 } from "./common.js";
 
 // Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
 // щоб уникнути "блимання" світлою темою при завантаженні.
 initThemeToggle();
+initBackgroundParticles();
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -356,6 +358,8 @@ const translations = {
     pointsLeaderboardEmpty: "Ще немає учнів з балами.",
     pointsLeaderboardPoints: "балів",
     pointsLeaderboardRank: "Місце",
+    lbModeSchool: "Вся школа",
+    lbModeClass: "Клас",
     errors: {
       "auth/invalid-email": "Некоректний email.",
       "auth/user-not-found": "Користувача не знайдено.",
@@ -623,6 +627,8 @@ const translations = {
     pointsLeaderboardEmpty: "No students with points yet.",
     pointsLeaderboardPoints: "points",
     pointsLeaderboardRank: "Rank",
+    lbModeSchool: "Whole school",
+    lbModeClass: "Class",
     errors: {
       "auth/invalid-email": "Invalid email.",
       "auth/user-not-found": "User not found.",
@@ -871,6 +877,7 @@ function listenToClasses() {
     renderClassSwitch();
     renderNewStudentClassOptions();
     renderLessonClassOptions();
+    if (leaderboardMode === "class") populateLbClassSelect();
     renderStudentsTable();
     renderSchedule();
     renderLessonsContainer();
@@ -1162,6 +1169,12 @@ const setupSubjectsBlock = document.getElementById("setup-subjects-block");
 const setupSubjectsCount = document.getElementById("setup-subjects-count");
 const pointsLeaderboardEl = document.getElementById("points-leaderboard");
 const pointsLeaderboardEmpty = document.getElementById("points-leaderboard-empty");
+const lbModeSchoolBtn = document.getElementById("lb-mode-school-btn");
+const lbModeClassBtn = document.getElementById("lb-mode-class-btn");
+const lbClassPicker = document.getElementById("lb-class-picker");
+const lbClassSelect = document.getElementById("lb-class-select");
+let leaderboardMode = "school"; // "school" | "class"
+let leaderboardClassId = null;
 const setupSaveBtn = document.getElementById("setup-save-btn");
 const setupLogoutBtn = document.getElementById("setup-logout-btn");
 const setupError = document.getElementById("setup-error");
@@ -1760,10 +1773,68 @@ function sortStudentsList(list) {
   return arr;
 }
 
+function populateLbClassSelect() {
+  if (!lbClassSelect) return;
+  const prev = leaderboardClassId || lbClassSelect.value || currentClassId;
+  lbClassSelect.innerHTML = "";
+  const locale = currentLang === "uk" ? "uk" : "en";
+  const classes = lastClasses.slice().sort((a, b) =>
+    (a.data.name || "").localeCompare(b.data.name || "", locale)
+  );
+  if (classes.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "—";
+    lbClassSelect.appendChild(opt);
+    return;
+  }
+  classes.forEach(({ id, data }) => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = data.name || id;
+    lbClassSelect.appendChild(opt);
+  });
+  if (prev && [...lbClassSelect.options].some((o) => o.value === prev)) {
+    lbClassSelect.value = prev;
+    leaderboardClassId = prev;
+  } else {
+    leaderboardClassId = classes[0].id;
+    lbClassSelect.value = leaderboardClassId;
+  }
+}
+
+function setLeaderboardMode(mode) {
+  leaderboardMode = mode === "class" ? "class" : "school";
+  if (lbModeSchoolBtn) lbModeSchoolBtn.classList.toggle("active", leaderboardMode === "school");
+  if (lbModeClassBtn) lbModeClassBtn.classList.toggle("active", leaderboardMode === "class");
+  if (lbClassPicker) lbClassPicker.classList.toggle("hidden", leaderboardMode !== "class");
+  if (leaderboardMode === "class") populateLbClassSelect();
+  renderPointsLeaderboard();
+}
+
+if (lbModeSchoolBtn) lbModeSchoolBtn.onclick = () => setLeaderboardMode("school");
+if (lbModeClassBtn) lbModeClassBtn.onclick = () => setLeaderboardMode("class");
+if (lbClassSelect) {
+  lbClassSelect.onchange = () => {
+    leaderboardClassId = lbClassSelect.value || null;
+    renderPointsLeaderboard();
+  };
+}
+
 function renderPointsLeaderboard() {
   if (!pointsLeaderboardEl) return;
   pointsLeaderboardEl.innerHTML = "";
-  const ranked = lastStudents
+  let pool = lastStudents;
+  if (leaderboardMode === "class") {
+    const classId = leaderboardClassId || (lbClassSelect && lbClassSelect.value) || currentClassId;
+    if (classId) {
+      const groupIdsInClass = new Set(groupsOfClass(classId).map((g) => g.id));
+      pool = lastStudents.filter((s) => groupIdsInClass.has(s.data.group));
+    } else {
+      pool = [];
+    }
+  }
+  const ranked = pool
     .filter((s) => (s.data.points || 0) > 0)
     .slice()
     .sort(

@@ -229,3 +229,30 @@ export function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+
+// ---------- Фон: матове скло + рухомі частинки ----------
+export function initBackgroundParticles(count = 28) {
+  if (typeof document === "undefined") return;
+  let layer = document.getElementById("bg-particles");
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = "bg-particles";
+    layer.setAttribute("aria-hidden", "true");
+    document.body.prepend(layer);
+  }
+  layer.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement("span");
+    el.className = "bg-particle";
+    const size = 4 + Math.random() * 14;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.left = `${Math.random() * 100}%`;
+    el.style.top = `${Math.random() * 100}%`;
+    el.style.animationDuration = `${12 + Math.random() * 22}s`;
+    el.style.animationDelay = `${-Math.random() * 20}s`;
+    el.style.opacity = String(0.15 + Math.random() * 0.35);
+    layer.appendChild(el);
+  }
+}

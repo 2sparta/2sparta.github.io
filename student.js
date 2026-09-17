@@ -51,11 +51,13 @@ import {
   formatDateLocal,
   escapeHtml,
   initThemeToggle,
+  initBackgroundParticles,
 } from "./common.js";
 
 // Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
 // щоб уникнути "блимання" світлою темою при завантаженні.
 initThemeToggle();
+initBackgroundParticles();
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -93,11 +95,19 @@ const pointsHeroValueEl = document.getElementById("points-hero-value");
 const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const tabGradesBtn = document.getElementById("tab-grades-btn");
+const tabPointsBtn = document.getElementById("tab-points-btn");
 const tabSelfGovBtn = document.getElementById("tab-selfgov-btn");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 const gradesPanel = document.getElementById("grades-panel");
+const pointsPanel = document.getElementById("points-panel");
 const selfgovPanel = document.getElementById("selfgov-panel");
+const pointsLeaderboardEl = document.getElementById("points-leaderboard");
+const pointsLeaderboardEmpty = document.getElementById("points-leaderboard-empty");
+const lbModeSchoolBtn = document.getElementById("lb-mode-school-btn");
+const lbModeClassBtn = document.getElementById("lb-mode-class-btn");
+const lbClassPicker = document.getElementById("lb-class-picker");
+const lbClassSelect = document.getElementById("lb-class-select");
 const gradesTableContainer = document.getElementById("grades-table-container");
 const noGradesMsg = document.getElementById("no-grades-msg");
 const gradesStatOverall = document.getElementById("grades-stat-overall");
@@ -160,6 +170,14 @@ let lastLessons = [];
 let lastScheduleRaw = {};
 let lastElectives = [];
 let lastGrades = [];
+let lastAllStudents = [];
+let lastClasses = [];
+let lastGroups = [];
+let leaderboardMode = "school";
+let leaderboardClassId = null;
+let unsubscribeAllStudents = null;
+let unsubscribeClassesLb = null;
+let unsubscribeGroupsLb = null;
 let unsubscribeElectives = null;
 let unsubscribeGrades = null;
 let currentView = "today"; // "today" | "tomorrow"
@@ -248,6 +266,14 @@ const translations = {
     tabSchedule: "Розклад",
     tabTasks: "Завдання",
     tabGrades: "Оцінки",
+    tabPoints: "Бали",
+    pointsLeaderboardHeading: "Топ за балами",
+    pointsLeaderboardHint: "Рейтинг учнів за балами",
+    pointsLeaderboardEmpty: "Ще немає учнів з балами.",
+    pointsLeaderboardPoints: "балів",
+    lbModeSchool: "Вся школа",
+    lbModeClass: "Клас",
+    groupSwitchLabel: "Клас:",
     scheduleHeading: "Розклад",
     viewToday: "Сьогодні",
     viewTomorrow: "Завтра",
@@ -381,6 +407,14 @@ const translations = {
     tabSchedule: "Schedule",
     tabTasks: "Tasks",
     tabGrades: "Grades",
+    tabPoints: "Points",
+    pointsLeaderboardHeading: "Points leaderboard",
+    pointsLeaderboardHint: "Student ranking by points",
+    pointsLeaderboardEmpty: "No students with points yet.",
+    pointsLeaderboardPoints: "points",
+    lbModeSchool: "Whole school",
+    lbModeClass: "Class",
+    groupSwitchLabel: "Class:",
     scheduleHeading: "Schedule",
     viewToday: "Today",
     viewTomorrow: "Tomorrow",
@@ -566,16 +600,20 @@ function showTab(tab) {
   if (tabScheduleBtn) tabScheduleBtn.classList.toggle("active", tab === "schedule");
   if (tabTasksBtn) tabTasksBtn.classList.toggle("active", tab === "tasks");
   if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
+  if (tabPointsBtn) tabPointsBtn.classList.toggle("active", tab === "points");
   if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
   if (schedulePanel) schedulePanel.classList.toggle("hidden", tab !== "schedule");
   if (tasksPanel) tasksPanel.classList.toggle("hidden", tab !== "tasks");
   if (gradesPanel) gradesPanel.classList.toggle("hidden", tab !== "grades");
+  if (pointsPanel) pointsPanel.classList.toggle("hidden", tab !== "points");
   if (selfgovPanel) selfgovPanel.classList.toggle("hidden", tab !== "selfgov");
   if (tab === "selfgov") renderSelfGovStudent();
+  if (tab === "points") renderStudentPointsLeaderboard();
 }
 if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
 if (tabTasksBtn) tabTasksBtn.onclick = () => showTab("tasks");
 if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
+if (tabPointsBtn) tabPointsBtn.onclick = () => showTab("points");
 if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
 
 // Перемикач всередині вкладки "Завдання": розклад дня (сьогодні/завтра) чи ДЗ.
@@ -862,6 +900,7 @@ function startDashboard(user) {
 
   subscribeStudentElections();
   subscribeStudentNotifications();
+  subscribeLeaderboardData();
   showMessagesFab(true);
 }
 
@@ -2313,6 +2352,156 @@ function subscribeStudentElections() {
   });
 }
 
+
+
+// ==========================================================
+// Топ за балами (вкладка «Бали»)
+// ==========================================================
+function getGroupLabelStudent(groupId) {
+  const found = lastGroups.find((g) => g.id === groupId);
+  if (!found) return groupId || "";
+  const cls = lastClasses.find((c) => c.id === found.data.classId);
+  const clsName = cls ? cls.data.name : "";
+  const gName = found.data.name || groupId;
+  return clsName ? `${clsName} · ${gName}` : gName;
+}
+
+function groupsOfClassStudent(classId) {
+  return lastGroups.filter((g) => g.data.classId === classId);
+}
+
+function populateStudentLbClassSelect() {
+  if (!lbClassSelect) return;
+  const prev = leaderboardClassId || lbClassSelect.value || studentClassId;
+  lbClassSelect.innerHTML = "";
+  const locale = currentLang === "uk" ? "uk" : "en";
+  const classes = lastClasses.slice().sort((a, b) =>
+    (a.data.name || "").localeCompare(b.data.name || "", locale)
+  );
+  if (classes.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "—";
+    lbClassSelect.appendChild(opt);
+    return;
+  }
+  classes.forEach(({ id, data }) => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = data.name || id;
+    lbClassSelect.appendChild(opt);
+  });
+  if (prev && [...lbClassSelect.options].some((o) => o.value === prev)) {
+    lbClassSelect.value = prev;
+    leaderboardClassId = prev;
+  } else if (studentClassId && [...lbClassSelect.options].some((o) => o.value === studentClassId)) {
+    lbClassSelect.value = studentClassId;
+    leaderboardClassId = studentClassId;
+  } else {
+    leaderboardClassId = classes[0].id;
+    lbClassSelect.value = leaderboardClassId;
+  }
+}
+
+function setStudentLeaderboardMode(mode) {
+  leaderboardMode = mode === "class" ? "class" : "school";
+  if (lbModeSchoolBtn) lbModeSchoolBtn.classList.toggle("active", leaderboardMode === "school");
+  if (lbModeClassBtn) lbModeClassBtn.classList.toggle("active", leaderboardMode === "class");
+  if (lbClassPicker) lbClassPicker.classList.toggle("hidden", leaderboardMode !== "class");
+  if (leaderboardMode === "class") populateStudentLbClassSelect();
+  renderStudentPointsLeaderboard();
+}
+
+if (lbModeSchoolBtn) lbModeSchoolBtn.onclick = () => setStudentLeaderboardMode("school");
+if (lbModeClassBtn) lbModeClassBtn.onclick = () => setStudentLeaderboardMode("class");
+if (lbClassSelect) {
+  lbClassSelect.onchange = () => {
+    leaderboardClassId = lbClassSelect.value || null;
+    renderStudentPointsLeaderboard();
+  };
+}
+
+function renderStudentPointsLeaderboard() {
+  if (!pointsLeaderboardEl) return;
+  pointsLeaderboardEl.innerHTML = "";
+  let pool = lastAllStudents;
+  if (leaderboardMode === "class") {
+    const classId = leaderboardClassId || (lbClassSelect && lbClassSelect.value) || studentClassId;
+    if (classId) {
+      const groupIdsInClass = new Set(groupsOfClassStudent(classId).map((g) => g.id));
+      pool = lastAllStudents.filter((s) => groupIdsInClass.has(s.data.group));
+    } else {
+      pool = [];
+    }
+  }
+  const ranked = pool
+    .filter((s) => (s.data.points || 0) > 0)
+    .slice()
+    .sort(
+      (a, b) =>
+        (b.data.points || 0) - (a.data.points || 0) ||
+        (a.data.name || "").localeCompare(b.data.name || "", currentLang === "uk" ? "uk" : "en")
+    )
+    .slice(0, 10);
+  if (pointsLeaderboardEmpty) {
+    pointsLeaderboardEmpty.classList.toggle("hidden", ranked.length > 0);
+  }
+  if (ranked.length === 0) return;
+  ranked.forEach(({ id, data }, index) => {
+    const pts = data.points || 0;
+    const row = document.createElement("div");
+    row.className = "points-leader-row" + (index < 3 ? ` rank-${index + 1}` : "");
+    if (id === studentId) row.classList.add("is-me");
+    const rank = document.createElement("span");
+    rank.className = "points-leader-rank";
+    if (index === 0) rank.textContent = "🥇";
+    else if (index === 1) rank.textContent = "🥈";
+    else if (index === 2) rank.textContent = "🥉";
+    else rank.textContent = String(index + 1);
+    const avatar = document.createElement("span");
+    avatar.className = "points-leader-avatar";
+    const nameStr = data.name || "?";
+    avatar.textContent = nameStr.trim().charAt(0).toUpperCase() || "?";
+    const info = document.createElement("div");
+    info.className = "points-leader-info";
+    const nameEl = document.createElement("span");
+    nameEl.className = "points-leader-name";
+    nameEl.textContent = nameStr;
+    const meta = document.createElement("span");
+    meta.className = "points-leader-meta";
+    meta.textContent = getGroupLabelStudent(data.group) || "";
+    info.append(nameEl, meta);
+    const score = document.createElement("span");
+    score.className = "points-leader-score";
+    const unit = document.createElement("span");
+    unit.className = "points-leader-unit";
+    unit.textContent = t("pointsLeaderboardPoints") || t("pointsLabel");
+    const strong = document.createElement("strong");
+    strong.textContent = String(pts);
+    score.append(strong, document.createTextNode(" "), unit);
+    row.append(rank, avatar, info, score);
+    pointsLeaderboardEl.appendChild(row);
+  });
+}
+
+function subscribeLeaderboardData() {
+  if (unsubscribeAllStudents) unsubscribeAllStudents();
+  if (unsubscribeClassesLb) unsubscribeClassesLb();
+  if (unsubscribeGroupsLb) unsubscribeGroupsLb();
+  unsubscribeAllStudents = onSnapshot(collection(db, "students"), (snap) => {
+    lastAllStudents = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    if (pointsPanel && !pointsPanel.classList.contains("hidden")) renderStudentPointsLeaderboard();
+  });
+  unsubscribeClassesLb = onSnapshot(collection(db, "classes"), (snap) => {
+    lastClasses = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    if (leaderboardMode === "class") populateStudentLbClassSelect();
+    if (pointsPanel && !pointsPanel.classList.contains("hidden")) renderStudentPointsLeaderboard();
+  });
+  unsubscribeGroupsLb = onSnapshot(collection(db, "groups"), (snap) => {
+    lastGroups = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    if (pointsPanel && !pointsPanel.classList.contains("hidden")) renderStudentPointsLeaderboard();
+  });
+}
 
 // ==========================================================
 // Повідомлення / сповіщення (кабінет учня)

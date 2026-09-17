@@ -2596,9 +2596,13 @@ select {
 
 /* ---------- Онбординг профілю вчителя ---------- */
 .setup-card {
-  max-width: 520px;
+  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   padding: 28px 28px 24px;
+}
+#setup-screen.screen {
+  max-width: 920px;
 }
 .setup-card h1 {
   margin-bottom: 8px;
@@ -2726,7 +2730,7 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-height: 220px;
+  max-height: 280px;
   overflow-y: auto;
   padding: 2px;
 }
@@ -2938,4 +2942,94 @@ select {
 :root[data-theme="warm-dark"] .points-leader-row.rank-3 {
   background: #3a2814;
   border-color: #6b4a1e;
+}
+
+
+/* ---------- Режими топу за балами ---------- */
+.leaderboard-mode-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.lb-class-picker {
+  display: flex;
+  align-items: center;
+}
+.lb-class-picker.hidden {
+  display: none !important;
+}
+.lb-class-picker select {
+  margin: 0;
+  width: auto;
+  min-width: 120px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.points-leader-row.is-me {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+/* ---------- Матове скло + рухомі частинки на фоні ---------- */
+body {
+  position: relative;
+  isolation: isolate;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, color-mix(in srgb, var(--color-purple) 14%, transparent), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 90%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 55%),
+    var(--color-bg);
+}
+#bg-particles {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bg-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  opacity: 0.35;
+  filter: blur(1px);
+  animation: particle-drift linear infinite;
+  will-change: transform;
+}
+:root[data-theme="dark"] .bg-particle,
+:root[data-theme="ocean-dark"] .bg-particle,
+:root[data-theme="warm-dark"] .bg-particle {
+  background: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  opacity: 0.28;
+}
+@keyframes particle-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(12px, -18px) scale(1.05); }
+  50% { transform: translate(-8px, -28px) scale(0.95); }
+  75% { transform: translate(18px, -10px) scale(1.08); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+/* Матове скло на картках */
+.card,
+.greeting-card,
+.auth-card,
+.messages-panel,
+.stat-card {
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+.messages-fab {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }

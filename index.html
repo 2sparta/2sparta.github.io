@@ -169,7 +169,19 @@
           <section class="card points-leaderboard-card">
             <div class="points-leaderboard-header">
               <h2 data-i18n="pointsLeaderboardHeading">Топ за балами</h2>
-              <span class="points-leaderboard-sub" data-i18n="pointsLeaderboardHint">Рейтинг учнів за балами з меню «Учні»</span>
+              <span class="points-leaderboard-sub" data-i18n="pointsLeaderboardHint">Рейтинг учнів за балами</span>
+            </div>
+            <div class="leaderboard-mode-bar">
+              <div class="view-switch leaderboard-mode-switch">
+                <button id="lb-mode-school-btn" class="view-btn active" type="button" data-mode="school" data-i18n="lbModeSchool">Вся школа</button>
+                <button id="lb-mode-class-btn" class="view-btn" type="button" data-mode="class" data-i18n="lbModeClass">Клас</button>
+              </div>
+              <div id="lb-class-picker" class="lb-class-picker hidden">
+                <label class="students-sort-field">
+                  <span data-i18n="groupSwitchLabel">Клас:</span>
+                  <select id="lb-class-select" aria-label="Клас для рейтингу"></select>
+                </label>
+              </div>
             </div>
             <div id="points-leaderboard" class="points-leaderboard"></div>
             <p id="points-leaderboard-empty" class="hint hidden" data-i18n="pointsLeaderboardEmpty">Ще немає учнів з балами.</p>
