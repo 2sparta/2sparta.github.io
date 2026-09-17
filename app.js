@@ -369,6 +369,19 @@ const translations = {
     pointsLeaderboardRank: "Місце",
     lbModeSchool: "Вся школа",
     lbModeClass: "Клас",
+    settingsBellTab: "Розклад дзвінків",
+    settingsBellHeading: "Розклад дзвінків за замовчуванням",
+    settingsBellHint: "Ці часи застосовуються до нових класів і груп. Можна також застосувати їх до всіх уже існуючих розкладів. Окремий клас після цього можна змінити вручну на вкладці «Розклад».",
+    settingsBellPeriodsLabel: "Звичайний розклад дзвінків",
+    settingsBellDayTimesLabel: "Особливий розклад дзвінків для дня",
+    settingsBellDayTimesHint: "Наприклад, скорочені уроки в суботу. Якщо для дня нічого не задано — використовується звичайний розклад.",
+    settingsBellApplyAllBtn: "Застосувати до всіх класів",
+    settingsBellApplyAllConfirm: "Замінити розклад дзвінків (і особливий розклад днів) у всіх існуючих класах/групах на ці значення? Уроки в розкладі не зміняться. Окремі класи потім можна знову відредагувати.",
+    settingsBellApplyAllDone: "Розклад дзвінків застосовано до всіх класів.",
+    settingsBellSaved: "Збережено.",
+    settingsBellAddPeriod: "Додати урок",
+    settingsBellClearDay: "Скинути особливий розклад цього дня",
+    settingsBellUseCustomDay: "Свій розклад для цього дня",
     settingsTitle: "Налаштування",
     settingsBack: "Назад",
     settingsTabAppearance: "Оформлення",
@@ -643,6 +656,19 @@ const translations = {
     pointsLeaderboardRank: "Rank",
     lbModeSchool: "Whole school",
     lbModeClass: "Class",
+    settingsBellTab: "Bell schedule",
+    settingsBellHeading: "Default bell schedule",
+    settingsBellHint: "These times apply to new classes and groups. You can also apply them to all existing schedules. Individual classes can still be edited on the Schedule tab.",
+    settingsBellPeriodsLabel: "Regular bell schedule",
+    settingsBellDayTimesLabel: "Custom bell schedule for a day",
+    settingsBellDayTimesHint: "E.g. shorter lessons on Saturday. If a day has no custom times, the regular schedule is used.",
+    settingsBellApplyAllBtn: "Apply to all classes",
+    settingsBellApplyAllConfirm: "Replace the bell schedule (and custom day schedules) in all existing classes/groups with these values? Lessons in the grid will not change. You can still edit individual classes afterwards.",
+    settingsBellApplyAllDone: "Bell schedule applied to all classes.",
+    settingsBellSaved: "Saved.",
+    settingsBellAddPeriod: "Add period",
+    settingsBellClearDay: "Clear custom schedule for this day",
+    settingsBellUseCustomDay: "Custom schedule for this day",
     settingsTitle: "Settings",
     settingsBack: "Back",
     settingsTabAppearance: "Appearance",
@@ -1037,6 +1063,7 @@ async function addClassFlow() {
       name: currentLang === "uk" ? "Група 1" : "Group 1",
       createdAt: Date.now(),
     });
+    await seedGroupScheduleFromDefaults(groupRef.id);
     currentClassId = classRef.id;
     currentGroup = groupRef.id;
     localStorage.setItem(CLASS_STORAGE_KEY, currentClassId);
@@ -1056,6 +1083,7 @@ async function addGroupFlow() {
       name,
       createdAt: Date.now(),
     });
+    await seedGroupScheduleFromDefaults(ref.id);
     currentGroup = ref.id;
     localStorage.setItem(GROUP_STORAGE_KEY, currentGroup);
   } catch (e) {
@@ -1580,6 +1608,8 @@ function enterApp(user) {
   listenToGrades();
   subscribeElectionsAndHistory();
   subscribeTeacherNotifications();
+  subscribeScheduleDefaults();
+  initBellScheduleSettings();
   showMessagesFab(true);
 }
 
@@ -2368,7 +2398,9 @@ function renderSchedule() {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  const periodTimes = groupSchedule.times || {};
+  const periodTimes = (groupSchedule.times && Object.keys(groupSchedule.times).length)
+    ? groupSchedule.times
+    : (lastScheduleDefaults.times || {});
 
   for (let r = 0; r < rowCount; r++) {
     const tr = document.createElement("tr");
@@ -2643,7 +2675,10 @@ function renderDayTimesEditor(groupSchedule, rowCount) {
   toggleCheckbox.onchange = async () => {
     try {
       if (toggleCheckbox.checked) {
-        const defaults = groupSchedule.times || {};
+        const defaults =
+          (groupSchedule.times && Object.keys(groupSchedule.times).length
+            ? groupSchedule.times
+            : lastScheduleDefaults.times) || {};
         const seeded = {};
         for (let r = 0; r < rowCount; r++) {
           const t0 = defaults[r] || defaults[String(r)] || {};
@@ -2804,7 +2839,7 @@ function updateLiveStatus() {
   const groupSchedule = scheduleData[currentGroup] || emptyGroupSchedule();
   const weekdayKey = WEEKDAY_BY_JS_INDEX[now.getDay()];
   const dayEntries = groupSchedule[weekdayKey] || {};
-  const periodTimes = getDayEffectiveTimes(groupSchedule, weekdayKey);
+  const periodTimes = getDayEffectiveTimes(groupSchedule, weekdayKey, lastScheduleDefaults);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   const maxPeriodIndex = Math.max(
@@ -4682,3 +4717,339 @@ if (messagesSendBtn) {
     }
   };
 }
+
+
+// ==========================================================
+// Глобальний розклад дзвінків (schedule/defaults) + налаштування
+// ==========================================================
+let lastScheduleDefaults = { times: {}, dayTimes: {} };
+let unsubscribeScheduleDefaults = null;
+let bellSettingsDay = "sat";
+const BELL_DEFAULT_PERIODS = 8;
+
+function subscribeScheduleDefaults() {
+  if (unsubscribeScheduleDefaults) unsubscribeScheduleDefaults();
+  unsubscribeScheduleDefaults = onSnapshot(doc(db, "schedule", "defaults"), (snap) => {
+    const data = snap.exists() ? snap.data() : {};
+    lastScheduleDefaults = {
+      times: data.times && typeof data.times === "object" ? data.times : {},
+      dayTimes: data.dayTimes && typeof data.dayTimes === "object" ? data.dayTimes : {},
+    };
+    // Перемалювати live-статус і розклад, якщо відкриті
+    try {
+      updateLiveStatus();
+      if (typeof renderSchedule === "function") renderSchedule();
+    } catch (_) {}
+    renderBellSettingsEditors();
+  });
+}
+
+async function seedGroupScheduleFromDefaults(groupId) {
+  if (!groupId) return;
+  const times = lastScheduleDefaults.times || {};
+  const dayTimes = lastScheduleDefaults.dayTimes || {};
+  if (Object.keys(times).length === 0 && Object.keys(dayTimes).length === 0) return;
+  try {
+    await setDoc(
+      doc(db, "schedule", "week"),
+      {
+        [groupId]: {
+          times: { ...times },
+          dayTimes: JSON.parse(JSON.stringify(dayTimes)),
+          applied: false,
+          overrides: {},
+        },
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("seedGroupScheduleFromDefaults", e);
+  }
+}
+
+async function saveScheduleDefaults(partial) {
+  const next = {
+    times: partial.times !== undefined ? partial.times : lastScheduleDefaults.times || {},
+    dayTimes: partial.dayTimes !== undefined ? partial.dayTimes : lastScheduleDefaults.dayTimes || {},
+  };
+  await setDoc(doc(db, "schedule", "defaults"), next, { merge: true });
+}
+
+async function applyBellDefaultsToAllGroups() {
+  if (!confirm(t("settingsBellApplyAllConfirm"))) return;
+  const times = lastScheduleDefaults.times || {};
+  const dayTimes = lastScheduleDefaults.dayTimes || {};
+  const ids = groupIds().length ? groupIds() : Object.keys(scheduleData || {});
+  if (ids.length === 0) {
+    alert(t("settingsBellApplyAllDone"));
+    return;
+  }
+  try {
+    // Пишемо по групах: поле times/dayTimes замінюється цілком через updateDoc
+    // (або setDoc merge, якщо документа групи ще немає).
+    const weekRef = doc(db, "schedule", "week");
+    const weekSnap = await getDoc(weekRef);
+    const existing = weekSnap.exists() ? weekSnap.data() : {};
+    const batchPayload = {};
+    ids.forEach((gid) => {
+      const prev = existing[gid] && typeof existing[gid] === "object" ? existing[gid] : {};
+      batchPayload[gid] = {
+        ...prev,
+        times: { ...times },
+        dayTimes: JSON.parse(JSON.stringify(dayTimes)),
+      };
+    });
+    await setDoc(weekRef, batchPayload, { merge: true });
+    // Firestore deep-merge може лишити зайві ключі periods — додатково
+    // перезаписуємо times/dayTimes через update з dot-path для повної заміни.
+    const updates = {};
+    ids.forEach((gid) => {
+      updates[`${gid}.times`] = { ...times };
+      updates[`${gid}.dayTimes`] = JSON.parse(JSON.stringify(dayTimes));
+    });
+    try {
+      await updateDoc(weekRef, updates);
+    } catch (e) {
+      // якщо документа ще не було — setDoc вище вже записав
+      console.warn("applyBellDefaults updateDoc", e);
+    }
+    alert(t("settingsBellApplyAllDone"));
+  } catch (e) {
+    reportSaveError(e, "Не вдалося застосувати розклад дзвінків", "Failed to apply bell schedule");
+  }
+}
+
+function maxPeriodCountFromTimes(timesMap) {
+  if (!timesMap || !Object.keys(timesMap).length) return BELL_DEFAULT_PERIODS;
+  const max = Math.max(...Object.keys(timesMap).map((k) => parseInt(k, 10)).filter((n) => !isNaN(n)));
+  return Math.max(BELL_DEFAULT_PERIODS, max + 1);
+}
+
+function renderBellPeriodRows(container, timesMap, onChange) {
+  container.innerHTML = "";
+  const count = maxPeriodCountFromTimes(timesMap);
+  for (let r = 0; r < count; r++) {
+    const saved = timesMap[r] || timesMap[String(r)] || {};
+    const row = document.createElement("div");
+    row.className = "day-times-row settings-bell-row";
+    const label = document.createElement("span");
+    label.className = "day-times-row-label";
+    label.textContent = String(r + 1);
+    const startInput = document.createElement("input");
+    startInput.type = "time";
+    startInput.value = saved.start || "";
+    startInput.setAttribute("aria-label", t("periodStartLabel"));
+    const endInput = document.createElement("input");
+    endInput.type = "time";
+    endInput.value = saved.end || "";
+    endInput.setAttribute("aria-label", t("periodEndLabel"));
+    const persist = async () => {
+      const next = { ...(timesMap || {}) };
+      const start = startInput.value || null;
+      const end = endInput.value || null;
+      if (!start && !end) {
+        delete next[r];
+        delete next[String(r)];
+      } else {
+        next[r] = { start, end };
+        delete next[String(r)];
+      }
+      await onChange(next);
+    };
+    startInput.onchange = persist;
+    endInput.onchange = persist;
+    row.append(label, startInput, endInput);
+    container.appendChild(row);
+  }
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "secondary small";
+  addBtn.textContent = t("settingsBellAddPeriod");
+  addBtn.onclick = async () => {
+    const next = { ...(timesMap || {}) };
+    const keys = Object.keys(next).map((k) => parseInt(k, 10)).filter((n) => !isNaN(n));
+    const nextIdx = keys.length ? Math.max(...keys) + 1 : count;
+    next[nextIdx] = { start: null, end: null };
+    await onChange(next);
+  };
+  container.appendChild(addBtn);
+}
+
+function renderBellSettingsEditors() {
+  const periodsEl = document.getElementById("settings-bell-periods");
+  const dayGridEl = document.getElementById("settings-bell-day-grid");
+  const daySelect = document.getElementById("settings-bell-day-select");
+  const dayToggle = document.getElementById("settings-bell-day-toggle");
+  if (!periodsEl) return;
+
+  renderBellPeriodRows(periodsEl, lastScheduleDefaults.times || {}, async (nextTimes) => {
+    try {
+      await saveScheduleDefaults({ times: nextTimes });
+    } catch (e) {
+      reportSaveError(e, "Не вдалося зберегти розклад дзвінків", "Failed to save bell schedule");
+    }
+  });
+
+  if (daySelect) {
+    const prev = daySelect.value || bellSettingsDay;
+    if (!daySelect.options.length) {
+      WEEKDAYS.forEach((d) => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = t("weekdays")[d];
+        daySelect.appendChild(opt);
+      });
+    } else {
+      [...daySelect.options].forEach((opt) => {
+        opt.textContent = t("weekdays")[opt.value] || opt.value;
+      });
+    }
+    daySelect.value = prev;
+    bellSettingsDay = daySelect.value;
+  }
+
+  const dayKey = bellSettingsDay;
+  const dayMap =
+    (lastScheduleDefaults.dayTimes && lastScheduleDefaults.dayTimes[dayKey]) || {};
+  const hasCustom = Object.keys(dayMap).length > 0;
+
+  if (dayToggle) {
+    dayToggle.checked = hasCustom;
+  }
+  if (dayGridEl) {
+    if (!hasCustom) {
+      dayGridEl.innerHTML = "";
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.textContent = t("settingsBellDayTimesHint");
+      dayGridEl.appendChild(hint);
+    } else {
+      renderBellPeriodRows(dayGridEl, dayMap, async (nextDayMap) => {
+        try {
+          const dayTimes = {
+            ...(lastScheduleDefaults.dayTimes || {}),
+            [dayKey]: nextDayMap,
+          };
+          await saveScheduleDefaults({ dayTimes });
+        } catch (e) {
+          reportSaveError(e, "Не вдалося зберегти особливий розклад", "Failed to save custom day schedule");
+        }
+      });
+    }
+  }
+}
+
+function initBellScheduleSettings() {
+  ensureSettingsPanel();
+  if (!settingsPanelApi || !settingsPanelApi.addSection) return;
+  if (document.getElementById("settings-section-bell")) {
+    renderBellSettingsEditors();
+    return;
+  }
+
+  settingsPanelApi.addSection({
+    id: "bell",
+    tabLabel: t("settingsBellTab"),
+    title: t("settingsBellHeading"),
+    buildContent: (body) => {
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.textContent = t("settingsBellHint");
+      body.appendChild(hint);
+
+      const periodsTitle = document.createElement("h3");
+      periodsTitle.className = "settings-section-title";
+      periodsTitle.style.fontSize = "14px";
+      periodsTitle.textContent = t("settingsBellPeriodsLabel");
+      body.appendChild(periodsTitle);
+
+      const periods = document.createElement("div");
+      periods.id = "settings-bell-periods";
+      periods.className = "day-times-grid settings-bell-grid";
+      body.appendChild(periods);
+
+      const dayTitle = document.createElement("h3");
+      dayTitle.className = "settings-section-title";
+      dayTitle.style.fontSize = "14px";
+      dayTitle.style.marginTop = "18px";
+      dayTitle.textContent = t("settingsBellDayTimesLabel");
+      body.appendChild(dayTitle);
+
+      const dayHint = document.createElement("p");
+      dayHint.className = "hint";
+      dayHint.textContent = t("settingsBellDayTimesHint");
+      body.appendChild(dayHint);
+
+      const controls = document.createElement("div");
+      controls.className = "day-times-controls";
+      controls.style.marginBottom = "10px";
+
+      const daySelect = document.createElement("select");
+      daySelect.id = "settings-bell-day-select";
+      WEEKDAYS.forEach((d) => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = t("weekdays")[d];
+        if (d === bellSettingsDay) opt.selected = true;
+        daySelect.appendChild(opt);
+      });
+      daySelect.onchange = () => {
+        bellSettingsDay = daySelect.value;
+        renderBellSettingsEditors();
+      };
+      controls.appendChild(daySelect);
+
+      const toggleLabel = document.createElement("label");
+      toggleLabel.className = "day-times-toggle";
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.id = "settings-bell-day-toggle";
+      toggle.onchange = async () => {
+        const dayKey = bellSettingsDay;
+        try {
+          if (toggle.checked) {
+            const base = lastScheduleDefaults.times || {};
+            const copy = {};
+            Object.keys(base).forEach((k) => {
+              copy[k] = { ...(base[k] || {}) };
+            });
+            if (Object.keys(copy).length === 0) {
+              for (let i = 0; i < BELL_DEFAULT_PERIODS; i++) copy[i] = { start: null, end: null };
+            }
+            const dayTimes = { ...(lastScheduleDefaults.dayTimes || {}), [dayKey]: copy };
+            await saveScheduleDefaults({ dayTimes });
+          } else {
+            const dayTimes = { ...(lastScheduleDefaults.dayTimes || {}) };
+            delete dayTimes[dayKey];
+            await saveScheduleDefaults({ dayTimes });
+          }
+        } catch (e) {
+          reportSaveError(e, "Не вдалося оновити особливий розклад", "Failed to update custom day schedule");
+        }
+      };
+      const toggleText = document.createElement("span");
+      toggleText.textContent = t("settingsBellUseCustomDay");
+      toggleLabel.append(toggle, toggleText);
+      controls.appendChild(toggleLabel);
+      body.appendChild(controls);
+
+      const dayGrid = document.createElement("div");
+      dayGrid.id = "settings-bell-day-grid";
+      dayGrid.className = "day-times-grid settings-bell-grid";
+      body.appendChild(dayGrid);
+
+      const applyBtn = document.createElement("button");
+      applyBtn.type = "button";
+      applyBtn.id = "settings-bell-apply-all";
+      applyBtn.style.marginTop = "16px";
+      applyBtn.textContent = t("settingsBellApplyAllBtn");
+      applyBtn.onclick = () => applyBellDefaultsToAllGroups();
+      body.appendChild(applyBtn);
+    },
+  });
+
+  renderBellSettingsEditors();
+}
+
+// Оновити підписи секції дзвінків при зміні мови
+const _origApplyStaticForBell = typeof applyStaticTranslations === "function" ? null : null;

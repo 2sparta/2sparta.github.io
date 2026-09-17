@@ -119,12 +119,22 @@ export function buildScheduleData(raw, classIds) {
 }
 
 // Повертає ефективну мапу "номер уроку" → {start,end} для конкретного дня:
-// якщо для цього дня задано власний розклад дзвінків (dayTimes[dayKey]) —
-// повертає його, інакше — спільний groupSchedule.times.
-export function getDayEffectiveTimes(groupSchedule, dayKey) {
-  const dayOverride = groupSchedule.dayTimes && groupSchedule.dayTimes[dayKey];
+// 1) dayTimes[dayKey] групи (особливий розклад дня),
+// 2) times групи,
+// 3) якщо передано globalDefaults — dayTimes/times з schedule/defaults.
+export function getDayEffectiveTimes(groupSchedule, dayKey, globalDefaults) {
+  const dayOverride = groupSchedule && groupSchedule.dayTimes && groupSchedule.dayTimes[dayKey];
   if (dayOverride && Object.keys(dayOverride).length > 0) return dayOverride;
-  return groupSchedule.times || {};
+  const groupTimes = groupSchedule && groupSchedule.times;
+  if (groupTimes && Object.keys(groupTimes).length > 0) return groupTimes;
+  if (globalDefaults) {
+    const gDay = globalDefaults.dayTimes && globalDefaults.dayTimes[dayKey];
+    if (gDay && Object.keys(gDay).length > 0) return gDay;
+    if (globalDefaults.times && Object.keys(globalDefaults.times).length > 0) {
+      return globalDefaults.times;
+    }
+  }
+  return (groupSchedule && groupSchedule.times) || {};
 }
 
 // Повертає ISO-ключ поточного тижня, напр. "2026-W37".
@@ -500,7 +510,36 @@ export function initSettingsPanel(tFn) {
     }
   }
 
+  /** Додає нову вкладку/секцію в екран налаштувань (напр. розклад дзвінків для вчителя). */
+  function addSection({ id, tabLabel, title, buildContent }) {
+    if (!id || !tabsNav || !settingsMain) return null;
+    if (document.getElementById(`settings-section-${id}`)) {
+      return document.getElementById(`settings-section-${id}`);
+    }
+    const tabBtn = document.createElement("button");
+    tabBtn.type = "button";
+    tabBtn.className = "settings-tab-btn";
+    tabBtn.setAttribute("data-settings-section", id);
+    tabBtn.textContent = tabLabel || id;
+    tabsNav.appendChild(tabBtn);
+
+    const section = document.createElement("section");
+    section.id = `settings-section-${id}`;
+    section.className = "settings-section card";
+    section.setAttribute("data-settings-section", id);
+    const h2 = document.createElement("h2");
+    h2.className = "settings-section-title";
+    h2.textContent = title || tabLabel || id;
+    section.appendChild(h2);
+    const body = document.createElement("div");
+    body.className = "settings-section-body";
+    section.appendChild(body);
+    settingsMain.appendChild(section);
+    if (typeof buildContent === "function") buildContent(body, section);
+    return section;
+  }
+
   syncToggle();
-  return { openPanel, closePanel, refreshI18n };
+  return { openPanel, closePanel, refreshI18n, addSection };
 }
 

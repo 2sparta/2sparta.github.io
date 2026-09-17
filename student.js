@@ -177,6 +177,8 @@ let studentClassId = null; // classId батьківського класу гр
 let lastSubjects = [];
 let lastLessons = [];
 let lastScheduleRaw = {};
+let lastScheduleDefaults = { times: {}, dayTimes: {} };
+let unsubscribeScheduleDefaults = null;
 let lastElectives = [];
 let lastGrades = [];
 let lastAllStudents = [];
@@ -718,6 +720,7 @@ function teardownListeners() {
   if (unsubscribeElections) { unsubscribeElections(); unsubscribeElections = null; }
   if (unsubscribeStarostaHistory) { unsubscribeStarostaHistory(); unsubscribeStarostaHistory = null; }
   if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+  if (unsubscribeScheduleDefaults) { unsubscribeScheduleDefaults(); unsubscribeScheduleDefaults = null; }
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
@@ -922,7 +925,24 @@ function startDashboard(user) {
   subscribeStudentElections();
   subscribeStudentNotifications();
   subscribeLeaderboardData();
+  subscribeScheduleDefaultsStudent();
   showMessagesFab(true);
+}
+
+function subscribeScheduleDefaultsStudent() {
+  if (unsubscribeScheduleDefaults) unsubscribeScheduleDefaults();
+  unsubscribeScheduleDefaults = onSnapshot(doc(db, "schedule", "defaults"), (snap) => {
+    const data = snap.exists() ? snap.data() : {};
+    lastScheduleDefaults = {
+      times: data.times && typeof data.times === "object" ? data.times : {},
+      dayTimes: data.dayTimes && typeof data.dayTimes === "object" ? data.dayTimes : {},
+    };
+    try {
+      updateLiveStatus();
+      renderScheduleContainer();
+      renderWeeklyScheduleTable();
+    } catch (_) {}
+  });
 }
 
 // Розклад свого класу будується "на льоту" з сирого документа schedule/week —
@@ -1378,7 +1398,7 @@ function updateLiveStatus() {
   const groupSchedule = getGroupSchedule(myGroup());
   const weekdayKey = WEEKDAY_BY_JS_INDEX[now.getDay()];
   const dayEntries = groupSchedule[weekdayKey] || {};
-  const periodTimes = getDayEffectiveTimes(groupSchedule, weekdayKey);
+  const periodTimes = getDayEffectiveTimes(groupSchedule, weekdayKey, lastScheduleDefaults);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   const maxPeriodIndex = Math.max(
@@ -1690,7 +1710,7 @@ function renderWeeklyScheduleTable() {
           td.appendChild(chip);
 
           // Ефективний (можливо, унікальний саме для цього дня) час уроку.
-          const dayTimes = getDayEffectiveTimes(groupSchedule, dayKey);
+          const dayTimes = getDayEffectiveTimes(groupSchedule, dayKey, lastScheduleDefaults);
           const time = dayTimes[r] || dayTimes[String(r)];
           if (time && (time.start || time.end)) {
             const timeEl = document.createElement("div");
