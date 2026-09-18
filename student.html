@@ -215,6 +215,29 @@
           <section class="card card-wide">
             <h2 data-i18n="gradesAnalyticsHeading">Аналітика успішності</h2>
             <p class="hint" data-i18n="gradesAnalyticsHint">Середні бали, динаміка та розподіл оцінок за предметами.</p>
+            <div class="grades-filters-row">
+              <label class="date-field grades-period-field">
+                <span data-i18n="gradesPeriodLabel">Період</span>
+                <select id="grades-period-select">
+                  <option value="all" data-i18n="gradesPeriodAll">Увесь час</option>
+                  <option value="thisMonth" data-i18n="gradesPeriodThisMonth">Цей місяць</option>
+                  <option value="lastMonth" data-i18n="gradesPeriodLastMonth">Минулий місяць</option>
+                  <option value="semester1" data-i18n="gradesPeriodSemester1">1 семестр</option>
+                  <option value="semester2" data-i18n="gradesPeriodSemester2">2 семестр</option>
+                  <option value="custom" data-i18n="gradesPeriodCustom">Довільний період</option>
+                </select>
+              </label>
+              <div id="grades-custom-range" class="grades-custom-range hidden">
+                <label class="date-field">
+                  <span data-i18n="gradesPeriodFrom">З</span>
+                  <input id="grades-from" type="date" />
+                </label>
+                <label class="date-field">
+                  <span data-i18n="gradesPeriodTo">По</span>
+                  <input id="grades-to" type="date" />
+                </label>
+              </div>
+            </div>
             <div id="grades-analytics" class="grades-analytics">
               <div class="grades-stats-grid">
                 <div class="grades-stat-card">

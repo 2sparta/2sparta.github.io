@@ -311,6 +311,7 @@
             <h2 data-i18n="addSubjectHeading">Додати предмет</h2>
             <div class="row">
               <input id="new-subject-name" type="text" data-i18n-placeholder="subjectNamePlaceholder" placeholder="Назва предмета" />
+              <input id="new-subject-room" type="text" data-i18n-placeholder="subjectRoomPlaceholder" placeholder="Кабінет (необов'язково)" class="subject-room-input" />
               <button id="add-subject-btn" data-i18n="addBtn">Додати</button>
             </div>
             <input id="new-subject-link" type="url" data-i18n-placeholder="subjectLinkPlaceholder" placeholder="Посилання на Zoom/Meet (необов'язково)" />
@@ -322,12 +323,35 @@
           <section class="card card-wide">
             <h2 data-i18n="teacherGradesHeading">Оцінки учнів</h2>
             <p class="hint" data-i18n="teacherGradesHint">Оберіть учня, щоб переглянути всі його оцінки за предметами та датами.</p>
-            <label class="date-field teacher-grades-student-field">
-              <span data-i18n="teacherGradesSelectStudent">Учень</span>
-              <select id="teacher-grades-student-select">
-                <option value="" data-i18n="teacherGradesSelectPlaceholder">Оберіть учня...</option>
-              </select>
-            </label>
+            <div class="grades-filters-row">
+              <label class="date-field teacher-grades-student-field">
+                <span data-i18n="teacherGradesSelectStudent">Учень</span>
+                <select id="teacher-grades-student-select">
+                  <option value="" data-i18n="teacherGradesSelectPlaceholder">Оберіть учня...</option>
+                </select>
+              </label>
+              <label class="date-field grades-period-field">
+                <span data-i18n="gradesPeriodLabel">Період</span>
+                <select id="teacher-grades-period-select">
+                  <option value="all" data-i18n="gradesPeriodAll">Увесь час</option>
+                  <option value="thisMonth" data-i18n="gradesPeriodThisMonth">Цей місяць</option>
+                  <option value="lastMonth" data-i18n="gradesPeriodLastMonth">Минулий місяць</option>
+                  <option value="semester1" data-i18n="gradesPeriodSemester1">1 семестр</option>
+                  <option value="semester2" data-i18n="gradesPeriodSemester2">2 семестр</option>
+                  <option value="custom" data-i18n="gradesPeriodCustom">Довільний період</option>
+                </select>
+              </label>
+              <div id="teacher-grades-custom-range" class="grades-custom-range hidden">
+                <label class="date-field">
+                  <span data-i18n="gradesPeriodFrom">З</span>
+                  <input id="teacher-grades-from" type="date" />
+                </label>
+                <label class="date-field">
+                  <span data-i18n="gradesPeriodTo">По</span>
+                  <input id="teacher-grades-to" type="date" />
+                </label>
+              </div>
+            </div>
             <div id="teacher-grades-analytics" class="grades-analytics hidden">
               <div class="grades-stats-grid">
                 <div class="grades-stat-card">

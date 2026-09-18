@@ -179,6 +179,10 @@ let lastScheduleDefaults = { times: {}, dayTimes: {} };
 let unsubscribeScheduleDefaults = null;
 let lastElectives = [];
 let lastGrades = [];
+let gradesPeriodMode = "all";
+let gradesPeriodFrom = "";
+let gradesPeriodTo = "";
+
 let unsubscribeElectives = null;
 let unsubscribeGrades = null;
 let currentView = "today"; // "today" | "tomorrow"
@@ -330,6 +334,15 @@ const translations = {
     gradesTrendStable: "Стабільно",
     gradesTrendNone: "Немає даних",
     gradesOfMax: "з 12",
+    gradesPeriodLabel: "Період",
+    gradesPeriodAll: "Увесь час",
+    gradesPeriodThisMonth: "Цей місяць",
+    gradesPeriodLastMonth: "Минулий місяць",
+    gradesPeriodSemester1: "1 семестр",
+    gradesPeriodSemester2: "2 семестр",
+    gradesPeriodCustom: "Довільний період",
+    gradesPeriodFrom: "З",
+    gradesPeriodTo: "По",
     electivesHeading: "Мої факультативи",
     electivesHint: "Видно тільки вам — вчитель і інші учні їх не бачать.",
     electiveNamePlaceholder: "Назва факультативу",
@@ -339,6 +352,8 @@ const translations = {
     addBtn: "Додати",
     deleteBtn: "Видалити",
     joinMeetingBtn: "Приєднатися до зустрічі",
+    roomLabel: "Кабінет",
+    roomShort: "каб.",
     liveLessonLabel: "Йде урок:",
     liveBreakLabel: "Перерва",
     liveNoSubject: "Урок",
@@ -485,6 +500,15 @@ const translations = {
     gradesTrendStable: "Stable",
     gradesTrendNone: "No data",
     gradesOfMax: "of 12",
+    gradesPeriodLabel: "Period",
+    gradesPeriodAll: "All time",
+    gradesPeriodThisMonth: "This month",
+    gradesPeriodLastMonth: "Last month",
+    gradesPeriodSemester1: "1st semester",
+    gradesPeriodSemester2: "2nd semester",
+    gradesPeriodCustom: "Custom range",
+    gradesPeriodFrom: "From",
+    gradesPeriodTo: "To",
     electivesHeading: "My electives",
     electivesHint: "Only visible to you — your teacher and other students can't see these.",
     electiveNamePlaceholder: "Elective name",
@@ -494,6 +518,8 @@ const translations = {
     addBtn: "Add",
     deleteBtn: "Delete",
     joinMeetingBtn: "Join the meeting",
+    roomLabel: "Room",
+    roomShort: "rm.",
     liveLessonLabel: "Lesson in progress:",
     liveBreakLabel: "Break",
     liveNoSubject: "Lesson",
@@ -980,6 +1006,19 @@ function getSubjectName(subjectId) {
   return found ? found.data.name : t("deletedSubjectLabel");
 }
 
+function getSubjectRoom(subjectId) {
+  const found = lastSubjects.find((s) => s.id === subjectId);
+  if (!found || !found.data) return "";
+  const room = found.data.room;
+  return room != null && String(room).trim() ? String(room).trim() : "";
+}
+
+function formatSubjectLiveLabel(subjectId, subjectName) {
+  const room = getSubjectRoom(subjectId);
+  if (!room) return escapeHtml(subjectName);
+  return `${escapeHtml(subjectName)} <span class="live-status-room">(${escapeHtml(t("roomShort"))} ${escapeHtml(room)})</span>`;
+}
+
 function renderSubjectsList() {
   subjectsListEl.innerHTML = "";
   lastSubjects.forEach(({ data }) => {
@@ -993,6 +1032,13 @@ function renderSubjectsList() {
     nameSpan.className = "subject-item-name";
     nameSpan.textContent = data.name;
     topRow.appendChild(nameSpan);
+
+    if (data.room && String(data.room).trim()) {
+      const roomBadge = document.createElement("span");
+      roomBadge.className = "subject-item-room-badge";
+      roomBadge.textContent = `${t("roomShort")} ${String(data.room).trim()}`;
+      topRow.appendChild(roomBadge);
+    }
 
     if (data.meetingLink) {
       const joinBtn = document.createElement("button");
@@ -1017,17 +1063,103 @@ function isAbsenceGrade(value) {
   return s === "Н" || s === "H" || s === "N";
 }
 
+
+function getGradesPeriodRange(period, fromCustom, toCustom) {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  const pad = (n) => String(n).padStart(2, "0");
+  const iso = (yy, mm, dd) => `${yy}-${pad(mm)}-${pad(dd)}`;
+  if (period === "all" || !period) return [null, null];
+  if (period === "thisMonth") {
+    const last = new Date(y, m + 1, 0).getDate();
+    return [iso(y, m + 1, 1), iso(y, m + 1, last)];
+  }
+  if (period === "lastMonth") {
+    const d = new Date(y, m - 1, 1);
+    const yy = d.getFullYear();
+    const mm = d.getMonth();
+    const last = new Date(yy, mm + 1, 0).getDate();
+    return [iso(yy, mm + 1, 1), iso(yy, mm + 1, last)];
+  }
+  if (period === "semester1") {
+    const startYear = m >= 8 ? y : y - 1;
+    return [iso(startYear, 9, 1), iso(startYear, 12, 31)];
+  }
+  if (period === "semester2") {
+    const startYear = m >= 8 ? y + 1 : y;
+    return [iso(startYear, 1, 1), iso(startYear, 5, 31)];
+  }
+  if (period === "custom") {
+    return [fromCustom || null, toCustom || null];
+  }
+  return [null, null];
+}
+
+function filterGradesByPeriod(gradesList, period, fromCustom, toCustom) {
+  const [from, to] = getGradesPeriodRange(period, fromCustom, toCustom);
+  if (!from && !to) return gradesList;
+  return gradesList.filter((g) => {
+    const d = g.data && g.data.date;
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+}
+
+function getFilteredStudentGrades() {
+  return filterGradesByPeriod(lastGrades, gradesPeriodMode, gradesPeriodFrom, gradesPeriodTo);
+}
+
+function syncGradesCustomRangeVisibility() {
+  const el = document.getElementById("grades-custom-range");
+  if (!el) return;
+  el.classList.toggle("hidden", gradesPeriodMode !== "custom");
+}
+
+function initGradesPeriodControls() {
+  const sel = document.getElementById("grades-period-select");
+  const fromIn = document.getElementById("grades-from");
+  const toIn = document.getElementById("grades-to");
+  if (sel && !sel.dataset.bound) {
+    sel.dataset.bound = "1";
+    sel.value = gradesPeriodMode;
+    sel.onchange = () => {
+      gradesPeriodMode = sel.value || "all";
+      syncGradesCustomRangeVisibility();
+      renderGradesTable();
+    };
+  }
+  if (fromIn && !fromIn.dataset.bound) {
+    fromIn.dataset.bound = "1";
+    fromIn.onchange = () => {
+      gradesPeriodFrom = fromIn.value || "";
+      if (gradesPeriodMode === "custom") renderGradesTable();
+    };
+  }
+  if (toIn && !toIn.dataset.bound) {
+    toIn.dataset.bound = "1";
+    toIn.onchange = () => {
+      gradesPeriodTo = toIn.value || "";
+      if (gradesPeriodMode === "custom") renderGradesTable();
+    };
+  }
+  syncGradesCustomRangeVisibility();
+}
+
 function computeGradesAnalytics() {
-  const values = lastGrades
+  const source = getFilteredStudentGrades();
+  const values = source
     .map((g) => Number(g.data.value))
     .filter((v) => !isNaN(v) && v >= 1 && v <= 12);
   const overall =
     values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
 
-  const absences = lastGrades.filter((g) => isAbsenceGrade(g.data.value)).length;
+  const absences = source.filter((g) => isAbsenceGrade(g.data.value)).length;
 
   const bySubject = {};
-  lastGrades.forEach((g) => {
+  source.forEach((g) => {
     const sid = g.data.subjectId;
     const v = Number(g.data.value);
     if (!sid || isNaN(v) || v < 1 || v > 12) return;
@@ -1042,7 +1174,7 @@ function computeGradesAnalytics() {
   subjectAvgs.sort((a, b) => b.avg - a.avg);
 
   // Chronological series for trend (by date, then updatedAt)
-  const chronological = lastGrades
+  const chronological = source
     .map((g) => ({
       date: g.data.date || "",
       value: Number(g.data.value),
@@ -1249,22 +1381,24 @@ function renderGradesAnalytics() {
 
 function renderGradesTable() {
   if (!gradesTableContainer) return;
+  initGradesPeriodControls();
   gradesTableContainer.innerHTML = "";
+  const filteredGrades = getFilteredStudentGrades();
   renderGradesAnalytics();
 
-  if (lastGrades.length === 0) {
+  if (filteredGrades.length === 0) {
     if (noGradesMsg) noGradesMsg.classList.remove("hidden");
     return;
   }
   if (noGradesMsg) noGradesMsg.classList.add("hidden");
 
   // Стовпці — унікальні дати оцінок, за зростанням.
-  const dateSet = new Set(lastGrades.map((g) => g.data.date).filter(Boolean));
+  const dateSet = new Set(filteredGrades.map((g) => g.data.date).filter(Boolean));
   const dates = [...dateSet].sort((a, b) => a.localeCompare(b));
 
   // Рядки — предмети, що мають хоча б одну оцінку; спочатку в порядку
   // зі списку предметів, потім видалені (яких вже немає в lastSubjects).
-  const subjectIdsWithGrades = new Set(lastGrades.map((g) => g.data.subjectId).filter(Boolean));
+  const subjectIdsWithGrades = new Set(filteredGrades.map((g) => g.data.subjectId).filter(Boolean));
   const subjectOrder = lastSubjects.map((s) => s.id).filter((id) => subjectIdsWithGrades.has(id));
   [...subjectIdsWithGrades]
     .filter((id) => !subjectOrder.includes(id))
@@ -1278,7 +1412,7 @@ function renderGradesTable() {
   // gradesForCell(subjectId, date) → усі оцінки з цим предметом+датою
   // (може бути окремо за урок і за ДЗ).
   function gradesForCell(subjectId, date) {
-    return lastGrades
+    return filteredGrades
       .filter((g) => g.data.subjectId === subjectId && g.data.date === date)
       .sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
   }

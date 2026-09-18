@@ -3530,3 +3530,71 @@ html.no-glass-bg .settings-fab {
   color: var(--color-danger);
   border-color: var(--color-danger);
 }
+
+
+/* ---------- Кабінет предмета + період оцінок ---------- */
+.subject-room-input {
+  width: auto;
+  min-width: 110px;
+  max-width: 140px;
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+.subject-item-room {
+  margin: 0 0 8px;
+  width: 100%;
+  max-width: 220px;
+  font-size: 13px;
+}
+.subject-item-room-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  background: var(--color-surface-tint);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+.live-status-room {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  margin-left: 4px;
+}
+.grades-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+.grades-filters-row .date-field {
+  margin-bottom: 0;
+  min-width: 160px;
+}
+.grades-filters-row select,
+.grades-filters-row input[type="date"] {
+  margin-bottom: 0;
+}
+.grades-custom-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+.grades-custom-range.hidden {
+  display: none !important;
+}
+.grades-period-field select {
+  min-width: 160px;
+}
+@media (max-width: 520px) {
+  .subject-room-input {
+    max-width: none;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  .grades-filters-row .date-field {
+    min-width: 100%;
+  }
+}

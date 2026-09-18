@@ -163,6 +163,9 @@ const translations = {
     addSubjectHeading: "Додати предмет",
     subjectNamePlaceholder: "Назва предмета",
     subjectLinkPlaceholder: "Посилання на Zoom/Meet (необов'язково)",
+    subjectRoomPlaceholder: "Кабінет (необов'язково)",
+    roomLabel: "Кабінет",
+    roomShort: "каб.",
     subjectsListHeading: "Список предметів",
     subjectsCollapseBtn: "Згорнути",
     subjectsExpandBtn: "Розгорнути",
@@ -291,6 +294,15 @@ const translations = {
     gradesTrendStable: "Стабільно",
     gradesTrendNone: "Немає даних",
     gradesOfMax: "з 12",
+    gradesPeriodLabel: "Період",
+    gradesPeriodAll: "Увесь час",
+    gradesPeriodThisMonth: "Цей місяць",
+    gradesPeriodLastMonth: "Минулий місяць",
+    gradesPeriodSemester1: "1 семестр",
+    gradesPeriodSemester2: "2 семестр",
+    gradesPeriodCustom: "Довільний період",
+    gradesPeriodFrom: "З",
+    gradesPeriodTo: "По",
     gradesLegendLesson: "Урок",
     gradesLegendHw: "ДЗ",
 
@@ -468,6 +480,9 @@ const translations = {
     addSubjectHeading: "Add a Subject",
     subjectNamePlaceholder: "Subject name",
     subjectLinkPlaceholder: "Zoom/Meet link (optional)",
+    subjectRoomPlaceholder: "Room (optional)",
+    roomLabel: "Room",
+    roomShort: "rm.",
     subjectsListHeading: "Subject List",
     subjectsCollapseBtn: "Collapse",
     subjectsExpandBtn: "Expand",
@@ -596,6 +611,15 @@ const translations = {
     gradesTrendStable: "Stable",
     gradesTrendNone: "No data",
     gradesOfMax: "of 12",
+    gradesPeriodLabel: "Period",
+    gradesPeriodAll: "All time",
+    gradesPeriodThisMonth: "This month",
+    gradesPeriodLastMonth: "Last month",
+    gradesPeriodSemester1: "1st semester",
+    gradesPeriodSemester2: "2nd semester",
+    gradesPeriodCustom: "Custom range",
+    gradesPeriodFrom: "From",
+    gradesPeriodTo: "To",
     gradesLegendLesson: "Lesson",
     gradesLegendHw: "HW",
 
@@ -1313,10 +1337,18 @@ const teacherGradesChartBars = document.getElementById("teacher-grades-chart-bar
 const teacherGradesChartEmpty = document.getElementById("teacher-grades-chart-empty");
 const teacherGradesChartTrend = document.getElementById("teacher-grades-chart-trend");
 let teacherGradesSelectedStudentId = "";
+let teacherGradesPeriod = "all";
+let teacherGradesFrom = "";
+let teacherGradesTo = "";
+const teacherGradesPeriodSelect = document.getElementById("teacher-grades-period-select");
+const teacherGradesCustomRange = document.getElementById("teacher-grades-custom-range");
+const teacherGradesFromInput = document.getElementById("teacher-grades-from");
+const teacherGradesToInput = document.getElementById("teacher-grades-to");
 const GRADE_SCALE_MAX = 12;
 
 const newSubjectName = document.getElementById("new-subject-name");
 const newSubjectLink = document.getElementById("new-subject-link");
+const newSubjectRoom = document.getElementById("new-subject-room");
 const addSubjectBtn = document.getElementById("add-subject-btn");
 const subjectsList = document.getElementById("subjects-list");
 const noSubjectsMsg = document.getElementById("no-subjects-msg");
@@ -2283,6 +2315,19 @@ function getSubjectName(subjectId) {
   return found ? found.data.name : t("deletedSubjectLabel");
 }
 
+function getSubjectRoom(subjectId) {
+  const found = lastSubjects.find((s) => s.id === subjectId);
+  if (!found || !found.data) return "";
+  const room = found.data.room;
+  return room != null && String(room).trim() ? String(room).trim() : "";
+}
+
+function formatSubjectLiveLabel(subjectId, subjectName) {
+  const room = getSubjectRoom(subjectId);
+  if (!room) return escapeHtml(subjectName);
+  return `${escapeHtml(subjectName)} <span class="live-status-room">(${escapeHtml(t("roomShort"))} ${escapeHtml(room)})</span>`;
+}
+
 function renderSubjectsList() {
   subjectsList.innerHTML = "";
   const subjects = isAdmin()
@@ -2307,6 +2352,22 @@ function renderSubjectsList() {
     };
 
     topRow.append(nameSpan, deleteBtn);
+
+    const roomInput = document.createElement("input");
+    roomInput.type = "text";
+    roomInput.className = "subject-item-room";
+    roomInput.placeholder = t("subjectRoomPlaceholder");
+    roomInput.value = data.room || "";
+    roomInput.setAttribute("aria-label", t("roomLabel"));
+    roomInput.onblur = async () => {
+      const newRoom = roomInput.value.trim();
+      if (newRoom === (data.room || "")) return;
+      try {
+        await updateDoc(doc(db, "subjects", id), { room: newRoom });
+      } catch (e) {
+        reportSaveError(e, "Не вдалося зберегти кабінет", "Failed to save room number");
+      }
+    };
 
     const linkInput = document.createElement("input");
     linkInput.type = "url";
@@ -2341,7 +2402,7 @@ function renderSubjectsList() {
     hwText.textContent = t("studentsCanAddHwLabel");
     hwToggle.append(hwCb, hwText);
 
-    li.append(topRow, linkInput, hwToggle);
+    li.append(topRow, roomInput, linkInput, hwToggle);
     subjectsList.appendChild(li);
   });
   noSubjectsMsg.classList.toggle("hidden", lastSubjects.length > 0);
@@ -2351,8 +2412,9 @@ addSubjectBtn.onclick = async () => {
   const name = newSubjectName.value.trim();
   if (!name) return;
   const meetingLink = newSubjectLink.value.trim();
+  const room = newSubjectRoom ? newSubjectRoom.value.trim() : "";
   try {
-    const ref = await addDoc(collection(db, "subjects"), { name, meetingLink, createdAt: Date.now() });
+    const ref = await addDoc(collection(db, "subjects"), { name, meetingLink, room, createdAt: Date.now() });
     // Якщо вчитель (не адмін) — додаємо новий предмет до його subjectIds
     if (!isAdmin() && auth.currentUser) {
       const next = [...new Set([...teacherSubjectIds(), ref.id])];
@@ -2365,6 +2427,7 @@ addSubjectBtn.onclick = async () => {
     }
     newSubjectName.value = "";
     newSubjectLink.value = "";
+    if (newSubjectRoom) newSubjectRoom.value = "";
   } catch (e) {
     reportSaveError(e, "Не вдалося додати предмет. Перевірте правила Firestore для колекції subjects", "Failed to add the subject. Check Firestore Rules for the subjects collection");
   }
@@ -4026,6 +4089,57 @@ function renderTeacherGradesAnalytics(studentGrades) {
   }
 }
 
+
+/** Повертає [fromIso, toIso] включно для обраного періоду оцінок (шкільний рік: 1 сем. вересень–грудень, 2 сем. січень–травень). */
+function getGradesPeriodRange(period, fromCustom, toCustom) {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth(); // 0-11
+  const pad = (n) => String(n).padStart(2, "0");
+  const iso = (yy, mm, dd) => `${yy}-${pad(mm)}-${pad(dd)}`;
+  if (period === "all" || !period) return [null, null];
+  if (period === "thisMonth") {
+    const last = new Date(y, m + 1, 0).getDate();
+    return [iso(y, m + 1, 1), iso(y, m + 1, last)];
+  }
+  if (period === "lastMonth") {
+    const d = new Date(y, m - 1, 1);
+    const yy = d.getFullYear();
+    const mm = d.getMonth();
+    const last = new Date(yy, mm + 1, 0).getDate();
+    return [iso(yy, mm + 1, 1), iso(yy, mm + 1, last)];
+  }
+  if (period === "semester1") {
+    const startYear = m >= 8 ? y : y - 1;
+    return [iso(startYear, 9, 1), iso(startYear, 12, 31)];
+  }
+  if (period === "semester2") {
+    const startYear = m >= 8 ? y + 1 : y;
+    return [iso(startYear, 1, 1), iso(startYear, 5, 31)];
+  }
+  if (period === "custom") {
+    return [fromCustom || null, toCustom || null];
+  }
+  return [null, null];
+}
+
+function filterGradesByPeriod(gradesList, period, fromCustom, toCustom) {
+  const [from, to] = getGradesPeriodRange(period, fromCustom, toCustom);
+  if (!from && !to) return gradesList;
+  return gradesList.filter((g) => {
+    const d = g.data && g.data.date;
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+}
+
+function syncTeacherGradesCustomRangeVisibility() {
+  if (!teacherGradesCustomRange) return;
+  teacherGradesCustomRange.classList.toggle("hidden", teacherGradesPeriod !== "custom");
+}
+
 function renderTeacherGradesTable() {
   if (!teacherGradesTableContainer) return;
   teacherGradesTableContainer.innerHTML = "";
@@ -4040,7 +4154,13 @@ function renderTeacherGradesTable() {
     return;
   }
 
-  const studentGrades = lastGrades.filter((g) => g.data.studentId === sid);
+  const studentGradesAll = lastGrades.filter((g) => g.data.studentId === sid);
+  const studentGrades = filterGradesByPeriod(
+    studentGradesAll,
+    teacherGradesPeriod,
+    teacherGradesFrom,
+    teacherGradesTo
+  );
   if (studentGrades.length === 0) {
     if (teacherGradesAnalyticsEl) teacherGradesAnalyticsEl.classList.add("hidden");
     if (teacherNoGradesMsg) {
@@ -4177,6 +4297,28 @@ if (teacherGradesStudentSelect) {
     teacherGradesSelectedStudentId = teacherGradesStudentSelect.value;
     renderTeacherGradesTable();
   };
+
+if (teacherGradesPeriodSelect) {
+  teacherGradesPeriodSelect.value = teacherGradesPeriod;
+  teacherGradesPeriodSelect.onchange = () => {
+    teacherGradesPeriod = teacherGradesPeriodSelect.value || "all";
+    syncTeacherGradesCustomRangeVisibility();
+    renderTeacherGradesTable();
+  };
+}
+if (teacherGradesFromInput) {
+  teacherGradesFromInput.onchange = () => {
+    teacherGradesFrom = teacherGradesFromInput.value || "";
+    if (teacherGradesPeriod === "custom") renderTeacherGradesTable();
+  };
+}
+if (teacherGradesToInput) {
+  teacherGradesToInput.onchange = () => {
+    teacherGradesTo = teacherGradesToInput.value || "";
+    if (teacherGradesPeriod === "custom") renderTeacherGradesTable();
+  };
+}
+syncTeacherGradesCustomRangeVisibility();
 }
 
 
