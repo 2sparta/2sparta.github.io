@@ -251,12 +251,11 @@ export function isNumericGrade(value) {
 // ---------- Фон: 3 режими (glass / network / plain) ----------
 export const GLASS_BG_STORAGE_KEY = "schooleballs-glass-bg"; // legacy
 export const BG_MODE_STORAGE_KEY = "schooleballs-bg-mode";
-export const BG_MODES = ["glass", "network", "aurora", "plain"];
+export const BG_MODES = ["glass", "network", "plain"];
 
 const BG_MODE_LABELS = {
   glass: { uk: "Матове скло", en: "Frosted glass" },
   network: { uk: "Particle Network", en: "Particle Network" },
-  aurora: { uk: "Аврора", en: "Aurora" },
   plain: { uk: "Звичайний фон", en: "Plain background" },
 };
 
@@ -493,34 +492,6 @@ function startParticleNetwork() {
   networkState.raf = requestAnimationFrame(frame);
 }
 
-
-// ---------- Aurora (soft gradient blobs) ----------
-function ensureAuroraLayer() {
-  let layer = document.getElementById("bg-aurora");
-  if (!layer) {
-    layer = document.createElement("div");
-    layer.id = "bg-aurora";
-    layer.setAttribute("aria-hidden", "true");
-    layer.innerHTML =
-      '<span class="aurora-blob aurora-a"></span>' +
-      '<span class="aurora-blob aurora-b"></span>' +
-      '<span class="aurora-blob aurora-c"></span>' +
-      '<span class="aurora-blob aurora-d"></span>';
-    document.body.prepend(layer);
-  }
-  return layer;
-}
-
-function stopAurora() {
-  const layer = document.getElementById("bg-aurora");
-  if (layer) layer.classList.add("hidden");
-}
-
-function startAurora() {
-  const layer = ensureAuroraLayer();
-  layer.classList.remove("hidden");
-}
-
 export function applyBackgroundMode(mode) {
   if (typeof document === "undefined") return;
   const m = BG_MODES.includes(mode) ? mode : getBackgroundMode();
@@ -528,7 +499,6 @@ export function applyBackgroundMode(mode) {
   root.setAttribute("data-bg-mode", m);
   root.classList.toggle("no-glass-bg", m !== "glass");
   root.classList.toggle("bg-mode-network", m === "network");
-  root.classList.toggle("bg-mode-aurora", m === "aurora");
   root.classList.toggle("bg-mode-plain", m === "plain");
   root.classList.toggle("bg-mode-glass", m === "glass");
 
@@ -538,24 +508,17 @@ export function applyBackgroundMode(mode) {
     const l = document.getElementById("bg-particles");
     if (l) l.classList.remove("hidden");
     stopParticleNetwork();
-    stopAurora();
   } else if (m === "network") {
     if (layer) layer.classList.add("hidden");
     startParticleNetwork();
-    stopAurora();
-  } else if (m === "aurora") {
-    if (layer) layer.classList.add("hidden");
-    stopParticleNetwork();
-    startAurora();
   } else {
     if (layer) layer.classList.add("hidden");
     stopParticleNetwork();
-    stopAurora();
   }
 
   // sync toggle buttons
   document.querySelectorAll(".bg-mode-toggle-btn").forEach((btn) => {
-    btn.classList.remove("is-glass", "is-network", "is-aurora", "is-plain");
+    btn.classList.remove("is-glass", "is-network", "is-plain");
     btn.classList.add(`is-${m}`);
     const lang = (localStorage.getItem("schooleballs-lang") || "uk").startsWith("en") ? "en" : "uk";
     const label = (BG_MODE_LABELS[m] && BG_MODE_LABELS[m][lang]) || m;
@@ -593,7 +556,6 @@ export function initBackgroundParticles(count = 28) {
 function ensureBgModeButtons() {
   const svgGlass = `<svg class="icon-bg-glass" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 14c3-1 5-4 5-7 0 0 5 2 5 7 0 3-2 6-5 6s-5-3-5-6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 8c1.5.5 3 2 3 4.5 0 2-1 4-3 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="11" r="1.2" fill="currentColor"/></svg>`;
   const svgNetwork = `<svg class="icon-bg-network" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="6" cy="7" r="2" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="2" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="2" stroke="currentColor" stroke-width="2"/><circle cx="19" cy="16" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M8 8l3.2 7.2M16.2 7.2l-3 7.5M16.5 8.2l1.8 6.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
-  const svgAurora = `<svg class="icon-bg-aurora" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 17c2.5-3 4.5-4.5 6.5-4.5S13 15 15.5 14s4-2.5 5.5-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 20c3-2.5 5-3.5 7-3.5s4 2 6.5 1.5 4-1.5 5.5-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.7"/><circle cx="7" cy="8" r="1.5" fill="currentColor"/><circle cx="12" cy="6" r="1.2" fill="currentColor" opacity="0.8"/><circle cx="17" cy="9" r="1.4" fill="currentColor" opacity="0.9"/></svg>`;
   const svgPlain = `<svg class="icon-bg-plain" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 15h16" stroke="currentColor" stroke-width="2"/></svg>`;
 
   document.querySelectorAll(".theme-toggle-btn").forEach((themeBtn) => {
@@ -604,7 +566,7 @@ function ensureBgModeButtons() {
     btn.type = "button";
     btn.className = "bg-mode-toggle-btn";
     btn.setAttribute("aria-label", "Режим фону");
-    btn.innerHTML = svgGlass + svgNetwork + svgAurora + svgPlain;
+    btn.innerHTML = svgGlass + svgNetwork + svgPlain;
     // left of theme toggle
     parent.insertBefore(btn, themeBtn);
   });

@@ -1958,7 +1958,6 @@ select {
 .bg-mode-toggle-btn svg { width: 18px; height: 18px; display: none; }
 .bg-mode-toggle-btn.is-glass .icon-bg-glass { display: block; }
 .bg-mode-toggle-btn.is-network .icon-bg-network { display: block; }
-.bg-mode-toggle-btn.is-aurora .icon-bg-aurora { display: block; }
 .bg-mode-toggle-btn.is-plain .icon-bg-plain { display: block; }
 
 #bg-network-canvas {
@@ -1983,9 +1982,10 @@ html.bg-mode-network .stat-card {
 html.bg-mode-network #bg-particles {
   display: none !important;
 }
-html.bg-mode-plain #bg-network-canvas,
-html.bg-mode-glass #bg-network-canvas,
-html.bg-mode-aurora #bg-network-canvas {
+html.bg-mode-plain #bg-network-canvas {
+  display: none !important;
+}
+html.bg-mode-glass #bg-network-canvas {
   display: none !important;
 }
 
@@ -3450,84 +3450,3 @@ html.no-glass-bg .settings-fab {
   text-align: center;
   text-transform: none;
 }
-
-
-/* ---------- Aurora background ---------- */
-#bg-aurora {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
-}
-#bg-aurora.hidden { display: none !important; }
-.aurora-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(64px);
-  opacity: 0.45;
-  will-change: transform;
-  animation: aurora-drift ease-in-out infinite;
-}
-.aurora-a {
-  width: min(55vw, 480px);
-  height: min(55vw, 480px);
-  left: -8%;
-  top: -10%;
-  background: color-mix(in srgb, var(--color-accent) 55%, transparent);
-  animation-duration: 18s;
-}
-.aurora-b {
-  width: min(48vw, 420px);
-  height: min(48vw, 420px);
-  right: -6%;
-  top: 15%;
-  background: color-mix(in srgb, var(--color-purple) 50%, transparent);
-  animation-duration: 22s;
-  animation-direction: reverse;
-}
-.aurora-c {
-  width: min(60vw, 520px);
-  height: min(40vw, 360px);
-  left: 20%;
-  bottom: -12%;
-  background: color-mix(in srgb, var(--color-accent) 35%, var(--color-purple) 25%);
-  opacity: 0.35;
-  animation-duration: 26s;
-}
-.aurora-d {
-  width: min(36vw, 300px);
-  height: min(36vw, 300px);
-  left: 55%;
-  top: 40%;
-  background: color-mix(in srgb, var(--color-accent) 40%, #fff 10%);
-  opacity: 0.28;
-  animation-duration: 16s;
-  animation-direction: reverse;
-}
-@keyframes aurora-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(4%, 6%) scale(1.08); }
-  66% { transform: translate(-5%, 3%) scale(0.94); }
-}
-:root[data-theme="dark"] .aurora-blob,
-:root[data-theme="ocean-dark"] .aurora-blob,
-:root[data-theme="warm-dark"] .aurora-blob {
-  opacity: 0.35;
-  filter: blur(72px);
-}
-html.bg-mode-aurora .card,
-html.bg-mode-aurora .greeting-card,
-html.bg-mode-aurora .auth-card,
-html.bg-mode-aurora .messages-panel,
-html.bg-mode-aurora .stat-card {
-  background: var(--color-surface);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-html.bg-mode-aurora #bg-particles { display: none !important; }
-/* Aurora keeps soft body gradient under blobs */
-html.bg-mode-aurora.no-glass-bg body::before {
-  display: block;
-}
-
