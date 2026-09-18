@@ -388,6 +388,7 @@ const translations = {
     settingsTabAppearance: "Оформлення",
     settingsGlassLabel: "Матове скло на фоні",
     settingsGlassHint: "Частинки та ефект розмиття карток. Вимкніть для звичайного фону.",
+    settingsAppearanceHint: "Тема та режим фону змінюються кнопками в шапці (поруч із мовою).",
     errors: {
       "auth/invalid-email": "Некоректний email.",
       "auth/user-not-found": "Користувача не знайдено.",
@@ -675,6 +676,7 @@ const translations = {
     settingsTabAppearance: "Appearance",
     settingsGlassLabel: "Frosted glass background",
     settingsGlassHint: "Particles and card blur. Turn off for a plain background.",
+    settingsAppearanceHint: "Theme and background mode are controlled by the buttons in the header.",
     errors: {
       "auth/invalid-email": "Invalid email.",
       "auth/user-not-found": "User not found.",

@@ -248,27 +248,52 @@ export function isNumericGrade(value) {
 }
 
 
-// ---------- Фон: матове скло + рухомі частинки ----------
-export const GLASS_BG_STORAGE_KEY = "schooleballs-glass-bg";
+// ---------- Фон: 3 режими (glass / network / plain) ----------
+export const GLASS_BG_STORAGE_KEY = "schooleballs-glass-bg"; // legacy
+export const BG_MODE_STORAGE_KEY = "schooleballs-bg-mode";
+export const BG_MODES = ["glass", "network", "plain"];
 
-/** Чи увімкнене матове скло (за замовчуванням — так). */
-export function isGlassBackgroundEnabled() {
+const BG_MODE_LABELS = {
+  glass: { uk: "Матове скло", en: "Frosted glass" },
+  network: { uk: "Particle Network", en: "Particle Network" },
+  plain: { uk: "Звичайний фон", en: "Plain background" },
+};
+
+/** Поточний режим фону. Міграція зі старого ключа glass on/off. */
+export function getBackgroundMode() {
   try {
-    const v = localStorage.getItem(GLASS_BG_STORAGE_KEY);
-    if (v === null || v === undefined) return true;
-    return v !== "0" && v !== "false";
+    const v = localStorage.getItem(BG_MODE_STORAGE_KEY);
+    if (v && BG_MODES.includes(v)) return v;
+    // legacy: schooleballs-glass-bg
+    const legacy = localStorage.getItem(GLASS_BG_STORAGE_KEY);
+    if (legacy === "0" || legacy === "false") return "plain";
+    return "glass";
   } catch (e) {
-    return true;
+    return "glass";
   }
 }
 
-export function setGlassBackgroundEnabled(enabled) {
+export function setBackgroundMode(mode) {
+  const m = BG_MODES.includes(mode) ? mode : "glass";
   try {
-    localStorage.setItem(GLASS_BG_STORAGE_KEY, enabled ? "1" : "0");
+    localStorage.setItem(BG_MODE_STORAGE_KEY, m);
+    // sync legacy key
+    localStorage.setItem(GLASS_BG_STORAGE_KEY, m === "glass" ? "1" : "0");
   } catch (e) {
     /* ignore */
   }
-  applyGlassBackground(enabled);
+  applyBackgroundMode(m);
+  return m;
+}
+
+/** @deprecated — сумісність */
+export function isGlassBackgroundEnabled() {
+  return getBackgroundMode() === "glass";
+}
+
+/** @deprecated — сумісність */
+export function setGlassBackgroundEnabled(enabled) {
+  setBackgroundMode(enabled ? "glass" : "plain");
 }
 
 function ensureParticlesLayer(count) {
@@ -297,28 +322,254 @@ function ensureParticlesLayer(count) {
   return layer;
 }
 
-export function applyGlassBackground(enabled) {
-  if (typeof document === "undefined") return;
-  const on = !!enabled;
-  document.documentElement.classList.toggle("no-glass-bg", !on);
-  const layer = document.getElementById("bg-particles");
-  if (on) {
-    ensureParticlesLayer(28);
-    if (layer) layer.classList.remove("hidden");
-  } else if (layer) {
-    layer.classList.add("hidden");
+// ---------- Particle Network (canvas) ----------
+let networkState = null; // { canvas, ctx, particles, raf, w, h, mouse, onResize, onMove, onLeave }
+
+function stopParticleNetwork() {
+  if (!networkState) return;
+  if (networkState.raf) cancelAnimationFrame(networkState.raf);
+  if (networkState.onResize) window.removeEventListener("resize", networkState.onResize);
+  if (networkState.onMove) window.removeEventListener("mousemove", networkState.onMove);
+  if (networkState.onLeave) window.removeEventListener("mouseleave", networkState.onLeave);
+  if (networkState.canvas && networkState.canvas.parentNode) {
+    networkState.canvas.parentNode.removeChild(networkState.canvas);
   }
+  networkState = null;
 }
 
-/** Ініціалізація частинок і застосування збереженого стану. */
+function startParticleNetwork() {
+  if (typeof document === "undefined") return;
+  if (networkState) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "bg-network-canvas";
+  canvas.setAttribute("aria-hidden", "true");
+  document.body.prepend(canvas);
+  const ctx = canvas.getContext("2d");
+
+  const mouse = { x: null, y: null };
+  let w = 0;
+  let h = 0;
+  let particles = [];
+
+  function resize() {
+    w = window.innerWidth;
+    h = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const count = Math.max(40, Math.min(110, Math.floor((w * h) / 16000)));
+    particles = [];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.55,
+        vy: (Math.random() - 0.5) * 0.55,
+        r: 1.2 + Math.random() * 1.8,
+      });
+    }
+  }
+
+  function accentColor(alpha) {
+    const styles = getComputedStyle(document.documentElement);
+    const c = styles.getPropertyValue("--color-accent").trim() || "#24866b";
+    // parse #rrggbb
+    if (c[0] === "#" && (c.length === 7 || c.length === 4)) {
+      let r, g, b;
+      if (c.length === 7) {
+        r = parseInt(c.slice(1, 3), 16);
+        g = parseInt(c.slice(3, 5), 16);
+        b = parseInt(c.slice(5, 7), 16);
+      } else {
+        r = parseInt(c[1] + c[1], 16);
+        g = parseInt(c[2] + c[2], 16);
+        b = parseInt(c[3] + c[3], 16);
+      }
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+    return `rgba(36,134,107,${alpha})`;
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+    const linkDist = Math.min(140, Math.max(90, w * 0.09));
+    const mouseDist = linkDist * 1.35;
+
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+      p.x = Math.max(0, Math.min(w, p.x));
+      p.y = Math.max(0, Math.min(h, p.y));
+    }
+
+    // links
+    for (let i = 0; i < particles.length; i++) {
+      const a = particles[i];
+      for (let j = i + 1; j < particles.length; j++) {
+        const b = particles[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const d = Math.hypot(dx, dy);
+        if (d < linkDist) {
+          const alpha = 0.08 + (1 - d / linkDist) * 0.28;
+          ctx.beginPath();
+          ctx.strokeStyle = accentColor(alpha);
+          ctx.lineWidth = 1;
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+      if (mouse.x != null) {
+        const dx = a.x - mouse.x;
+        const dy = a.y - mouse.y;
+        const d = Math.hypot(dx, dy);
+        if (d < mouseDist) {
+          const alpha = 0.12 + (1 - d / mouseDist) * 0.35;
+          ctx.beginPath();
+          ctx.strokeStyle = accentColor(alpha);
+          ctx.lineWidth = 1.2;
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.stroke();
+          // gentle pull
+          a.vx += (-dx / mouseDist) * 0.02;
+          a.vy += (-dy / mouseDist) * 0.02;
+          const speed = Math.hypot(a.vx, a.vy);
+          if (speed > 1.2) {
+            a.vx = (a.vx / speed) * 1.2;
+            a.vy = (a.vy / speed) * 1.2;
+          }
+        }
+      }
+    }
+
+    // dots
+    ctx.fillStyle = accentColor(0.55);
+    for (const p of particles) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    networkState.raf = requestAnimationFrame(frame);
+  }
+
+  function onResize() {
+    resize();
+  }
+  function onMove(e) {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  }
+  function onLeave() {
+    mouse.x = null;
+    mouse.y = null;
+  }
+
+  resize();
+  networkState = {
+    canvas,
+    ctx,
+    particles,
+    raf: 0,
+    w,
+    h,
+    mouse,
+    onResize,
+    onMove,
+    onLeave,
+  };
+  window.addEventListener("resize", onResize);
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseleave", onLeave);
+  networkState.raf = requestAnimationFrame(frame);
+}
+
+export function applyBackgroundMode(mode) {
+  if (typeof document === "undefined") return;
+  const m = BG_MODES.includes(mode) ? mode : getBackgroundMode();
+  const root = document.documentElement;
+  root.setAttribute("data-bg-mode", m);
+  root.classList.toggle("no-glass-bg", m !== "glass");
+  root.classList.toggle("bg-mode-network", m === "network");
+  root.classList.toggle("bg-mode-plain", m === "plain");
+  root.classList.toggle("bg-mode-glass", m === "glass");
+
+  const layer = document.getElementById("bg-particles");
+  if (m === "glass") {
+    ensureParticlesLayer(28);
+    const l = document.getElementById("bg-particles");
+    if (l) l.classList.remove("hidden");
+    stopParticleNetwork();
+  } else if (m === "network") {
+    if (layer) layer.classList.add("hidden");
+    startParticleNetwork();
+  } else {
+    if (layer) layer.classList.add("hidden");
+    stopParticleNetwork();
+  }
+
+  // sync toggle buttons
+  document.querySelectorAll(".bg-mode-toggle-btn").forEach((btn) => {
+    btn.classList.remove("is-glass", "is-network", "is-plain");
+    btn.classList.add(`is-${m}`);
+    const lang = (localStorage.getItem("schooleballs-lang") || "uk").startsWith("en") ? "en" : "uk";
+    const label = (BG_MODE_LABELS[m] && BG_MODE_LABELS[m][lang]) || m;
+    btn.setAttribute("aria-label", `Фон: ${label}. Натисніть, щоб змінити`);
+    btn.title = label;
+  });
+}
+
+/** @deprecated alias */
+export function applyGlassBackground(enabled) {
+  applyBackgroundMode(enabled ? "glass" : "plain");
+}
+
+/** Ініціалізація фону + кнопок перемикача режиму. */
 export function initBackgroundParticles(count = 28) {
   if (typeof document === "undefined") return;
-  if (isGlassBackgroundEnabled()) {
-    ensureParticlesLayer(count);
-    applyGlassBackground(true);
-  } else {
-    applyGlassBackground(false);
-  }
+  // ensure buttons exist next to theme toggles if not in HTML
+  ensureBgModeButtons();
+  const mode = getBackgroundMode();
+  if (mode === "glass") ensureParticlesLayer(count);
+  applyBackgroundMode(mode);
+
+  document.querySelectorAll(".bg-mode-toggle-btn").forEach((btn) => {
+    if (btn.dataset.bgBound) return;
+    btn.dataset.bgBound = "1";
+    btn.addEventListener("click", () => {
+      const cur = getBackgroundMode();
+      const idx = BG_MODES.indexOf(cur);
+      const next = BG_MODES[(idx + 1) % BG_MODES.length];
+      setBackgroundMode(next);
+    });
+  });
+}
+
+function ensureBgModeButtons() {
+  const svgGlass = `<svg class="icon-bg-glass" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 14c3-1 5-4 5-7 0 0 5 2 5 7 0 3-2 6-5 6s-5-3-5-6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 8c1.5.5 3 2 3 4.5 0 2-1 4-3 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="11" r="1.2" fill="currentColor"/></svg>`;
+  const svgNetwork = `<svg class="icon-bg-network" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="6" cy="7" r="2" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="2" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="2" stroke="currentColor" stroke-width="2"/><circle cx="19" cy="16" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M8 8l3.2 7.2M16.2 7.2l-3 7.5M16.5 8.2l1.8 6.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  const svgPlain = `<svg class="icon-bg-plain" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 15h16" stroke="currentColor" stroke-width="2"/></svg>`;
+
+  document.querySelectorAll(".theme-toggle-btn").forEach((themeBtn) => {
+    const parent = themeBtn.parentElement;
+    if (!parent) return;
+    if (parent.querySelector(".bg-mode-toggle-btn")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "bg-mode-toggle-btn";
+    btn.setAttribute("aria-label", "Режим фону");
+    btn.innerHTML = svgGlass + svgNetwork + svgPlain;
+    // left of theme toggle
+    parent.insertBefore(btn, themeBtn);
+  });
 }
 
 /** Повноекранні налаштування (FAB + екран з вкладками зліва, як у кабінеті). */
@@ -370,13 +621,7 @@ export function initSettingsPanel(tFn) {
           <div class="settings-main" id="settings-main">
             <section id="settings-section-appearance" class="settings-section card" data-settings-section="appearance">
               <h2 class="settings-section-title">${t("settingsTabAppearance") || "Оформлення"}</h2>
-              <label class="settings-toggle-row">
-                <span class="settings-toggle-text">
-                  <span class="settings-toggle-label">${t("settingsGlassLabel") || "Матове скло на фоні"}</span>
-                  <span class="settings-toggle-hint">${t("settingsGlassHint") || "Частинки та ефект розмиття карток. Вимкніть для звичайного фону."}</span>
-                </span>
-                <input type="checkbox" id="settings-glass-toggle" class="settings-toggle-input" />
-              </label>
+              <p class="hint settings-appearance-hint">${t("settingsAppearanceHint") || "Тема та режим фону змінюються кнопками в шапці (поруч із мовою)."}</p>
             </section>
           </div>
         </div>
@@ -390,13 +635,11 @@ export function initSettingsPanel(tFn) {
   if (legacyPanel) legacyPanel.remove();
 
   const backBtn = document.getElementById("settings-back-btn");
-  const glassToggle = document.getElementById("settings-glass-toggle");
   const titleEl = document.getElementById("settings-screen-title");
   const backLabelEl = document.getElementById("settings-back-label");
   const tabsNav = document.getElementById("settings-tabs");
   const settingsMain = document.getElementById("settings-main");
-  const labelEl = screen.querySelector(".settings-toggle-label");
-  const hintEl = screen.querySelector(".settings-toggle-hint");
+  const appearanceHintEl = screen.querySelector(".settings-appearance-hint");
   const appearanceTabBtn = screen.querySelector('.settings-tab-btn[data-settings-section="appearance"]');
   const appearanceSectionTitle = screen.querySelector("#settings-section-appearance .settings-section-title");
 
@@ -404,7 +647,7 @@ export function initSettingsPanel(tFn) {
   let isAnimating = false;
 
   function syncToggle() {
-    if (glassToggle) glassToggle.checked = isGlassBackgroundEnabled();
+    /* bg mode lives in header buttons now */
   }
 
   function setActiveTab(sectionId) {
@@ -485,12 +728,6 @@ export function initSettingsPanel(tFn) {
     });
   }
 
-  if (glassToggle) {
-    glassToggle.onchange = () => {
-      setGlassBackgroundEnabled(!!glassToggle.checked);
-    };
-  }
-
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && isOpen) {
       e.preventDefault();
@@ -504,10 +741,9 @@ export function initSettingsPanel(tFn) {
     fab.title = tt("settingsTitle") || "Settings";
     if (titleEl) titleEl.textContent = tt("settingsTitle") || "Settings";
     if (backLabelEl) backLabelEl.textContent = tt("settingsBack") || "Back";
-    if (labelEl) labelEl.textContent = tt("settingsGlassLabel") || "Frosted glass background";
-    if (hintEl) {
-      hintEl.textContent =
-        tt("settingsGlassHint") || "Particles and card blur. Turn off for a plain background.";
+    if (appearanceHintEl) {
+      appearanceHintEl.textContent =
+        tt("settingsAppearanceHint") || "Theme and background mode are controlled by the buttons in the header.";
     }
     if (appearanceTabBtn) {
       appearanceTabBtn.textContent = tt("settingsTabAppearance") || "Appearance";
