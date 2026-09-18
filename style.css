@@ -3598,3 +3598,31 @@ html.no-glass-bg .settings-fab {
     min-width: 100%;
   }
 }
+
+/* ---------- Вчителі / коди-запрошення / школа ---------- */
+.teacher-invite-code-display {
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+  user-select: all;
+}
+.teachers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.teacher-invite-row {
+  justify-content: space-between;
+}
+.setup-role-block.is-locked .setup-role-option {
+  opacity: 0.85;
+  pointer-events: none;
+}
+.setup-role-block.is-locked .setup-role-option:has(input:checked) {
+  opacity: 1;
+}
+#school-invite-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

@@ -35,12 +35,69 @@
       <button id="login-btn" data-i18n="loginBtn">Увійти</button>
       <button id="register-btn" class="secondary" data-i18n="registerBtn">Зареєструватися (вперше)</button>
       <p class="hint" data-i18n-html="hintHtml">
-        Після реєстрації першого вчителя зайдіть у Firebase Console → Firestore →
-        колекція <code>users</code> → знайдіть свій uid і змініть поле
-        <code>role</code> на <b>teacher</b>. Інакше доступ до панелі буде закрито.
+        Після реєстрації оберіть або створіть школу — роль призначається автоматично.
+        Нових учителів запрошуйте 16-символьним кодом на вкладці «Вчителі».
       </p>
       <p id="auth-error" class="error"></p>
       <p class="hint"><a href="student.html" class="role-switch-link" data-i18n="studentLinkText">Я учень →</a></p>
+    </div>
+  </div>
+
+
+  <!-- ---------- Вибір / створення школи ---------- -->
+  <div id="school-screen" class="screen hidden">
+    <div class="card auth-card setup-card">
+      <div class="auth-brand">
+        <span class="brand-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19V7a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 5v4a1 1 0 0 0 1 1h4" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-name">Класний простір</span>
+      </div>
+      <h1 data-i18n="schoolHeading">Оберіть школу</h1>
+      <p class="hint" data-i18n="schoolHint">Створіть нову школу (ви станете адміністратором) або приєднайтеся за кодом-запрошенням від адміністратора.</p>
+
+      <div class="setup-role-block">
+        <span class="class-assign-label" data-i18n="schoolModeLabel">Що зробити</span>
+        <div class="setup-role-cards">
+          <label class="setup-role-option setup-role-admin">
+            <input type="radio" name="school-mode" value="create" checked />
+            <span class="setup-role-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21h18M5 21V9l7-4 7 4v12M9 21v-6h6v6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="setup-role-text">
+              <span class="setup-role-title" data-i18n="schoolModeCreate">Створити школу</span>
+              <span class="setup-role-desc" data-i18n="schoolModeCreateDesc">Ви станете адміністратором і зможете запрошувати вчителів</span>
+            </span>
+          </label>
+          <label class="setup-role-option setup-role-teacher">
+            <input type="radio" name="school-mode" value="join" />
+            <span class="setup-role-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" stroke="currentColor" stroke-width="2"/><path d="M3 21v-1a6 6 0 0 1 6-6h2M16 11l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="setup-role-text">
+              <span class="setup-role-title" data-i18n="schoolModeJoin">Приєднатися за кодом</span>
+              <span class="setup-role-desc" data-i18n="schoolModeJoinDesc">Введіть 16-символьний код, який дав адміністратор школи</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div id="school-create-block">
+        <label class="date-field">
+          <span data-i18n="schoolNameLabel">Назва школи</span>
+          <input id="school-name-input" type="text" data-i18n-placeholder="schoolNamePlaceholder" placeholder="Наприклад, Ліцей №1" autocomplete="organization" />
+        </label>
+      </div>
+      <div id="school-join-block" class="hidden">
+        <label class="date-field">
+          <span data-i18n="schoolInviteLabel">Код-запрошення</span>
+          <input id="school-invite-input" type="text" data-i18n-placeholder="schoolInvitePlaceholder" placeholder="16 символів" autocapitalize="characters" maxlength="20" />
+        </label>
+      </div>
+
+      <button id="school-continue-btn" data-i18n="schoolContinueBtn">Продовжити</button>
+      <button id="school-logout-btn" class="secondary" data-i18n="logout">Вийти</button>
+      <p id="school-error" class="error"></p>
     </div>
   </div>
 
@@ -132,6 +189,7 @@
         <button id="tab-grades-btn" class="tab-btn" data-i18n="tabGrades">Оцінки</button>
         <button id="tab-announcements-btn" class="tab-btn" data-i18n="tabAnnouncements">Оголошення</button>
         <button id="tab-selfgov-btn" class="tab-btn" data-i18n="tabSelfGov">Самоврядування</button>
+        <button id="tab-teachers-btn" class="tab-btn hidden" data-i18n="tabTeachers">Вчителі</button>
       </nav>
 
       <!-- Віджети та контент: відцентровані та широкі -->
@@ -410,6 +468,30 @@
             <h2 data-i18n="announcementsHeading">Оголошення</h2>
             <div id="announcements-list" class="announcements-list"></div>
             <p id="no-announcements-msg" class="hint hidden" data-i18n="noAnnouncementsMsg">Оголошень ще немає.</p>
+          </section>
+        </div>
+
+
+        <div id="teachers-panel" class="tab-panel hidden">
+          <section class="card">
+            <h2 data-i18n="teachersInviteHeading">Запросити вчителя</h2>
+            <p class="hint" data-i18n="teachersInviteHint">Згенеруйте 16-символьний код і передайте його новому вчителю. Після реєстрації він введе код на екрані вибору школи.</p>
+            <div class="row" style="align-items:center;flex-wrap:wrap;gap:10px;">
+              <button id="generate-teacher-invite-btn" type="button" data-i18n="teachersGenerateBtn">Згенерувати код</button>
+              <code id="teacher-invite-code-display" class="invite-code teacher-invite-code-display" style="font-size:15px;letter-spacing:0.08em;"></code>
+            </div>
+            <p id="teacher-invite-generated-hint" class="hint hidden" data-i18n="teachersInviteGeneratedHint">Скопіюйте код і надішліть учителю. Код одноразовий.</p>
+          </section>
+          <section class="card">
+            <h2 data-i18n="teachersPendingInvitesHeading">Невикористані коди</h2>
+            <div id="teacher-invites-list" class="teachers-list"></div>
+            <p id="no-teacher-invites-msg" class="hint hidden" data-i18n="noTeacherInvitesMsg">Немає активних кодів-запрошень.</p>
+          </section>
+          <section class="card">
+            <h2 data-i18n="teachersListHeading">Вчителі школи</h2>
+            <p class="hint" data-i18n="teachersListHint">Усі вчителі та адміністратори, прив'язані до вашої школи.</p>
+            <div id="teachers-list" class="teachers-list"></div>
+            <p id="no-teachers-msg" class="hint hidden" data-i18n="noTeachersMsg">Поки що лише ви.</p>
           </section>
         </div>
 

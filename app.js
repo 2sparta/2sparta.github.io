@@ -43,6 +43,7 @@ import {
   normalizeGroupData,
   generateEntryId,
   generateSixDigitCode,
+  generateTeacherInviteCode,
   parseTimeToMinutes,
   formatDateLocal,
   escapeHtml,
@@ -118,9 +119,8 @@ const translations = {
     loginBtn: "Увійти",
     registerBtn: "Зареєструватися (вперше)",
     hintHtml:
-      "Після реєстрації першого вчителя зайдіть у Firebase Console → Firestore → " +
-      "колекція <code>users</code> → знайдіть свій uid і змініть поле " +
-      "<code>role</code> на <b>teacher</b>. Інакше доступ до панелі буде закрито.",
+      "Після реєстрації оберіть або створіть школу — роль призначається автоматично. " +
+      "Нових учителів запрошуйте 16-символьним кодом на вкладці «Вчителі».",
     appTitle: "Бали учнів",
     logout: "Вийти",
     greetingTitle: "Доброго дня!",
@@ -368,12 +368,46 @@ const translations = {
     notifElectionResult: (name) => `Новий староста: ${name}`,
     notifAnnouncement: "Повідомлення від учителя",
     gradeCommentPlaceholder: "Коментар (необов'язково)",
-    registerSuccess: (uid) =>
-      "Акаунт створено. Тепер у Firebase Console → Firestore → users → " +
-      uid + " встановіть role = teacher, після чого увійдіть знову.",
+    registerSuccess: () =>
+      "Акаунт створено. Увійдіть і оберіть або створіть школу.",
     noTeacherRole:
-      "У цього акаунта немає прав вчителя (role != teacher/admin). " +
-      "Перевірте роль у Firestore або використайте інший акаунт.",
+      "У цього акаунта немає прав вчителя. Зареєструйтеся як вчитель або увійдіть іншим акаунтом.",
+    schoolHeading: "Оберіть школу",
+    schoolHint: "Створіть нову школу (ви станете адміністратором) або приєднайтеся за кодом-запрошенням від адміністратора.",
+    schoolModeLabel: "Що зробити",
+    schoolModeCreate: "Створити школу",
+    schoolModeCreateDesc: "Ви станете адміністратором і зможете запрошувати вчителів",
+    schoolModeJoin: "Приєднатися за кодом",
+    schoolModeJoinDesc: "Введіть 16-символьний код, який дав адміністратор школи",
+    schoolNameLabel: "Назва школи",
+    schoolNamePlaceholder: "Наприклад, Ліцей №1",
+    schoolInviteLabel: "Код-запрошення",
+    schoolInvitePlaceholder: "16 символів",
+    schoolContinueBtn: "Продовжити",
+    schoolNeedName: "Вкажіть назву школи.",
+    schoolNeedCode: "Введіть код-запрошення.",
+    schoolCodeNotFound: "Код не знайдено. Перевірте, чи правильно він введений.",
+    schoolCodeUsed: "Цей код вже використано. Попросіть новий у адміністратора.",
+    schoolCreated: "Школу створено.",
+    schoolJoined: "Ви приєдналися до школи.",
+    tabTeachers: "Вчителі",
+    teachersInviteHeading: "Запросити вчителя",
+    teachersInviteHint: "Згенеруйте 16-символьний код і передайте його новому вчителю. Після реєстрації він введе код на екрані вибору школи.",
+    teachersGenerateBtn: "Згенерувати код",
+    teachersInviteGeneratedHint: "Скопіюйте код і надішліть учителю. Код одноразовий.",
+    teachersPendingInvitesHeading: "Невикористані коди",
+    noTeacherInvitesMsg: "Немає активних кодів-запрошень.",
+    teachersListHeading: "Вчителі школи",
+    teachersListHint: "Усі вчителі та адміністратори, прив'язані до вашої школи.",
+    noTeachersMsg: "Поки що лише ви.",
+    teacherRoleAdmin: "Адміністратор",
+    teacherRoleTeacher: "Вчитель",
+    teacherRolePending: "Очікує",
+    teacherInviteDelete: "Видалити код",
+    teacherInviteCopied: "Код скопійовано",
+    teacherInviteCreatedAt: "Створено",
+    teacherEmailLabel: "Email",
+    teachersOnlyAdmin: "Ця вкладка доступна лише адміністратору школи.",
     setupHeading: "Налаштування профілю",
     setupHint: "Вкажіть ПІБ (буде видно учням у повідомленнях) та оберіть предмети, які ви викладаєте. Або увійдіть як адміністратор з повним доступом.",
     setupNameLabel: "ПІБ",
@@ -435,9 +469,8 @@ const translations = {
     loginBtn: "Sign In",
     registerBtn: "Register (first time)",
     hintHtml:
-      "After registering the first teacher, go to Firebase Console → Firestore → " +
-      "the <code>users</code> collection → find your uid and set the " +
-      "<code>role</code> field to <b>teacher</b>. Otherwise access to the panel will stay closed.",
+      "After registration, create or join a school — your role is assigned automatically. " +
+      "Invite new teachers with a 16-character code on the Teachers tab.",
     appTitle: "Student Points",
     logout: "Sign Out",
     greetingTitle: "Good day!",
@@ -685,12 +718,46 @@ const translations = {
     notifElectionResult: (name) => `New class monitor: ${name}`,
     notifAnnouncement: "Message from teacher",
     gradeCommentPlaceholder: "Comment (optional)",
-    registerSuccess: (uid) =>
-      "Account created. Now in Firebase Console → Firestore → users → " +
-      uid + " set role = teacher, then sign in again.",
+    registerSuccess: () =>
+      "Account created. Sign in and create or join a school.",
     noTeacherRole:
-      "This account doesn't have teacher rights (role != teacher/admin). " +
-      "Check the role in Firestore or use a different account.",
+      "This account doesn't have teacher rights. Register as a teacher or use a different account.",
+    schoolHeading: "Choose a school",
+    schoolHint: "Create a new school (you become the administrator) or join with an invite code from an admin.",
+    schoolModeLabel: "What to do",
+    schoolModeCreate: "Create a school",
+    schoolModeCreateDesc: "You become the admin and can invite teachers",
+    schoolModeJoin: "Join with a code",
+    schoolModeJoinDesc: "Enter the 16-character code from the school admin",
+    schoolNameLabel: "School name",
+    schoolNamePlaceholder: "e.g. Lyceum No. 1",
+    schoolInviteLabel: "Invite code",
+    schoolInvitePlaceholder: "16 characters",
+    schoolContinueBtn: "Continue",
+    schoolNeedName: "Enter the school name.",
+    schoolNeedCode: "Enter the invite code.",
+    schoolCodeNotFound: "Code not found. Check that it's typed correctly.",
+    schoolCodeUsed: "This code has already been used. Ask the admin for a new one.",
+    schoolCreated: "School created.",
+    schoolJoined: "You joined the school.",
+    tabTeachers: "Teachers",
+    teachersInviteHeading: "Invite a teacher",
+    teachersInviteHint: "Generate a 16-character code and share it with the new teacher. After registration they enter it on the school selection screen.",
+    teachersGenerateBtn: "Generate code",
+    teachersInviteGeneratedHint: "Copy the code and send it to the teacher. The code is single-use.",
+    teachersPendingInvitesHeading: "Unused codes",
+    noTeacherInvitesMsg: "No active invite codes.",
+    teachersListHeading: "School teachers",
+    teachersListHint: "All teachers and admins linked to your school.",
+    noTeachersMsg: "Just you for now.",
+    teacherRoleAdmin: "Administrator",
+    teacherRoleTeacher: "Teacher",
+    teacherRolePending: "Pending",
+    teacherInviteDelete: "Delete code",
+    teacherInviteCopied: "Code copied",
+    teacherInviteCreatedAt: "Created",
+    teacherEmailLabel: "Email",
+    teachersOnlyAdmin: "This tab is only available to the school administrator.",
     setupHeading: "Profile setup",
     setupHint: "Enter your full name (shown to students in messages) and select the subjects you teach. Or sign in as an administrator with full access.",
     setupNameLabel: "Full name",
@@ -1271,6 +1338,15 @@ async function deleteClassFlow(classId) {
 // ---------- DOM refs ----------
 const authScreen = document.getElementById("auth-screen");
 
+const schoolScreen = document.getElementById("school-screen");
+const schoolNameInput = document.getElementById("school-name-input");
+const schoolInviteInput = document.getElementById("school-invite-input");
+const schoolCreateBlock = document.getElementById("school-create-block");
+const schoolJoinBlock = document.getElementById("school-join-block");
+const schoolContinueBtn = document.getElementById("school-continue-btn");
+const schoolLogoutBtn = document.getElementById("school-logout-btn");
+const schoolError = document.getElementById("school-error");
+
 const setupScreen = document.getElementById("setup-screen");
 const setupDisplayName = document.getElementById("setup-display-name");
 const setupSubjectsList = document.getElementById("setup-subjects-list");
@@ -1318,12 +1394,21 @@ const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const tabGradesBtn = document.getElementById("tab-grades-btn");
 const tabAnnouncementsBtn = document.getElementById("tab-announcements-btn");
 const tabSelfGovBtn = document.getElementById("tab-selfgov-btn");
+const tabTeachersBtn = document.getElementById("tab-teachers-btn");
 const pointsPanel = document.getElementById("points-panel");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 const gradesPanelEl = document.getElementById("grades-panel");
 const announcementsPanelEl = document.getElementById("announcements-panel");
 const selfgovPanelEl = document.getElementById("selfgov-panel");
+const teachersPanelEl = document.getElementById("teachers-panel");
+const generateTeacherInviteBtn = document.getElementById("generate-teacher-invite-btn");
+const teacherInviteCodeDisplay = document.getElementById("teacher-invite-code-display");
+const teacherInviteGeneratedHint = document.getElementById("teacher-invite-generated-hint");
+const teacherInvitesListEl = document.getElementById("teacher-invites-list");
+const noTeacherInvitesMsg = document.getElementById("no-teacher-invites-msg");
+const teachersListEl = document.getElementById("teachers-list");
+const noTeachersMsg = document.getElementById("no-teachers-msg");
 const teacherGradesStudentSelect = document.getElementById("teacher-grades-student-select");
 const teacherGradesTableContainer = document.getElementById("teacher-grades-table-container");
 const teacherNoGradesMsg = document.getElementById("teacher-no-grades-msg");
@@ -1584,12 +1669,14 @@ function showTab(tab) {
   if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
   if (tabAnnouncementsBtn) tabAnnouncementsBtn.classList.toggle("active", tab === "announcements");
   if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
+  if (tabTeachersBtn) tabTeachersBtn.classList.toggle("active", tab === "teachers");
   pointsPanel.classList.toggle("hidden", tab !== "points");
   schedulePanel.classList.toggle("hidden", tab !== "schedule");
   tasksPanel.classList.toggle("hidden", tab !== "tasks");
   if (gradesPanelEl) gradesPanelEl.classList.toggle("hidden", tab !== "grades");
   if (announcementsPanelEl) announcementsPanelEl.classList.toggle("hidden", tab !== "announcements");
   if (selfgovPanelEl) selfgovPanelEl.classList.toggle("hidden", tab !== "selfgov");
+  if (teachersPanelEl) teachersPanelEl.classList.toggle("hidden", tab !== "teachers");
   if (tab === "grades") {
     renderTeacherGradesStudentSelect();
     renderTeacherGradesTable();
@@ -1601,6 +1688,9 @@ function showTab(tab) {
   if (tab === "selfgov") {
     renderSelfGovTeacher();
   }
+  if (tab === "teachers") {
+    renderTeachersTab();
+  }
 }
 tabPointsBtn.onclick = () => showTab("points");
 tabScheduleBtn.onclick = () => showTab("schedule");
@@ -1608,6 +1698,7 @@ tabTasksBtn.onclick = () => showTab("tasks");
 if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
 if (tabAnnouncementsBtn) tabAnnouncementsBtn.onclick = () => showTab("announcements");
 if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
+if (tabTeachersBtn) tabTeachersBtn.onclick = () => showTab("teachers");
 
 // ---------- Auth ----------
 loginBtn.onclick = async () => {
@@ -1634,8 +1725,9 @@ registerBtn.onclick = async () => {
       role: "pending-teacher",
       email: cred.user.email,
       createdAt: Date.now(),
+      schoolId: null,
     });
-    authError.textContent = t("registerSuccess")(cred.user.uid);
+    authError.textContent = t("registerSuccess")();
     await signOut(auth);
   } catch (e) {
     authError.textContent = errorText(e);
@@ -1645,6 +1737,10 @@ registerBtn.onclick = async () => {
 };
 
 logoutBtn.onclick = () => signOut(auth);
+
+function needsSchool(data) {
+  return !data || !data.schoolId;
+}
 
 onAuthStateChanged(auth, async (user) => {
   if (isRegistering) return;
@@ -1666,6 +1762,11 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUserProfile = { ...(data || {}), uid: user.uid };
 
+  if (needsSchool(currentUserProfile)) {
+    showSchoolScreen();
+    return;
+  }
+
   if (profileNeedsSetup(currentUserProfile)) {
     showSetupScreen();
     listenToSubjects();
@@ -1679,6 +1780,9 @@ function enterApp(user) {
   showAppScreen();
   updateAvatar(user);
   updateGreetingDate();
+  if (tabTeachersBtn) {
+    tabTeachersBtn.classList.toggle("hidden", !isAdmin());
+  }
   listenToClasses();
   listenToStudents();
   listenToSubjects();
@@ -1690,12 +1794,135 @@ function enterApp(user) {
   subscribeTeacherAnnouncements();
   subscribeScheduleDefaults();
   initBellScheduleSettings();
+  if (isAdmin()) subscribeTeachersData();
   showMessagesFab(true);
+}
+
+function showSchoolScreen() {
+  if (authScreen) authScreen.classList.add("hidden");
+  if (appScreen) appScreen.classList.add("hidden");
+  if (setupScreen) setupScreen.classList.add("hidden");
+  if (schoolScreen) schoolScreen.classList.remove("hidden");
+  if (schoolError) schoolError.textContent = "";
+  if (schoolNameInput) schoolNameInput.value = "";
+  if (schoolInviteInput) schoolInviteInput.value = "";
+  const createRadio = document.querySelector('input[name="school-mode"][value="create"]');
+  if (createRadio) createRadio.checked = true;
+  toggleSchoolModeBlocks();
+}
+
+function toggleSchoolModeBlocks() {
+  const mode = document.querySelector('input[name="school-mode"]:checked');
+  const isJoin = mode && mode.value === "join";
+  if (schoolCreateBlock) schoolCreateBlock.classList.toggle("hidden", isJoin);
+  if (schoolJoinBlock) schoolJoinBlock.classList.toggle("hidden", !isJoin);
+}
+
+document.querySelectorAll('input[name="school-mode"]').forEach((r) => {
+  r.addEventListener("change", toggleSchoolModeBlocks);
+});
+
+if (schoolLogoutBtn) {
+  schoolLogoutBtn.onclick = () => signOut(auth);
+}
+
+if (schoolContinueBtn) {
+  schoolContinueBtn.onclick = async () => {
+    if (schoolError) schoolError.textContent = "";
+    const modeEl = document.querySelector('input[name="school-mode"]:checked');
+    const mode = modeEl ? modeEl.value : "create";
+    const uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid) return;
+    try {
+      if (mode === "create") {
+        const name = schoolNameInput ? schoolNameInput.value.trim() : "";
+        if (!name) {
+          if (schoolError) schoolError.textContent = t("schoolNeedName");
+          return;
+        }
+        const schoolRef = await addDoc(collection(db, "schools"), {
+          name,
+          createdBy: uid,
+          createdAt: Date.now(),
+          creatorEmail: (auth.currentUser && auth.currentUser.email) || null,
+        });
+        await setDoc(
+          doc(db, "users", uid),
+          {
+            role: "admin",
+            schoolId: schoolRef.id,
+            schoolName: name,
+            email: (auth.currentUser && auth.currentUser.email) || null,
+          },
+          { merge: true }
+        );
+        currentUserProfile = {
+          ...(currentUserProfile || {}),
+          role: "admin",
+          schoolId: schoolRef.id,
+          schoolName: name,
+          uid,
+        };
+      } else {
+        const raw = schoolInviteInput
+          ? schoolInviteInput.value.trim().toUpperCase().replace(/\s+/g, "")
+          : "";
+        if (!raw || raw.length < 8) {
+          if (schoolError) schoolError.textContent = t("schoolNeedCode");
+          return;
+        }
+        const inviteRef = doc(db, "teacherInvites", raw);
+        const inviteSnap = await getDoc(inviteRef);
+        if (!inviteSnap.exists()) {
+          if (schoolError) schoolError.textContent = t("schoolCodeNotFound");
+          return;
+        }
+        const inv = inviteSnap.data();
+        if (inv.usedBy) {
+          if (schoolError) schoolError.textContent = t("schoolCodeUsed");
+          return;
+        }
+        await updateDoc(inviteRef, {
+          usedBy: uid,
+          usedAt: Date.now(),
+          usedEmail: (auth.currentUser && auth.currentUser.email) || null,
+        });
+        await setDoc(
+          doc(db, "users", uid),
+          {
+            role: "teacher",
+            schoolId: inv.schoolId,
+            schoolName: inv.schoolName || null,
+            email: (auth.currentUser && auth.currentUser.email) || null,
+            invitedBy: inv.createdBy || null,
+          },
+          { merge: true }
+        );
+        currentUserProfile = {
+          ...(currentUserProfile || {}),
+          role: "teacher",
+          schoolId: inv.schoolId,
+          schoolName: inv.schoolName || null,
+          uid,
+        };
+      }
+      if (schoolScreen) schoolScreen.classList.add("hidden");
+      if (profileNeedsSetup(currentUserProfile)) {
+        showSetupScreen();
+        listenToSubjects();
+      } else {
+        enterApp(auth.currentUser);
+      }
+    } catch (e) {
+      if (schoolError) schoolError.textContent = errorText(e);
+    }
+  };
 }
 
 function showSetupScreen() {
   if (authScreen) authScreen.classList.add("hidden");
   if (appScreen) appScreen.classList.add("hidden");
+  if (schoolScreen) schoolScreen.classList.add("hidden");
   if (setupScreen) setupScreen.classList.remove("hidden");
   if (setupError) setupError.textContent = "";
   if (setupDisplayName) {
@@ -1703,9 +1930,13 @@ function showSetupScreen() {
   }
   const role = (currentUserProfile && currentUserProfile.role) || "teacher";
   const roleVal = role === "admin" ? "admin" : "teacher";
+  const roleLocked = !!(currentUserProfile && currentUserProfile.schoolId);
   document.querySelectorAll('input[name="setup-role"]').forEach((r) => {
     r.checked = r.value === roleVal;
+    r.disabled = roleLocked;
   });
+  const roleBlock = document.querySelector(".setup-role-block");
+  if (roleBlock) roleBlock.classList.toggle("is-locked", roleLocked);
   toggleSetupSubjectsVisibility();
   renderSetupSubjectsList();
   document.querySelectorAll('input[name="setup-role"]').forEach((r) => {
@@ -1823,6 +2054,7 @@ function showAuthScreen() {
   authScreen.classList.remove("hidden");
   appScreen.classList.add("hidden");
   if (setupScreen) setupScreen.classList.add("hidden");
+  if (schoolScreen) schoolScreen.classList.add("hidden");
   currentUserProfile = null;
   if (unsubscribeClasses) unsubscribeClasses();
   if (unsubscribeStudents) unsubscribeStudents();
@@ -1833,6 +2065,8 @@ function showAuthScreen() {
   if (unsubscribeElections) { unsubscribeElections(); unsubscribeElections = null; }
   if (unsubscribeStarostaHistory) { unsubscribeStarostaHistory(); unsubscribeStarostaHistory = null; }
   if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+  if (unsubscribeTeacherInvites) { unsubscribeTeacherInvites(); unsubscribeTeacherInvites = null; }
+  if (unsubscribeSchoolTeachers) { unsubscribeSchoolTeachers(); unsubscribeSchoolTeachers = null; }
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
     liveStatusInterval = null;
@@ -1844,6 +2078,7 @@ function showAuthScreen() {
 function showAppScreen() {
   authScreen.classList.add("hidden");
   if (setupScreen) setupScreen.classList.add("hidden");
+  if (schoolScreen) schoolScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
   showTab("points");
   if (!liveStatusInterval) {
@@ -5520,4 +5755,201 @@ function subscribeTeacherAnnouncements() {
     },
     (err) => console.warn("announcements", err)
   );
+}
+
+
+// ==========================================================
+// Вкладка «Вчителі» (лише для адміна школи)
+// ==========================================================
+let lastTeacherInvites = [];
+let lastSchoolTeachers = [];
+let unsubscribeTeacherInvites = null;
+let unsubscribeSchoolTeachers = null;
+
+function mySchoolId() {
+  return (currentUserProfile && currentUserProfile.schoolId) || null;
+}
+
+function subscribeTeachersData() {
+  if (!isAdmin() || !mySchoolId()) return;
+  if (unsubscribeTeacherInvites) unsubscribeTeacherInvites();
+  if (unsubscribeSchoolTeachers) unsubscribeSchoolTeachers();
+
+  const schoolId = mySchoolId();
+  unsubscribeTeacherInvites = onSnapshot(
+    query(collection(db, "teacherInvites"), where("schoolId", "==", schoolId)),
+    (snap) => {
+      lastTeacherInvites = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      if (teachersPanelEl && !teachersPanelEl.classList.contains("hidden")) {
+        renderTeacherInvitesList();
+      }
+    },
+    (err) => console.warn("teacherInvites", err)
+  );
+
+  unsubscribeSchoolTeachers = onSnapshot(
+    query(collection(db, "users"), where("schoolId", "==", schoolId)),
+    (snap) => {
+      lastSchoolTeachers = snap.docs
+        .map((d) => ({ id: d.id, data: d.data() }))
+        .filter((u) => {
+          const r = u.data.role;
+          return r === "teacher" || r === "admin" || r === "pending-teacher";
+        });
+      if (teachersPanelEl && !teachersPanelEl.classList.contains("hidden")) {
+        renderSchoolTeachersList();
+      }
+    },
+    (err) => console.warn("schoolTeachers", err)
+  );
+}
+
+function renderTeachersTab() {
+  if (!isAdmin()) {
+    if (teachersListEl) {
+      teachersListEl.innerHTML = `<p class="hint">${t("teachersOnlyAdmin")}</p>`;
+    }
+    return;
+  }
+  renderTeacherInvitesList();
+  renderSchoolTeachersList();
+}
+
+function renderTeacherInvitesList() {
+  if (!teacherInvitesListEl) return;
+  teacherInvitesListEl.innerHTML = "";
+  const pending = lastTeacherInvites
+    .filter((i) => !i.data.usedBy)
+    .slice()
+    .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+  if (noTeacherInvitesMsg) noTeacherInvitesMsg.classList.toggle("hidden", pending.length > 0);
+  const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+  pending.forEach(({ id, data }) => {
+    const row = document.createElement("div");
+    row.className = "student-row teacher-invite-row";
+    const identity = document.createElement("div");
+    identity.className = "student-identity";
+    const code = document.createElement("code");
+    code.className = "invite-code teacher-invite-code-display";
+    code.textContent = id;
+    code.style.cursor = "pointer";
+    code.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(id);
+      } catch (_) {}
+    };
+    const meta = document.createElement("span");
+    meta.className = "hint";
+    const when = data.createdAt
+      ? new Date(data.createdAt).toLocaleString(locale, {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
+    meta.textContent = `${t("teacherInviteCreatedAt")}: ${when}`;
+    identity.append(code, meta);
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "student-delete-btn";
+    del.textContent = "✕";
+    del.title = t("teacherInviteDelete");
+    del.onclick = async () => {
+      try {
+        await deleteDoc(doc(db, "teacherInvites", id));
+      } catch (e) {
+        reportSaveError(e, "Не вдалося видалити код", "Failed to delete invite code");
+      }
+    };
+    row.append(identity, del);
+    teacherInvitesListEl.appendChild(row);
+  });
+}
+
+function renderSchoolTeachersList() {
+  if (!teachersListEl) return;
+  teachersListEl.innerHTML = "";
+  const items = lastSchoolTeachers
+    .slice()
+    .sort((a, b) => {
+      const ar = a.data.role === "admin" ? 0 : 1;
+      const br = b.data.role === "admin" ? 0 : 1;
+      if (ar !== br) return ar - br;
+      return String(a.data.displayName || a.data.email || "").localeCompare(
+        String(b.data.displayName || b.data.email || ""),
+        "uk"
+      );
+    });
+  if (noTeachersMsg) noTeachersMsg.classList.toggle("hidden", items.length > 0);
+  items.forEach(({ id, data }) => {
+    const row = document.createElement("div");
+    row.className = "student-row";
+    const avatar = document.createElement("span");
+    avatar.className = "student-avatar";
+    const nameStr = (data.displayName || data.email || "?").trim();
+    avatar.textContent = nameStr.charAt(0).toUpperCase() || "?";
+    const identity = document.createElement("div");
+    identity.className = "student-identity";
+    const nameEl = document.createElement("span");
+    nameEl.className = "student-name";
+    nameEl.textContent = data.displayName || t("teacherRolePending");
+    const meta = document.createElement("div");
+    meta.className = "student-meta";
+    const roleBadge = document.createElement("span");
+    roleBadge.className = "linked-badge " + (data.role === "admin" ? "linked" : "not-linked");
+    if (data.role === "admin") roleBadge.textContent = t("teacherRoleAdmin");
+    else if (data.role === "teacher") roleBadge.textContent = t("teacherRoleTeacher");
+    else roleBadge.textContent = t("teacherRolePending");
+    meta.appendChild(roleBadge);
+    if (data.email) {
+      const email = document.createElement("span");
+      email.className = "hint";
+      email.textContent = data.email;
+      meta.appendChild(email);
+    }
+    if (id === (auth.currentUser && auth.currentUser.uid)) {
+      const me = document.createElement("span");
+      me.className = "hint";
+      me.textContent = "• you";
+      meta.appendChild(me);
+    }
+    identity.append(nameEl, meta);
+    row.append(avatar, identity);
+    teachersListEl.appendChild(row);
+  });
+}
+
+if (generateTeacherInviteBtn) {
+  generateTeacherInviteBtn.onclick = async () => {
+    if (!isAdmin() || !mySchoolId()) {
+      alert(t("teachersOnlyAdmin"));
+      return;
+    }
+    try {
+      let code = generateTeacherInviteCode();
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const existing = await getDoc(doc(db, "teacherInvites", code));
+        if (!existing.exists()) break;
+        code = generateTeacherInviteCode();
+      }
+      await setDoc(doc(db, "teacherInvites", code), {
+        schoolId: mySchoolId(),
+        schoolName: (currentUserProfile && currentUserProfile.schoolName) || null,
+        createdBy: auth.currentUser.uid,
+        createdAt: Date.now(),
+        usedBy: null,
+        usedAt: null,
+      });
+      if (teacherInviteCodeDisplay) {
+        teacherInviteCodeDisplay.textContent = code;
+      }
+      if (teacherInviteGeneratedHint) teacherInviteGeneratedHint.classList.remove("hidden");
+      try {
+        await navigator.clipboard.writeText(code);
+      } catch (_) {}
+    } catch (e) {
+      reportSaveError(e, "Не вдалося створити код", "Failed to create invite code");
+    }
+  };
 }

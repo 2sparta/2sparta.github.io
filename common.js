@@ -210,6 +210,16 @@ export function generateSixDigitCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+/** 16-символьний код-запрошення для вчителя (без неоднозначних символів 0/O, 1/I). */
+export function generateTeacherInviteCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 16; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
 export function generateEntryId() {
   if (window.crypto && typeof window.crypto.randomUUID === "function") {
     return window.crypto.randomUUID();
