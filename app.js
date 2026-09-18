@@ -352,12 +352,15 @@ const translations = {
     selfGovTotalVotes: "Усього голосів",
     messagesTitle: "Повідомлення",
     messagesEmpty: "Повідомлень ще немає.",
-    messagesComposeHeading: "Написати учню",
-    messagesSelectStudent: "Оберіть учня...",
+    messagesComposeHeading: "Написати повідомлення",
+    messagesSelectStudent: "Оберіть одержувача...",
+    messagesSelectRecipient: "Оберіть одержувача...",
+    messagesGroupStudents: "Учні",
+    messagesGroupTeachers: "Вчителі",
     messagesComposePlaceholder: "Текст повідомлення...",
     messagesSendBtn: "Надіслати",
     messagesSent: "Повідомлення надіслано.",
-    messagesNeedRecipient: "Оберіть учня з прив'язаним акаунтом.",
+    messagesNeedRecipient: "Оберіть учня з прив'язаним акаунтом або колегу.",
     messagesNeedText: "Введіть текст повідомлення.",
     messagesMarkAllRead: "Позначити всі прочитаними",
     notifNewGrade: (value, subject, typeLabel) => `Нова оцінка: ${value} — ${subject} (${typeLabel})`,
@@ -367,6 +370,7 @@ const translations = {
     notifElectionAnnounced: "Оголошено вибори старости",
     notifElectionResult: (name) => `Новий староста: ${name}`,
     notifAnnouncement: "Повідомлення від учителя",
+    notifTeacherMessage: "Повідомлення від колеги",
     gradeCommentPlaceholder: "Коментар (необов'язково)",
     registerSuccess: () =>
       "Акаунт створено. Увійдіть і оберіть або створіть школу.",
@@ -702,12 +706,15 @@ const translations = {
     selfGovTotalVotes: "Total votes",
     messagesTitle: "Messages",
     messagesEmpty: "No messages yet.",
-    messagesComposeHeading: "Message a student",
-    messagesSelectStudent: "Select a student...",
+    messagesComposeHeading: "Send a message",
+    messagesSelectStudent: "Select recipient...",
+    messagesSelectRecipient: "Select recipient...",
+    messagesGroupStudents: "Students",
+    messagesGroupTeachers: "Teachers",
     messagesComposePlaceholder: "Message text...",
     messagesSendBtn: "Send",
     messagesSent: "Message sent.",
-    messagesNeedRecipient: "Select a linked student.",
+    messagesNeedRecipient: "Select a linked student or a colleague.",
     messagesNeedText: "Enter a message.",
     messagesMarkAllRead: "Mark all as read",
     notifNewGrade: (value, subject, typeLabel) => `New grade: ${value} — ${subject} (${typeLabel})`,
@@ -717,6 +724,7 @@ const translations = {
     notifElectionAnnounced: "Class monitor elections announced",
     notifElectionResult: (name) => `New class monitor: ${name}`,
     notifAnnouncement: "Message from teacher",
+    notifTeacherMessage: "Message from colleague",
     gradeCommentPlaceholder: "Comment (optional)",
     registerSuccess: () =>
       "Account created. Sign in and create or join a school.",
@@ -1794,7 +1802,7 @@ function enterApp(user) {
   subscribeTeacherAnnouncements();
   subscribeScheduleDefaults();
   initBellScheduleSettings();
-  if (isAdmin()) subscribeTeachersData();
+  subscribeTeachersData();
   showMessagesFab(true);
 }
 
@@ -4971,19 +4979,55 @@ function renderMessagesRecipientSelect() {
   messagesRecipientSelect.innerHTML = "";
   const ph = document.createElement("option");
   ph.value = "";
-  ph.textContent = t("messagesSelectStudent");
+  ph.textContent = t("messagesSelectRecipient") || t("messagesSelectStudent");
   messagesRecipientSelect.appendChild(ph);
   const locale = currentLang === "uk" ? "uk" : "en";
-  lastStudents
+
+  // Учні з прив'язаним акаунтом
+  const students = lastStudents
     .filter((s) => s.data && s.data.authUid)
     .slice()
-    .sort((a, b) => (a.data.name || "").localeCompare(b.data.name || "", locale))
-    .forEach(({ id, data }) => {
+    .sort((a, b) => (a.data.name || "").localeCompare(b.data.name || "", locale));
+  if (students.length > 0) {
+    const og = document.createElement("optgroup");
+    og.label = t("messagesGroupStudents") || "Students";
+    students.forEach(({ id, data }) => {
       const opt = document.createElement("option");
-      opt.value = id;
+      opt.value = `student:${id}`;
       opt.textContent = data.name || id;
-      messagesRecipientSelect.appendChild(opt);
+      og.appendChild(opt);
     });
+    messagesRecipientSelect.appendChild(og);
+  }
+
+  // Колеги тієї ж школи (без себе)
+  const myUid = auth.currentUser && auth.currentUser.uid;
+  const teachers = (lastSchoolTeachers || [])
+    .filter((u) => u.id && u.id !== myUid && (u.data.role === "teacher" || u.data.role === "admin"))
+    .slice()
+    .sort((a, b) =>
+      String(a.data.displayName || a.data.email || "").localeCompare(
+        String(b.data.displayName || b.data.email || ""),
+        locale
+      )
+    );
+  if (teachers.length > 0) {
+    const og = document.createElement("optgroup");
+    og.label = t("messagesGroupTeachers") || "Teachers";
+    teachers.forEach(({ id, data }) => {
+      const opt = document.createElement("option");
+      opt.value = `teacher:${id}`;
+      const name = (data.displayName && String(data.displayName).trim()) || data.email || id;
+      const role =
+        data.role === "admin"
+          ? t("teacherRoleAdmin") || "Admin"
+          : t("teacherRoleTeacher") || "Teacher";
+      opt.textContent = `${name} (${role})`;
+      og.appendChild(opt);
+    });
+    messagesRecipientSelect.appendChild(og);
+  }
+
   if (prev && [...messagesRecipientSelect.options].some((o) => o.value === prev)) {
     messagesRecipientSelect.value = prev;
   }
@@ -5155,9 +5199,9 @@ if (messagesPanelClose) {
 }
 if (messagesSendBtn) {
   messagesSendBtn.onclick = async () => {
-    const studentId = messagesRecipientSelect ? messagesRecipientSelect.value : "";
+    const raw = messagesRecipientSelect ? messagesRecipientSelect.value : "";
     const text = messagesComposeText ? messagesComposeText.value.trim() : "";
-    if (!studentId) {
+    if (!raw) {
       alert(t("messagesNeedRecipient"));
       return;
     }
@@ -5165,24 +5209,54 @@ if (messagesSendBtn) {
       alert(t("messagesNeedText"));
       return;
     }
-    const student = lastStudents.find((s) => s.id === studentId);
-    const authUid = student && student.data && student.data.authUid;
-    if (!authUid) {
+
+    let recipientUid = null;
+    let studentId = null;
+    let notifType = "announcement";
+    let title = t("notifAnnouncement");
+
+    if (raw.startsWith("student:")) {
+      studentId = raw.slice("student:".length);
+      const student = lastStudents.find((s) => s.id === studentId);
+      recipientUid = student && student.data && student.data.authUid;
+      notifType = "announcement";
+      title = t("notifAnnouncement");
+    } else if (raw.startsWith("teacher:")) {
+      recipientUid = raw.slice("teacher:".length);
+      studentId = null;
+      notifType = "teacher_message";
+      title = t("notifTeacherMessage") || t("notifAnnouncement");
+    } else {
+      // Зворотна сумісність: старе значення = id учня
+      studentId = raw;
+      const student = lastStudents.find((s) => s.id === studentId);
+      recipientUid = student && student.data && student.data.authUid;
+      notifType = "announcement";
+      title = t("notifAnnouncement");
+    }
+
+    if (!recipientUid) {
       alert(t("messagesNeedRecipient"));
       return;
     }
+    if (recipientUid === (auth.currentUser && auth.currentUser.uid)) {
+      alert(t("messagesNeedRecipient"));
+      return;
+    }
+
     try {
-      await addDoc(collection(db, "notifications"), {
-        recipientUid: authUid,
-        studentId,
-        type: "announcement",
-        title: t("notifAnnouncement"),
+      const payload = {
+        recipientUid,
+        type: notifType,
+        title,
         body: text,
         createdAt: Date.now(),
         read: false,
         senderUid: auth.currentUser ? auth.currentUser.uid : null,
         senderName: myDisplayName(),
-      });
+      };
+      if (studentId) payload.studentId = studentId;
+      await addDoc(collection(db, "notifications"), payload);
       if (messagesComposeText) messagesComposeText.value = "";
       alert(t("messagesSent"));
     } catch (e) {
@@ -5771,21 +5845,25 @@ function mySchoolId() {
 }
 
 function subscribeTeachersData() {
-  if (!isAdmin() || !mySchoolId()) return;
+  if (!mySchoolId()) return;
   if (unsubscribeTeacherInvites) unsubscribeTeacherInvites();
   if (unsubscribeSchoolTeachers) unsubscribeSchoolTeachers();
 
   const schoolId = mySchoolId();
-  unsubscribeTeacherInvites = onSnapshot(
-    query(collection(db, "teacherInvites"), where("schoolId", "==", schoolId)),
-    (snap) => {
-      lastTeacherInvites = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
-      if (teachersPanelEl && !teachersPanelEl.classList.contains("hidden")) {
-        renderTeacherInvitesList();
-      }
-    },
-    (err) => console.warn("teacherInvites", err)
-  );
+  // Список колег потрібен усім учителям школи (для повідомлень).
+  // Коди-запрошення — лише адміністратору.
+  if (isAdmin()) {
+    unsubscribeTeacherInvites = onSnapshot(
+      query(collection(db, "teacherInvites"), where("schoolId", "==", schoolId)),
+      (snap) => {
+        lastTeacherInvites = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+        if (teachersPanelEl && !teachersPanelEl.classList.contains("hidden")) {
+          renderTeacherInvitesList();
+        }
+      },
+      (err) => console.warn("teacherInvites", err)
+    );
+  }
 
   unsubscribeSchoolTeachers = onSnapshot(
     query(collection(db, "users"), where("schoolId", "==", schoolId)),
@@ -5799,6 +5877,8 @@ function subscribeTeachersData() {
       if (teachersPanelEl && !teachersPanelEl.classList.contains("hidden")) {
         renderSchoolTeachersList();
       }
+      // Оновити список одержувачів у панелі повідомлень, якщо відкрита
+      if (messagesPanelOpen) renderMessagesRecipientSelect();
     },
     (err) => console.warn("schoolTeachers", err)
   );
