@@ -114,8 +114,13 @@ const gradesTableContainer = document.getElementById("grades-table-container");
 const noGradesMsg = document.getElementById("no-grades-msg");
 const gradesStatOverall = document.getElementById("grades-stat-overall");
 const gradesStatCount = document.getElementById("grades-stat-count");
+const gradesStatAbsences = document.getElementById("grades-stat-absences");
 const gradesStatBest = document.getElementById("grades-stat-best");
 const gradesStatTrend = document.getElementById("grades-stat-trend");
+const tabAnnouncementsBtn = document.getElementById("tab-announcements-btn");
+const announcementsPanel = document.getElementById("announcements-panel");
+const announcementsListEl = document.getElementById("announcements-list");
+const noAnnouncementsMsg = document.getElementById("no-announcements-msg");
 const gradesChartBars = document.getElementById("grades-chart-bars");
 const gradesChartEmpty = document.getElementById("grades-chart-empty");
 const gradesChartTrend = document.getElementById("grades-chart-trend");
@@ -307,8 +312,16 @@ const translations = {
     gradesAnalyticsHint: "Середні бали, динаміка та розподіл оцінок за предметами.",
     gradesOverallAvg: "Загальний середній",
     gradesCountLabel: "Усього оцінок",
+    gradesAbsencesLabel: "Пропуски (Н)",
     gradesBestSubject: "Найкращий предмет",
     gradesTrendLabel: "Тренд",
+    tabAnnouncements: "Оголошення",
+    announcementsHeading: "Оголошення",
+    announcementsStudentHint: "Оголошення від учителів для вашого класу або всієї школи.",
+    noAnnouncementsMsg: "Оголошень ще немає.",
+    announcementAllClasses: "Усі класи",
+    announcementFrom: "Від",
+
     gradesChartBySubject: "Середній бал за предметами",
     gradesChartTrend: "Динаміка оцінок",
     gradesChartEmpty: "Недостатньо даних для графіка.",
@@ -454,7 +467,15 @@ const translations = {
     gradesAnalyticsHint: "Averages, trends and grade distribution by subject.",
     gradesOverallAvg: "Overall average",
     gradesCountLabel: "Total grades",
+    gradesAbsencesLabel: "Absences (Н)",
     gradesBestSubject: "Best subject",
+    tabAnnouncements: "Announcements",
+    announcementsHeading: "Announcements",
+    announcementsStudentHint: "Announcements from teachers for your class or the whole school.",
+    noAnnouncementsMsg: "No announcements yet.",
+    announcementAllClasses: "All classes",
+    announcementFrom: "From",
+
     gradesTrendLabel: "Trend",
     gradesChartBySubject: "Average by subject",
     gradesChartTrend: "Grade trend",
@@ -610,16 +631,20 @@ function showTab(tab) {
   if (tabScheduleBtn) tabScheduleBtn.classList.toggle("active", tab === "schedule");
   if (tabTasksBtn) tabTasksBtn.classList.toggle("active", tab === "tasks");
   if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
+  if (tabAnnouncementsBtn) tabAnnouncementsBtn.classList.toggle("active", tab === "announcements");
   if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
   if (schedulePanel) schedulePanel.classList.toggle("hidden", tab !== "schedule");
   if (tasksPanel) tasksPanel.classList.toggle("hidden", tab !== "tasks");
   if (gradesPanel) gradesPanel.classList.toggle("hidden", tab !== "grades");
+  if (announcementsPanel) announcementsPanel.classList.toggle("hidden", tab !== "announcements");
   if (selfgovPanel) selfgovPanel.classList.toggle("hidden", tab !== "selfgov");
   if (tab === "selfgov") renderSelfGovStudent();
+  if (tab === "announcements") renderStudentAnnouncements();
 }
 if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
 if (tabTasksBtn) tabTasksBtn.onclick = () => showTab("tasks");
 if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
+if (tabAnnouncementsBtn) tabAnnouncementsBtn.onclick = () => showTab("announcements");
 if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
 
 // Перемикач всередині вкладки "Завдання": розклад дня (сьогодні/завтра) чи ДЗ.
@@ -703,6 +728,7 @@ function teardownListeners() {
   if (unsubscribeElections) { unsubscribeElections(); unsubscribeElections = null; }
   if (unsubscribeStarostaHistory) { unsubscribeStarostaHistory(); unsubscribeStarostaHistory = null; }
   if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+  if (unsubscribeAnnouncements) { unsubscribeAnnouncements(); unsubscribeAnnouncements = null; }
   if (unsubscribeScheduleDefaults) { unsubscribeScheduleDefaults(); unsubscribeScheduleDefaults = null; }
   if (liveStatusInterval) {
     clearInterval(liveStatusInterval);
@@ -907,6 +933,7 @@ function startDashboard(user) {
 
   subscribeStudentElections();
   subscribeStudentNotifications();
+  subscribeStudentAnnouncements();
   subscribeScheduleDefaultsStudent();
   showMessagesFab(true);
 }
@@ -984,12 +1011,20 @@ function renderSubjectsList() {
 // ---------- Grades analytics + table ----------
 const GRADE_SCALE_MAX = 12;
 
+function isAbsenceGrade(value) {
+  if (value == null) return false;
+  const s = String(value).trim().toUpperCase();
+  return s === "Н" || s === "H" || s === "N";
+}
+
 function computeGradesAnalytics() {
   const values = lastGrades
     .map((g) => Number(g.data.value))
     .filter((v) => !isNaN(v) && v >= 1 && v <= 12);
   const overall =
     values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+  const absences = lastGrades.filter((g) => isAbsenceGrade(g.data.value)).length;
 
   const bySubject = {};
   lastGrades.forEach((g) => {
@@ -1036,7 +1071,7 @@ function computeGradesAnalytics() {
     else trend = "stable";
   }
 
-  return { overall, count: values.length, subjectAvgs, chronological, trend };
+  return { overall, count: values.length, absences, subjectAvgs, chronological, trend };
 }
 
 function renderGradesAnalytics() {
@@ -1049,6 +1084,7 @@ function renderGradesAnalytics() {
         : "—";
   }
   if (gradesStatCount) gradesStatCount.textContent = String(stats.count);
+  if (gradesStatAbsences) gradesStatAbsences.textContent = String(stats.absences || 0);
   if (gradesStatBest) {
     if (stats.subjectAvgs.length > 0) {
       const best = stats.subjectAvgs[0];
@@ -2506,4 +2542,94 @@ if (messagesFab) {
 }
 if (messagesPanelClose) {
   messagesPanelClose.onclick = () => closeMessagesPanel();
+}
+
+
+// ==========================================================
+// Оголошення (кабінет учня)
+// ==========================================================
+let lastAnnouncements = [];
+let unsubscribeAnnouncements = null;
+
+function announcementVisibleToMe(data) {
+  const ids = data.classIds;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) return true;
+  if (!studentClassId) return false;
+  return ids.includes(studentClassId);
+}
+
+function renderStudentAnnouncements() {
+  if (!announcementsListEl) return;
+  announcementsListEl.innerHTML = "";
+  const items = lastAnnouncements
+    .filter((a) => announcementVisibleToMe(a.data))
+    .slice()
+    .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+  if (noAnnouncementsMsg) noAnnouncementsMsg.classList.toggle("hidden", items.length > 0);
+  const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+  items.forEach(({ data }) => {
+    const el = document.createElement("div");
+    el.className = "announcement-item";
+    const header = document.createElement("div");
+    header.className = "announcement-item-header";
+    const title = document.createElement("h3");
+    title.className = "announcement-item-title";
+    title.textContent = data.title || "";
+    header.appendChild(title);
+    el.appendChild(header);
+    if (data.body) {
+      const body = document.createElement("div");
+      body.className = "announcement-item-body";
+      body.textContent = data.body;
+      el.appendChild(body);
+    }
+    const meta = document.createElement("div");
+    meta.className = "announcement-item-meta";
+    const parts = [];
+    if (data.authorName) parts.push(`${t("announcementFrom")}: ${data.authorName}`);
+    if (data.createdAt) {
+      parts.push(
+        new Date(data.createdAt).toLocaleString(locale, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    }
+    const classIds = data.classIds;
+    if (!classIds || classIds.length === 0) {
+      const chip = document.createElement("span");
+      chip.className = "announcement-item-classes";
+      chip.textContent = t("announcementAllClasses");
+      meta.appendChild(chip);
+    } else if (data.classNames && data.classNames.length) {
+      const chip = document.createElement("span");
+      chip.className = "announcement-item-classes";
+      chip.textContent = data.classNames.join(", ");
+      meta.appendChild(chip);
+    }
+    if (parts.length) {
+      const span = document.createElement("span");
+      span.textContent = parts.join(" · ");
+      meta.appendChild(span);
+    }
+    el.appendChild(meta);
+    announcementsListEl.appendChild(el);
+  });
+}
+
+function subscribeStudentAnnouncements() {
+  if (unsubscribeAnnouncements) unsubscribeAnnouncements();
+  unsubscribeAnnouncements = onSnapshot(
+    collection(db, "announcements"),
+    (snap) => {
+      lastAnnouncements = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      if (announcementsPanel && !announcementsPanel.classList.contains("hidden")) {
+        renderStudentAnnouncements();
+      }
+    },
+    (err) => console.warn("announcements", err)
+  );
 }

@@ -75,6 +75,7 @@
         <button id="tab-schedule-btn" class="tab-btn" data-i18n="tabSchedule">Розклад</button>
         <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
         <button id="tab-grades-btn" class="tab-btn" data-i18n="tabGrades">Оцінки</button>
+        <button id="tab-announcements-btn" class="tab-btn" data-i18n="tabAnnouncements">Оголошення</button>
         <button id="tab-selfgov-btn" class="tab-btn" data-i18n="tabSelfGov">Самоврядування</button>
       </nav>
 
@@ -268,6 +269,10 @@
                   <span id="teacher-grades-stat-count" class="grades-stat-value">0</span>
                 </div>
                 <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesAbsencesLabel">Пропуски (Н)</span>
+                  <span id="teacher-grades-stat-absences" class="grades-stat-value">0</span>
+                </div>
+                <div class="grades-stat-card">
                   <span class="grades-stat-label" data-i18n="gradesBestSubject">Найкращий предмет</span>
                   <span id="teacher-grades-stat-best" class="grades-stat-value grades-stat-value--sm">—</span>
                 </div>
@@ -288,6 +293,29 @@
             </div>
             <div id="teacher-grades-table-container"></div>
             <p id="teacher-no-grades-msg" class="hint hidden" data-i18n="noGradesMsg">Оцінок ще немає.</p>
+          </section>
+        </div>
+
+        <div id="announcements-panel" class="tab-panel hidden">
+          <section class="card">
+            <h2 data-i18n="addAnnouncementHeading">Додати оголошення</h2>
+            <p class="hint" data-i18n="announcementsTeacherHint">Оголошення побачать усі учні або лише обрані класи. Учні отримають сповіщення.</p>
+            <div class="announcement-form">
+              <input id="new-announcement-title" type="text" data-i18n-placeholder="announcementTitlePlaceholder" placeholder="Заголовок" />
+              <textarea id="new-announcement-body" data-i18n-placeholder="announcementBodyPlaceholder" placeholder="Текст оголошення"></textarea>
+              <div class="class-assign-block">
+                <label class="class-assign-label" data-i18n="assignClassesLabel">Призначити класам</label>
+                <p class="hint class-assign-hint" data-i18n="announcementClassesHint">Якщо нічого не вибрано — оголошення для всіх класів.</p>
+                <div id="announcement-class-options" class="class-options-list" role="listbox" aria-multiselectable="true"></div>
+                <div id="announcement-class-selected" class="class-selected-chips"></div>
+              </div>
+              <button id="add-announcement-btn" data-i18n="addBtn">Додати</button>
+            </div>
+          </section>
+          <section class="card card-wide">
+            <h2 data-i18n="announcementsHeading">Оголошення</h2>
+            <div id="announcements-list" class="announcements-list"></div>
+            <p id="no-announcements-msg" class="hint hidden" data-i18n="noAnnouncementsMsg">Оголошень ще немає.</p>
           </section>
         </div>
 

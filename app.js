@@ -280,6 +280,7 @@ const translations = {
     gradesTableSubjectHeader: "Предмет",
     gradesOverallAvg: "Загальний середній",
     gradesCountLabel: "Усього оцінок",
+    gradesAbsencesLabel: "Пропуски (Н)",
     gradesBestSubject: "Найкращий предмет",
     gradesTrendLabel: "Тренд",
     gradesChartBySubject: "Середній бал за предметами",
@@ -292,6 +293,22 @@ const translations = {
     gradesOfMax: "з 12",
     gradesLegendLesson: "Урок",
     gradesLegendHw: "ДЗ",
+
+    tabAnnouncements: "Оголошення",
+    announcementsHeading: "Оголошення",
+    addAnnouncementHeading: "Додати оголошення",
+    announcementsTeacherHint: "Оголошення побачать усі учні або лише обрані класи. Учні отримають сповіщення.",
+    announcementTitlePlaceholder: "Заголовок",
+    announcementBodyPlaceholder: "Текст оголошення",
+    announcementClassesHint: "Якщо нічого не вибрано — оголошення для всіх класів.",
+    noAnnouncementsMsg: "Оголошень ще немає.",
+    announcementAllClasses: "Усі класи",
+    announcementFrom: "Від",
+    announcementNeedTitle: "Вкажіть заголовок оголошення.",
+    announcementNeedBody: "Введіть текст оголошення.",
+    announcementAdded: "Оголошення додано.",
+    announcementDeleteConfirm: "Видалити це оголошення?",
+    notifNewAnnouncement: (title) => `Оголошення: ${title}`,
 
     tabSelfGov: "Самоврядування",
     selfGovHeading: "Самоврядування",
@@ -568,6 +585,7 @@ const translations = {
     gradesTableSubjectHeader: "Subject",
     gradesOverallAvg: "Overall average",
     gradesCountLabel: "Total grades",
+    gradesAbsencesLabel: "Absences (Н)",
     gradesBestSubject: "Best subject",
     gradesTrendLabel: "Trend",
     gradesChartBySubject: "Average by subject",
@@ -580,6 +598,22 @@ const translations = {
     gradesOfMax: "of 12",
     gradesLegendLesson: "Lesson",
     gradesLegendHw: "HW",
+
+    tabAnnouncements: "Announcements",
+    announcementsHeading: "Announcements",
+    addAnnouncementHeading: "Add announcement",
+    announcementsTeacherHint: "Announcements are visible to all students or only selected classes. Students will get a notification.",
+    announcementTitlePlaceholder: "Title",
+    announcementBodyPlaceholder: "Announcement text",
+    announcementClassesHint: "If nothing is selected — the announcement is for all classes.",
+    noAnnouncementsMsg: "No announcements yet.",
+    announcementAllClasses: "All classes",
+    announcementFrom: "From",
+    announcementNeedTitle: "Enter an announcement title.",
+    announcementNeedBody: "Enter the announcement text.",
+    announcementAdded: "Announcement added.",
+    announcementDeleteConfirm: "Delete this announcement?",
+    notifNewAnnouncement: (title) => `Announcement: ${title}`,
 
     tabSelfGov: "Self-government",
     selfGovHeading: "Self-government",
@@ -1258,11 +1292,13 @@ const tabPointsBtn = document.getElementById("tab-points-btn");
 const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const tabGradesBtn = document.getElementById("tab-grades-btn");
+const tabAnnouncementsBtn = document.getElementById("tab-announcements-btn");
 const tabSelfGovBtn = document.getElementById("tab-selfgov-btn");
 const pointsPanel = document.getElementById("points-panel");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 const gradesPanelEl = document.getElementById("grades-panel");
+const announcementsPanelEl = document.getElementById("announcements-panel");
 const selfgovPanelEl = document.getElementById("selfgov-panel");
 const teacherGradesStudentSelect = document.getElementById("teacher-grades-student-select");
 const teacherGradesTableContainer = document.getElementById("teacher-grades-table-container");
@@ -1270,6 +1306,7 @@ const teacherNoGradesMsg = document.getElementById("teacher-no-grades-msg");
 const teacherGradesAnalyticsEl = document.getElementById("teacher-grades-analytics");
 const teacherGradesStatOverall = document.getElementById("teacher-grades-stat-overall");
 const teacherGradesStatCount = document.getElementById("teacher-grades-stat-count");
+const teacherGradesStatAbsences = document.getElementById("teacher-grades-stat-absences");
 const teacherGradesStatBest = document.getElementById("teacher-grades-stat-best");
 const teacherGradesStatTrend = document.getElementById("teacher-grades-stat-trend");
 const teacherGradesChartBars = document.getElementById("teacher-grades-chart-bars");
@@ -1513,15 +1550,21 @@ function showTab(tab) {
   tabScheduleBtn.classList.toggle("active", tab === "schedule");
   tabTasksBtn.classList.toggle("active", tab === "tasks");
   if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
+  if (tabAnnouncementsBtn) tabAnnouncementsBtn.classList.toggle("active", tab === "announcements");
   if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
   pointsPanel.classList.toggle("hidden", tab !== "points");
   schedulePanel.classList.toggle("hidden", tab !== "schedule");
   tasksPanel.classList.toggle("hidden", tab !== "tasks");
   if (gradesPanelEl) gradesPanelEl.classList.toggle("hidden", tab !== "grades");
+  if (announcementsPanelEl) announcementsPanelEl.classList.toggle("hidden", tab !== "announcements");
   if (selfgovPanelEl) selfgovPanelEl.classList.toggle("hidden", tab !== "selfgov");
   if (tab === "grades") {
     renderTeacherGradesStudentSelect();
     renderTeacherGradesTable();
+  }
+  if (tab === "announcements") {
+    renderAnnouncementClassOptions();
+    renderTeacherAnnouncements();
   }
   if (tab === "selfgov") {
     renderSelfGovTeacher();
@@ -1531,6 +1574,7 @@ tabPointsBtn.onclick = () => showTab("points");
 tabScheduleBtn.onclick = () => showTab("schedule");
 tabTasksBtn.onclick = () => showTab("tasks");
 if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
+if (tabAnnouncementsBtn) tabAnnouncementsBtn.onclick = () => showTab("announcements");
 if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
 
 // ---------- Auth ----------
@@ -1611,6 +1655,7 @@ function enterApp(user) {
   listenToGrades();
   subscribeElectionsAndHistory();
   subscribeTeacherNotifications();
+  subscribeTeacherAnnouncements();
   subscribeScheduleDefaults();
   initBellScheduleSettings();
   showMessagesFab(true);
@@ -3769,12 +3814,20 @@ function formatGradeDateShort(isoDate) {
   return `${isoDate.slice(8, 10)}.${isoDate.slice(5, 7)}`;
 }
 
+function isAbsenceGrade(value) {
+  if (value == null) return false;
+  const s = String(value).trim().toUpperCase();
+  return s === "Н" || s === "H" || s === "N";
+}
+
 function computeGradesAnalyticsFromList(gradesList) {
   const values = gradesList
     .map((g) => Number(g.data.value))
     .filter((v) => !isNaN(v) && v >= 1 && v <= 12);
   const overall =
     values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+  const absences = gradesList.filter((g) => isAbsenceGrade(g.data.value)).length;
 
   const bySubject = {};
   gradesList.forEach((g) => {
@@ -3820,7 +3873,7 @@ function computeGradesAnalyticsFromList(gradesList) {
     else trend = "stable";
   }
 
-  return { overall, count: values.length, subjectAvgs, chronological, trend };
+  return { overall, count: values.length, absences, subjectAvgs, chronological, trend };
 }
 
 function renderTeacherGradesAnalytics(studentGrades) {
@@ -3839,6 +3892,7 @@ function renderTeacherGradesAnalytics(studentGrades) {
         : "—";
   }
   if (teacherGradesStatCount) teacherGradesStatCount.textContent = String(stats.count);
+  if (teacherGradesStatAbsences) teacherGradesStatAbsences.textContent = String(stats.absences || 0);
   if (teacherGradesStatBest) {
     if (stats.subjectAvgs.length > 0) {
       const best = stats.subjectAvgs[0];
@@ -5092,3 +5146,236 @@ function initBellScheduleSettings() {
 
 // Оновити підписи секції дзвінків при зміні мови
 const _origApplyStaticForBell = typeof applyStaticTranslations === "function" ? null : null;
+
+
+// ==========================================================
+// Оголошення (панель вчителя)
+// ==========================================================
+let lastAnnouncements = [];
+let unsubscribeAnnouncements = null;
+let selectedAnnouncementClassIds = new Set();
+
+const newAnnouncementTitle = document.getElementById("new-announcement-title");
+const newAnnouncementBody = document.getElementById("new-announcement-body");
+const addAnnouncementBtn = document.getElementById("add-announcement-btn");
+const announcementClassOptions = document.getElementById("announcement-class-options");
+const announcementClassSelected = document.getElementById("announcement-class-selected");
+const announcementsListEl = document.getElementById("announcements-list");
+const noAnnouncementsMsg = document.getElementById("no-announcements-msg");
+
+function renderAnnouncementClassOptions() {
+  if (!announcementClassOptions) return;
+  announcementClassOptions.innerHTML = "";
+  if (lastClasses.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = t("noClassesForAssign");
+    announcementClassOptions.appendChild(empty);
+  } else {
+    lastClasses.forEach(({ id, data }) => {
+      const label = document.createElement("label");
+      label.className = "class-option-item";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = id;
+      cb.checked = selectedAnnouncementClassIds.has(id);
+      cb.onchange = () => {
+        if (cb.checked) selectedAnnouncementClassIds.add(id);
+        else selectedAnnouncementClassIds.delete(id);
+        renderAnnouncementClassSelectedChips();
+      };
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = data.name || id;
+      label.append(cb, nameSpan);
+      announcementClassOptions.appendChild(label);
+    });
+  }
+  renderAnnouncementClassSelectedChips();
+}
+
+function renderAnnouncementClassSelectedChips() {
+  if (!announcementClassSelected) return;
+  announcementClassSelected.innerHTML = "";
+  if (selectedAnnouncementClassIds.size === 0) {
+    const all = document.createElement("span");
+    all.className = "class-chip class-chip-all";
+    all.textContent = t("allClassesLabel") || t("announcementAllClasses");
+    announcementClassSelected.appendChild(all);
+    return;
+  }
+  [...selectedAnnouncementClassIds].forEach((id) => {
+    const chip = document.createElement("span");
+    chip.className = "class-chip";
+    chip.textContent = getClassName(id) || id;
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "class-chip-remove";
+    x.textContent = "×";
+    x.onclick = () => {
+      selectedAnnouncementClassIds.delete(id);
+      renderAnnouncementClassOptions();
+    };
+    chip.appendChild(x);
+    announcementClassSelected.appendChild(chip);
+  });
+}
+
+function renderTeacherAnnouncements() {
+  if (!announcementsListEl) return;
+  announcementsListEl.innerHTML = "";
+  const items = lastAnnouncements
+    .slice()
+    .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+  if (noAnnouncementsMsg) noAnnouncementsMsg.classList.toggle("hidden", items.length > 0);
+  const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+  items.forEach(({ id, data }) => {
+    const el = document.createElement("div");
+    el.className = "announcement-item";
+    const header = document.createElement("div");
+    header.className = "announcement-item-header";
+    const title = document.createElement("h3");
+    title.className = "announcement-item-title";
+    title.textContent = data.title || "";
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "announcement-delete-btn";
+    delBtn.textContent = "✕";
+    delBtn.setAttribute("aria-label", t("deleteBtn"));
+    delBtn.onclick = async () => {
+      if (!confirm(t("announcementDeleteConfirm"))) return;
+      try {
+        await deleteDoc(doc(db, "announcements", id));
+      } catch (e) {
+        reportSaveError(e, "Не вдалося видалити оголошення", "Failed to delete announcement");
+      }
+    };
+    header.append(title, delBtn);
+    el.appendChild(header);
+    if (data.body) {
+      const body = document.createElement("div");
+      body.className = "announcement-item-body";
+      body.textContent = data.body;
+      el.appendChild(body);
+    }
+    const meta = document.createElement("div");
+    meta.className = "announcement-item-meta";
+    const classIds = data.classIds;
+    if (!classIds || classIds.length === 0) {
+      const chip = document.createElement("span");
+      chip.className = "announcement-item-classes";
+      chip.textContent = t("announcementAllClasses");
+      meta.appendChild(chip);
+    } else {
+      const names = (data.classNames && data.classNames.length)
+        ? data.classNames
+        : classIds.map((cid) => getClassName(cid) || cid);
+      const chip = document.createElement("span");
+      chip.className = "announcement-item-classes";
+      chip.textContent = names.join(", ");
+      meta.appendChild(chip);
+    }
+    const parts = [];
+    if (data.authorName) parts.push(`${t("announcementFrom")}: ${data.authorName}`);
+    if (data.createdAt) {
+      parts.push(
+        new Date(data.createdAt).toLocaleString(locale, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    }
+    if (parts.length) {
+      const span = document.createElement("span");
+      span.textContent = parts.join(" · ");
+      meta.appendChild(span);
+    }
+    el.appendChild(meta);
+    announcementsListEl.appendChild(el);
+  });
+}
+
+async function notifyStudentsAboutAnnouncement(payload) {
+  let targets = lastStudents.filter((s) => s.data && s.data.authUid);
+  if (payload.classIds && payload.classIds.length > 0) {
+    const groupIds = new Set();
+    payload.classIds.forEach((cid) => {
+      groupsOfClass(cid).forEach((g) => groupIds.add(g.id));
+    });
+    targets = targets.filter((s) => groupIds.has(s.data.group));
+  }
+  const now = Date.now();
+  const senderUid = auth.currentUser ? auth.currentUser.uid : null;
+  const senderName = payload.authorName || myDisplayName();
+  const title = t("notifNewAnnouncement")(payload.title || "");
+  for (const s of targets) {
+    try {
+      await addDoc(collection(db, "notifications"), {
+        recipientUid: s.data.authUid,
+        studentId: s.id,
+        type: "announcement",
+        title,
+        body: payload.body || title,
+        createdAt: now,
+        read: false,
+        senderUid,
+        senderName,
+      });
+    } catch (e) {
+      console.warn("notify announcement", e);
+    }
+  }
+}
+
+if (addAnnouncementBtn) {
+  addAnnouncementBtn.onclick = async () => {
+    const title = newAnnouncementTitle ? newAnnouncementTitle.value.trim() : "";
+    const body = newAnnouncementBody ? newAnnouncementBody.value.trim() : "";
+    if (!title) {
+      alert(t("announcementNeedTitle"));
+      return;
+    }
+    if (!body) {
+      alert(t("announcementNeedBody"));
+      return;
+    }
+    const classIds = [...selectedAnnouncementClassIds];
+    const classNames = classIds.map((id) => getClassName(id) || id);
+    const authorName = myDisplayName();
+    try {
+      await addDoc(collection(db, "announcements"), {
+        title,
+        body,
+        classIds,
+        classNames,
+        authorUid: auth.currentUser ? auth.currentUser.uid : null,
+        authorName,
+        createdAt: Date.now(),
+      });
+      if (newAnnouncementTitle) newAnnouncementTitle.value = "";
+      if (newAnnouncementBody) newAnnouncementBody.value = "";
+      selectedAnnouncementClassIds = new Set();
+      renderAnnouncementClassOptions();
+      await notifyStudentsAboutAnnouncement({ title, body, classIds, authorName });
+      alert(t("announcementAdded"));
+    } catch (e) {
+      reportSaveError(e, "Не вдалося додати оголошення", "Failed to add announcement");
+    }
+  };
+}
+
+function subscribeTeacherAnnouncements() {
+  if (unsubscribeAnnouncements) unsubscribeAnnouncements();
+  unsubscribeAnnouncements = onSnapshot(
+    collection(db, "announcements"),
+    (snap) => {
+      lastAnnouncements = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+      if (announcementsPanelEl && !announcementsPanelEl.classList.contains("hidden")) {
+        renderTeacherAnnouncements();
+      }
+    },
+    (err) => console.warn("announcements", err)
+  );
+}

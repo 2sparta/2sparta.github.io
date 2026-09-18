@@ -89,6 +89,7 @@
         <button id="tab-schedule-btn" class="tab-btn active" data-i18n="tabSchedule">Розклад</button>
         <button id="tab-tasks-btn" class="tab-btn" data-i18n="tabTasks">Завдання</button>
         <button id="tab-grades-btn" class="tab-btn" data-i18n="tabGrades">Оцінки</button>
+        <button id="tab-announcements-btn" class="tab-btn" data-i18n="tabAnnouncements">Оголошення</button>
         <button id="tab-selfgov-btn" class="tab-btn" data-i18n="tabSelfGov">Самоврядування</button>
       </nav>
 
@@ -225,6 +226,10 @@
                   <span id="grades-stat-count" class="grades-stat-value">0</span>
                 </div>
                 <div class="grades-stat-card">
+                  <span class="grades-stat-label" data-i18n="gradesAbsencesLabel">Пропуски (Н)</span>
+                  <span id="grades-stat-absences" class="grades-stat-value">0</span>
+                </div>
+                <div class="grades-stat-card">
                   <span class="grades-stat-label" data-i18n="gradesBestSubject">Найкращий предмет</span>
                   <span id="grades-stat-best" class="grades-stat-value grades-stat-value--sm">—</span>
                 </div>
@@ -249,6 +254,15 @@
             <p class="hint" data-i18n="gradesHint">Оцінки виставляє вчитель за уроки та домашні завдання.</p>
             <div id="grades-table-container"></div>
             <p id="no-grades-msg" class="hint hidden" data-i18n="noGradesMsg">Оцінок ще немає.</p>
+          </section>
+        </div>
+
+        <div id="announcements-panel" class="tab-panel hidden">
+          <section class="card card-wide">
+            <h2 data-i18n="announcementsHeading">Оголошення</h2>
+            <p class="hint" data-i18n="announcementsStudentHint">Оголошення від учителів для вашого класу або всієї школи.</p>
+            <div id="announcements-list" class="announcements-list"></div>
+            <p id="no-announcements-msg" class="hint hidden" data-i18n="noAnnouncementsMsg">Оголошень ще немає.</p>
           </section>
         </div>
 
