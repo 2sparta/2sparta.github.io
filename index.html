@@ -166,6 +166,21 @@
         </section>
 
         <div id="points-panel" class="tab-panel">
+          <section class="card points-leaderboard-card">
+            <div class="points-leaderboard-header">
+              <h2 data-i18n="pointsLeaderboardHeading">Топ за балами</h2>
+              <span class="points-leaderboard-sub" data-i18n="pointsLeaderboardHint">Рейтинг учнів за балами</span>
+            </div>
+            <div class="leaderboard-mode-bar">
+              <button id="lb-mode-school-btn" class="tab-btn active" type="button" data-i18n="lbModeSchool">Вся школа</button>
+              <button id="lb-mode-class-btn" class="tab-btn" type="button" data-i18n="lbModeClass">Клас</button>
+              <div id="lb-class-picker" class="lb-class-picker hidden">
+                <select id="lb-class-select" aria-label="Клас"></select>
+              </div>
+            </div>
+            <div id="points-leaderboard" class="points-leaderboard"></div>
+            <p id="points-leaderboard-empty" class="hint hidden" data-i18n="pointsLeaderboardEmpty">Ще немає учнів з балами.</p>
+          </section>
           <section class="card">
             <h2 data-i18n="addStudentHeading">Додати учня</h2>
             <div class="row student-add-row">
