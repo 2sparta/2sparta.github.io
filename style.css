@@ -3688,3 +3688,161 @@ html.no-glass-bg .settings-fab {
   border-color: var(--color-accent);
   background: var(--color-surface-tint);
 }
+
+
+/* ---------- Історія балів ---------- */
+.points-note-input {
+  width: 140px;
+  min-width: 100px;
+  max-width: 180px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  flex-shrink: 1;
+}
+.points-history-btn {
+  padding: 6px 8px !important;
+  min-width: 32px;
+  flex-shrink: 0;
+}
+.points-history-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 90px;
+  z-index: 80;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 28px rgba(23, 53, 44, 0.16);
+  overflow: hidden;
+}
+html.no-glass-bg .points-history-panel {
+  background: var(--color-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.points-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px 8px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.points-history-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.points-history-close {
+  background: transparent;
+  color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.points-history-close:hover {
+  background: var(--color-warning-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+.points-history-subtitle {
+  margin: 8px 16px 0;
+  flex-shrink: 0;
+}
+.points-history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.points-history-empty {
+  margin: 12px 16px 16px;
+}
+.points-history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+.points-history-delta {
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 16px;
+  min-width: 42px;
+  text-align: center;
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+.points-history-delta--up {
+  color: var(--color-accent);
+  background: var(--color-surface-tint);
+}
+.points-history-delta--down {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+.points-history-item-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.points-history-balance {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.points-history-meta {
+  font-size: 11px;
+  color: var(--color-secondary);
+}
+.points-history-note {
+  font-size: 12px;
+  color: var(--color-primary);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-sm);
+}
+.points-hero {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.points-hero:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+.points-hero:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .points-history-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: 80px;
+  }
+  .points-note-input {
+    width: 100%;
+    max-width: none;
+  }
+}

@@ -110,5 +110,9 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read, write: if request.auth != null;
     }
+    // Історія змін балів (не оцінок) учнів
+    match /pointsHistory/{entryId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }

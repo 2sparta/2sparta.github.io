@@ -268,6 +268,10 @@ const translations = {
     notStudentRole: "Цей акаунт зареєстровано як вчительський. Скористайтеся панеллю вчителя (посилання нижче).",
     greeting: (name) => `Привіт, ${name}!`,
     pointsLabel: "балів",
+    pointsHistoryBtnTitle: "Історія балів",
+    pointsHistoryTitle: "Історія балів",
+    pointsHistoryEmpty: "Історії змін балів ще немає.",
+    pointsHistoryHint: "Натисніть на бали, щоб переглянути історію.",
     tabSchedule: "Розклад",
     tabTasks: "Завдання",
     tabGrades: "Оцінки",
@@ -439,6 +443,10 @@ const translations = {
     notStudentRole: "This account is registered as a teacher account. Use the teacher panel (link below).",
     greeting: (name) => `Hi, ${name}!`,
     pointsLabel: "points",
+    pointsHistoryBtnTitle: "Points history",
+    pointsHistoryTitle: "Points history",
+    pointsHistoryEmpty: "No points changes yet.",
+    pointsHistoryHint: "Tap your points to view history.",
     tabSchedule: "Schedule",
     tabTasks: "Tasks",
     tabGrades: "Grades",
@@ -1008,6 +1016,11 @@ function updateGreeting() {
   }
   if (greetingSubtitleEl) greetingSubtitleEl.textContent = "";
   if (pointsHeroValueEl) pointsHeroValueEl.textContent = String(studentData ? studentData.points ?? 0 : 0);
+  const hero = document.querySelector(".points-hero");
+  if (hero) {
+    hero.title = t("pointsHistoryHint") || t("pointsHistoryBtnTitle") || "";
+    hero.setAttribute("aria-label", t("pointsHistoryBtnTitle") || "");
+  }
 }
 
 // ---------- Subjects (read-only) ----------
@@ -2858,3 +2871,143 @@ function subscribeStudentAnnouncements() {
     (err) => console.warn("announcements", err)
   );
 }
+
+
+
+// ==========================================================
+// Історія балів (кабінет учня)
+// ==========================================================
+let pointsHistoryPanelOpen = false;
+let pointsHistoryUnsubscribe = null;
+
+function ensurePointsHistoryPanel() {
+  let panel = document.getElementById("points-history-panel");
+  if (panel) return panel;
+  panel = document.createElement("div");
+  panel.id = "points-history-panel";
+  panel.className = "points-history-panel hidden";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-labelledby", "points-history-title");
+  panel.innerHTML = `
+    <div class="points-history-header">
+      <h2 id="points-history-title"></h2>
+      <button type="button" class="points-history-close" id="points-history-close" aria-label="Close">✕</button>
+    </div>
+    <div id="points-history-list" class="points-history-list"></div>
+    <p id="points-history-empty" class="hint points-history-empty hidden"></p>
+  `;
+  document.body.appendChild(panel);
+  const closeBtn = document.getElementById("points-history-close");
+  if (closeBtn) closeBtn.onclick = () => closePointsHistoryPanel();
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && pointsHistoryPanelOpen) closePointsHistoryPanel();
+  });
+  return panel;
+}
+
+function closePointsHistoryPanel() {
+  pointsHistoryPanelOpen = false;
+  if (pointsHistoryUnsubscribe) {
+    pointsHistoryUnsubscribe();
+    pointsHistoryUnsubscribe = null;
+  }
+  const panel = document.getElementById("points-history-panel");
+  if (panel) panel.classList.add("hidden");
+}
+
+function openPointsHistoryPanel() {
+  if (!studentId) return;
+  const panel = ensurePointsHistoryPanel();
+  pointsHistoryPanelOpen = true;
+  panel.classList.remove("hidden");
+  const titleEl = document.getElementById("points-history-title");
+  if (titleEl) titleEl.textContent = t("pointsHistoryTitle");
+  const emptyEl = document.getElementById("points-history-empty");
+  if (emptyEl) emptyEl.textContent = t("pointsHistoryEmpty");
+  if (pointsHistoryUnsubscribe) {
+    pointsHistoryUnsubscribe();
+    pointsHistoryUnsubscribe = null;
+  }
+  const listEl = document.getElementById("points-history-list");
+  if (listEl) listEl.innerHTML = "";
+  const q = query(collection(db, "pointsHistory"), where("studentId", "==", studentId));
+  pointsHistoryUnsubscribe = onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs
+        .map((d) => ({ id: d.id, data: d.data() }))
+        .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+      renderStudentPointsHistoryList(items);
+    },
+    (err) => {
+      console.warn("pointsHistory", err);
+      renderStudentPointsHistoryList([]);
+    }
+  );
+}
+
+function renderStudentPointsHistoryList(items) {
+  const listEl = document.getElementById("points-history-list");
+  const emptyEl = document.getElementById("points-history-empty");
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  if (emptyEl) emptyEl.classList.toggle("hidden", items.length > 0);
+  const locale = currentLang === "uk" ? "uk-UA" : "en-US";
+  items.forEach(({ data }) => {
+    const el = document.createElement("div");
+    el.className = "points-history-item";
+    const delta = data.delta || 0;
+    const deltaEl = document.createElement("span");
+    deltaEl.className =
+      "points-history-delta " + (delta > 0 ? "points-history-delta--up" : "points-history-delta--down");
+    deltaEl.textContent = (delta > 0 ? "+" : "") + delta;
+    const body = document.createElement("div");
+    body.className = "points-history-item-body";
+    const balance = document.createElement("div");
+    balance.className = "points-history-balance";
+    balance.textContent = `${data.pointsBefore ?? "—"} → ${data.pointsAfter ?? "—"}`;
+    const meta = document.createElement("div");
+    meta.className = "points-history-meta";
+    const parts = [];
+    if (data.teacherName) parts.push(data.teacherName);
+    if (data.createdAt) {
+      parts.push(
+        new Date(data.createdAt).toLocaleString(locale, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    }
+    meta.textContent = parts.join(" · ");
+    body.append(balance, meta);
+    if (data.note) {
+      const noteEl = document.createElement("div");
+      noteEl.className = "points-history-note";
+      noteEl.textContent = data.note;
+      body.appendChild(noteEl);
+    }
+    el.append(deltaEl, body);
+    listEl.appendChild(el);
+  });
+}
+
+(function bindPointsHeroHistory() {
+  const hero = document.querySelector(".points-hero");
+  if (!hero) return;
+  hero.setAttribute("role", "button");
+  hero.setAttribute("tabindex", "0");
+  hero.title = (typeof t === "function" && t("pointsHistoryHint")) || "";
+  hero.onclick = () => {
+    if (pointsHistoryPanelOpen) closePointsHistoryPanel();
+    else openPointsHistoryPanel();
+  };
+  hero.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      hero.click();
+    }
+  };
+})();
