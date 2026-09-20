@@ -334,6 +334,10 @@ const translations = {
     gradesTrendStable: "Стабільно",
     gradesTrendNone: "Немає даних",
     gradesOfMax: "з 12",
+    finalGradesHeading: "Підсумкові оцінки",
+    finalPeriod_semester1: "1 семестр",
+    finalPeriod_semester2: "2 семестр",
+    finalPeriod_year: "Рік",
     gradesPeriodLabel: "Період",
     gradesPeriodAll: "Увесь час",
     gradesPeriodThisMonth: "Цей місяць",
@@ -363,6 +367,7 @@ const translations = {
     noLessonForDay: "Урок на цю дату ще не додано.",
     noScheduleForDay: "На цей день розклад ще не задано.",
     homeworkDateShort: "ДЗ до:",
+    homeworkNoDueDate: "ДЗ без дати здачі",
     lessonDateShort: "Урок:",
     deletedSubjectLabel: "Видалений предмет",
     noMeetingLink: "",
@@ -500,6 +505,10 @@ const translations = {
     gradesTrendStable: "Stable",
     gradesTrendNone: "No data",
     gradesOfMax: "of 12",
+    finalGradesHeading: "Final grades",
+    finalPeriod_semester1: "1st semester",
+    finalPeriod_semester2: "2nd semester",
+    finalPeriod_year: "Year",
     gradesPeriodLabel: "Period",
     gradesPeriodAll: "All time",
     gradesPeriodThisMonth: "This month",
@@ -529,6 +538,7 @@ const translations = {
     noLessonForDay: "No lesson added for this date yet.",
     noScheduleForDay: "No schedule set for this day yet.",
     homeworkDateShort: "HW due:",
+    homeworkNoDueDate: "HW with no due date",
     lessonDateShort: "Lesson:",
     deletedSubjectLabel: "Deleted subject",
     noMeetingLink: "",
@@ -1109,7 +1119,12 @@ function filterGradesByPeriod(gradesList, period, fromCustom, toCustom) {
 }
 
 function getFilteredStudentGrades() {
-  return filterGradesByPeriod(lastGrades, gradesPeriodMode, gradesPeriodFrom, gradesPeriodTo);
+  const current = lastGrades.filter((g) => g.data.type !== "final");
+  return filterGradesByPeriod(current, gradesPeriodMode, gradesPeriodFrom, gradesPeriodTo);
+}
+
+function getStudentFinalGrades() {
+  return lastGrades.filter((g) => g.data.type === "final");
 }
 
 function syncGradesCustomRangeVisibility() {
@@ -1387,6 +1402,12 @@ function renderGradesTable() {
   renderGradesAnalytics();
 
   if (filteredGrades.length === 0) {
+    const finalsOnly = getStudentFinalGrades();
+    if (finalsOnly.length > 0) {
+      if (noGradesMsg) noGradesMsg.classList.add("hidden");
+      renderStudentFinalGrades();
+      return;
+    }
     if (noGradesMsg) noGradesMsg.classList.remove("hidden");
     return;
   }
@@ -1527,6 +1548,64 @@ function renderGradesTable() {
   wrap.appendChild(table);
   gradesTableContainer.appendChild(legend);
   gradesTableContainer.appendChild(wrap);
+  renderStudentFinalGrades();
+}
+
+function renderStudentFinalGrades() {
+  const finals = getStudentFinalGrades();
+  if (!finals.length || !gradesTableContainer) return;
+  const bySubject = new Map();
+  finals.forEach((g) => {
+    const sid = g.data.subjectId || "__none__";
+    if (!bySubject.has(sid)) bySubject.set(sid, {});
+    bySubject.get(sid)[g.data.period] = g.data.value;
+  });
+  const section = document.createElement("div");
+  section.className = "final-grades-section";
+  const heading = document.createElement("h3");
+  heading.className = "final-grades-heading";
+  heading.textContent = t("finalGradesHeading");
+  section.appendChild(heading);
+  const periods = ["semester1", "semester2", "year"];
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "schedule-table-wrap final-grades-table-wrap";
+  const table = document.createElement("table");
+  table.className = "schedule-table final-grades-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const corner = document.createElement("th");
+  corner.textContent = t("gradesTableSubjectHeader");
+  headRow.appendChild(corner);
+  periods.forEach((p) => {
+    const th = document.createElement("th");
+    th.textContent = t("finalPeriod_" + p);
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement("tbody");
+  const subjectOrder = lastSubjects.map((subj) => subj.id).filter((id) => bySubject.has(id));
+  [...bySubject.keys()].filter((id) => !subjectOrder.includes(id)).forEach((id) => subjectOrder.push(id));
+  subjectOrder.forEach((subjectId) => {
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.className = "grades-table-subject";
+    th.textContent = getSubjectName(subjectId) || subjectId;
+    tr.appendChild(th);
+    const vals = bySubject.get(subjectId) || {};
+    periods.forEach((p) => {
+      const td = document.createElement("td");
+      td.className = "schedule-table-cell";
+      const v = vals[p];
+      td.textContent = v !== undefined && v !== null ? String(v) : "–";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  section.appendChild(tableWrap);
+  gradesTableContainer.appendChild(section);
 }
 
 // ---------- Live status (як у вчителя, але для фіксованої групи учня) ----------
@@ -1924,6 +2003,11 @@ function renderLessonView(data) {
     badge.className = "date-badge hw";
     badge.textContent = `${t("homeworkDateShort")} ${data.homeworkDate}`;
     datesRow.appendChild(badge);
+  } else if (data.hasHomework) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge hw";
+    badge.textContent = t("homeworkNoDueDate");
+    datesRow.appendChild(badge);
   }
   if (data.addedByStarosta) {
     const badge = document.createElement("span");
@@ -2042,10 +2126,6 @@ if (starostaHwAddBtn) {
       alert(t("starostaHwNeedTitle"));
       return;
     }
-    if (!homeworkDate) {
-      alert(t("starostaHwNeedDate"));
-      return;
-    }
 
     try {
       const payload = {
@@ -2053,7 +2133,8 @@ if (starostaHwAddBtn) {
         title,
         content: content || "",
         lessonDate: null,
-        homeworkDate,
+        homeworkDate: homeworkDate || null,
+        hasHomework: true,
         createdAt: Date.now(),
         addedByStarosta: true,
         addedByStudentId: studentId || null,
@@ -2074,6 +2155,11 @@ if (starostaHwAddBtn) {
   };
 }
 
+function lessonHasHomework(data) {
+  if (!data) return false;
+  return !!(data.homeworkDate || data.hasHomework);
+}
+
 function renderHomeworkContainer() {
   if (!homeworkContainer) return;
   updateHwSubjectFilterOptions();
@@ -2082,9 +2168,11 @@ function renderHomeworkContainer() {
   homeworkContainer.innerHTML = "";
 
   const todayStr = formatDateLocal(new Date());
-  let upcoming = lastLessons.filter(
-    (l) => !!l.data.homeworkDate && l.data.homeworkDate >= todayStr && lessonVisibleToStudent(l.data)
-  );
+  let upcoming = lastLessons.filter((l) => {
+    if (!lessonHasHomework(l.data) || !lessonVisibleToStudent(l.data)) return false;
+    if (!l.data.homeworkDate) return true;
+    return l.data.homeworkDate >= todayStr;
+  });
 
   if (hwSubjectFilterId) {
     upcoming = upcoming.filter((l) => l.data.subjectId === hwSubjectFilterId);
@@ -2097,10 +2185,13 @@ function renderHomeworkContainer() {
     const locale = currentLang === "uk" ? "uk" : "en";
     upcoming = upcoming.slice().sort((a, b) => {
       const cmp = getSubjectName(a.data.subjectId).localeCompare(getSubjectName(b.data.subjectId), locale);
-      return cmp !== 0 ? cmp : a.data.homeworkDate.localeCompare(b.data.homeworkDate);
+      if (cmp !== 0) return cmp;
+      return (a.data.homeworkDate || "9999").localeCompare(b.data.homeworkDate || "9999");
     });
   } else {
-    upcoming = upcoming.slice().sort((a, b) => a.data.homeworkDate.localeCompare(b.data.homeworkDate));
+    upcoming = upcoming.slice().sort((a, b) =>
+      (a.data.homeworkDate || "9999").localeCompare(b.data.homeworkDate || "9999")
+    );
   }
 
   upcoming = upcoming.slice(0, 20);

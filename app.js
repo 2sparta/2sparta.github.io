@@ -305,6 +305,19 @@ const translations = {
     gradesPeriodTo: "По",
     gradesLegendLesson: "Урок",
     gradesLegendHw: "ДЗ",
+    homeworkNoDueDate: "ДЗ без дати здачі",
+    hasHomeworkLabel: "Є домашнє завдання",
+    hasHomeworkHint: "Увімкніть, щоб додати ДЗ без дати здачі. Якщо вказано дату — ДЗ з’явиться автоматично.",
+    homeworkDateOptionalHint: "Необов’язково — можна залишити порожнім",
+    finalGradesHeading: "Підсумкові оцінки",
+    finalGradesHint: "Семестрові та річні оцінки. «Авто» — округлене середнє поточних оцінок за період.",
+    finalGradesNoSubjects: "Немає предметів для підсумкових оцінок.",
+    finalPeriod_semester1: "1 семестр",
+    finalPeriod_semester2: "2 семестр",
+    finalPeriod_year: "Рік",
+    finalGradeAutoBtn: "Авто",
+    finalGradeAutoTitle: "Виставити за середнім балом",
+    finalGradeNoAvg: "Недостатньо оцінок для розрахунку середнього.",
 
     tabAnnouncements: "Оголошення",
     announcementsHeading: "Оголошення",
@@ -659,6 +672,19 @@ const translations = {
     gradesPeriodTo: "To",
     gradesLegendLesson: "Lesson",
     gradesLegendHw: "HW",
+    homeworkNoDueDate: "HW with no due date",
+    hasHomeworkLabel: "Has homework",
+    hasHomeworkHint: "Enable to add homework without a due date. Filling in a due date also marks homework.",
+    homeworkDateOptionalHint: "Optional — can be left empty",
+    finalGradesHeading: "Final grades",
+    finalGradesHint: "Semester and year grades. “Auto” fills the rounded average of current grades for the period.",
+    finalGradesNoSubjects: "No subjects for final grades.",
+    finalPeriod_semester1: "1st semester",
+    finalPeriod_semester2: "2nd semester",
+    finalPeriod_year: "Year",
+    finalGradeAutoBtn: "Auto",
+    finalGradeAutoTitle: "Set from average",
+    finalGradeNoAvg: "Not enough grades to compute an average.",
 
     tabAnnouncements: "Announcements",
     announcementsHeading: "Announcements",
@@ -1582,6 +1608,12 @@ const newLessonTitle = document.getElementById("new-lesson-title");
 const newLessonContent = document.getElementById("new-lesson-content");
 const newLessonDate = document.getElementById("new-lesson-date");
 const newLessonHwDate = document.getElementById("new-lesson-hw-date");
+const newLessonHasHw = document.getElementById("new-lesson-has-hw");
+if (newLessonHwDate && newLessonHasHw) {
+  newLessonHwDate.addEventListener("change", () => {
+    if (newLessonHwDate.value) newLessonHasHw.checked = true;
+  });
+}
 const newLessonPublishAt = document.getElementById("new-lesson-publish-at");
 const lessonClassSearch = document.getElementById("lesson-class-search");
 const lessonClassOptions = document.getElementById("lesson-class-options");
@@ -3305,6 +3337,18 @@ function gradeDocId(lessonId, studentId, type) {
   return `${lessonId}_${studentId}_${type}`;
 }
 
+function finalGradeDocId(studentId, subjectId, period) {
+  return `final_${studentId}_${subjectId}_${period}`;
+}
+
+/** Урок має ДЗ: є дата здачі або явний прапорець hasHomework (ДЗ без дати). */
+function lessonHasHomework(data) {
+  if (!data) return false;
+  return !!(data.homeworkDate || data.hasHomework);
+}
+
+const FINAL_GRADE_PERIODS = ["semester1", "semester2", "year"];
+
 function listenToGrades() {
   const q = query(collection(db, "grades"));
   unsubscribeGrades = onSnapshot(q, (snap) => {
@@ -3436,6 +3480,75 @@ async function notifyStudentAboutGrade(studentId, subjectId, value, gradeType, c
   }
 }
 
+
+function getFinalGradeValue(studentId, subjectId, period) {
+  const found = lastGrades.find(
+    (g) =>
+      g.data.type === "final" &&
+      g.data.studentId === studentId &&
+      g.data.subjectId === subjectId &&
+      g.data.period === period
+  );
+  return found ? found.data.value : null;
+}
+
+/** Середній бал за урок/ДЗ предмета в межах семестру (або всіх оцінок, якщо period=year). */
+function computeSubjectAverageForPeriod(studentId, subjectId, period) {
+  let grades = lastGrades.filter(
+    (g) =>
+      g.data.studentId === studentId &&
+      g.data.subjectId === subjectId &&
+      g.data.type !== "final" &&
+      isNumericGrade(g.data.value)
+  );
+  if (period === "semester1" || period === "semester2") {
+    const [from, to] = getGradesPeriodRange(period, null, null);
+    grades = grades.filter((g) => {
+      const d = g.data.date;
+      if (!d) return false;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+  }
+  if (grades.length === 0) return null;
+  const sum = grades.reduce((a, g) => a + Number(g.data.value), 0);
+  return Math.round((sum / grades.length) * 10) / 10;
+}
+
+async function saveFinalGrade(studentId, subjectId, period, rawValue, auto = false) {
+  if (!FINAL_GRADE_PERIODS.includes(period)) return;
+  const id = finalGradeDocId(studentId, subjectId, period);
+  const trimmed = (rawValue === null || rawValue === undefined) ? "" : String(rawValue).trim();
+  try {
+    if (trimmed === "") {
+      await deleteDoc(doc(db, "grades", id));
+      return;
+    }
+    const value = parseGradeInput(trimmed);
+    if (value === null || value === "Н") {
+      return;
+    }
+    await setDoc(
+      doc(db, "grades", id),
+      {
+        studentId,
+        subjectId: subjectId || null,
+        type: "final",
+        period,
+        value,
+        auto: !!auto,
+        date: null,
+        updatedAt: Date.now(),
+        teacherId: auth.currentUser ? auth.currentUser.uid : null,
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    reportSaveError(e, "Не вдалося зберегти підсумкову оцінку", "Failed to save final grade");
+  }
+}
+
 // ---------- Призначення уроку класам (мультивибір + пошук) ----------
 function renderLessonClassOptions() {
   if (!lessonClassOptions) return;
@@ -3525,6 +3638,8 @@ addLessonBtn.onclick = async () => {
   const content = newLessonContent.value.trim();
   const lessonDate = newLessonDate.value || null;
   const homeworkDate = newLessonHwDate.value || null;
+  const hasHwCheckbox = document.getElementById("new-lesson-has-hw");
+  const hasHomework = !!(homeworkDate || (hasHwCheckbox && hasHwCheckbox.checked));
   const publishAt = newLessonPublishAt ? parsePublishAtInput(newLessonPublishAt.value) : null;
   const assignedClassIds = [...selectedLessonClassIds];
 
@@ -3545,6 +3660,7 @@ addLessonBtn.onclick = async () => {
       content: content || "",
       lessonDate,
       homeworkDate,
+      hasHomework: hasHomework || false,
       createdAt: Date.now(),
       teacherId: auth.currentUser ? auth.currentUser.uid : null,
       teacherName: myDisplayName(),
@@ -3559,6 +3675,7 @@ addLessonBtn.onclick = async () => {
     newLessonContent.value = "";
     newLessonDate.value = "";
     newLessonHwDate.value = "";
+    if (hasHwCheckbox) hasHwCheckbox.checked = false;
     if (newLessonPublishAt) newLessonPublishAt.value = "";
     selectedLessonClassIds = new Set();
     if (lessonClassSearch) lessonClassSearch.value = "";
@@ -3587,7 +3704,7 @@ addLessonBtn.onclick = async () => {
 function getFilteredAllLessons() {
   const base =
     currentType === "homework"
-      ? lastLessons.filter((l) => !!l.data.homeworkDate)
+      ? lastLessons.filter((l) => lessonHasHomework(l.data))
       : lastLessons;
   return base.filter(
     (l) => lessonVisibleForCurrentClass(l.data) && lessonOwnedByTeacher(l.data)
@@ -3848,6 +3965,11 @@ function renderLessonCard(id, data) {
     badge.className = "date-badge hw";
     badge.textContent = `${t("homeworkDateShort")} ${data.homeworkDate}`;
     datesRow.appendChild(badge);
+  } else if (data.hasHomework) {
+    const badge = document.createElement("span");
+    badge.className = "date-badge hw";
+    badge.textContent = t("homeworkNoDueDate");
+    datesRow.appendChild(badge);
   }
   if (data.addedByStarosta) {
     const badge = document.createElement("span");
@@ -3922,7 +4044,7 @@ function buildGradesPanel(lessonId, data) {
   wrap.appendChild(hint);
 
   const hasLesson = !!data.lessonDate;
-  const hasHw = !!data.homeworkDate;
+  const hasHw = lessonHasHomework(data);
   // Якщо жодної дати немає — дозволяємо оцінку за урок з сьогоднішньою датою
   const showLesson = hasLesson || !hasHw;
   const showHw = hasHw;
@@ -3979,7 +4101,7 @@ function buildGradesPanel(lessonId, data) {
     return "";
   }
 
-  function makeGradeInput(studentId, type, date) {
+  function makeGradeInput(studentId, type, date, rowIndex) {
     const col = document.createElement("div");
     col.className = "grade-inputs-col";
 
@@ -3991,6 +4113,8 @@ function buildGradesPanel(lessonId, data) {
     input.placeholder = t("gradeInputPlaceholder");
     input.title = type === "homework" ? t("gradeTypeHomework") : t("gradeTypeLesson");
     input.setAttribute("aria-label", input.title);
+    input.dataset.gradeRow = String(rowIndex);
+    input.dataset.gradeType = type;
     const currentValue = getGradeValue(lessonId, studentId, type);
     if (currentValue !== null && currentValue !== undefined) input.value = String(currentValue);
 
@@ -4045,11 +4169,31 @@ function buildGradesPanel(lessonId, data) {
     };
     commentInput.onchange = persist;
 
+    // Швидке виставлення з клавіатури: Enter/↓ → наступний учень, ↑ → попередній
+    input.addEventListener("keydown", (e) => {
+      const key = e.key;
+      if (key !== "Enter" && key !== "ArrowDown" && key !== "ArrowUp") return;
+      e.preventDefault();
+      const row = parseInt(input.dataset.gradeRow, 10);
+      const gType = input.dataset.gradeType;
+      const delta = key === "ArrowUp" ? -1 : 1;
+      const next = list.querySelector(
+        `.grade-input[data-grade-row="${row + delta}"][data-grade-type="${gType}"]`
+      );
+      if (next) {
+        persist();
+        next.focus();
+        next.select();
+      } else if (key === "Enter" || key === "ArrowDown") {
+        persist();
+      }
+    });
+
     col.append(input, commentInput);
-    return { col, savedHint };
+    return { col, savedHint, input };
   }
 
-  students.forEach(({ id: studentId, data: studentData }) => {
+  students.forEach(({ id: studentId, data: studentData }, rowIndex) => {
     const row = document.createElement("div");
     row.className = "grades-student-row";
 
@@ -4061,13 +4205,13 @@ function buildGradesPanel(lessonId, data) {
     let lastSavedHint = null;
     if (showLesson) {
       const date = data.lessonDate || formatDateLocal(new Date());
-      const { col, savedHint } = makeGradeInput(studentId, "lesson", date);
+      const { col, savedHint } = makeGradeInput(studentId, "lesson", date, rowIndex);
       row.appendChild(col);
       lastSavedHint = savedHint;
     }
     if (showHw) {
-      const date = data.homeworkDate;
-      const { col, savedHint } = makeGradeInput(studentId, "homework", date);
+      const date = data.homeworkDate || null;
+      const { col, savedHint } = makeGradeInput(studentId, "homework", date, rowIndex);
       row.appendChild(col);
       lastSavedHint = savedHint;
     }
@@ -4397,14 +4541,19 @@ function renderTeacherGradesTable() {
     return;
   }
 
-  const studentGradesAll = lastGrades.filter((g) => g.data.studentId === sid);
+  const studentGradesAll = lastGrades.filter(
+    (g) => g.data.studentId === sid && g.data.type !== "final"
+  );
+  const studentFinalGrades = lastGrades.filter(
+    (g) => g.data.studentId === sid && g.data.type === "final"
+  );
   const studentGrades = filterGradesByPeriod(
     studentGradesAll,
     teacherGradesPeriod,
     teacherGradesFrom,
     teacherGradesTo
   );
-  if (studentGrades.length === 0) {
+  if (studentGrades.length === 0 && studentFinalGrades.length === 0) {
     if (teacherGradesAnalyticsEl) teacherGradesAnalyticsEl.classList.add("hidden");
     if (teacherNoGradesMsg) {
       teacherNoGradesMsg.classList.remove("hidden");
@@ -4414,7 +4563,11 @@ function renderTeacherGradesTable() {
   }
   if (teacherNoGradesMsg) teacherNoGradesMsg.classList.add("hidden");
 
-  renderTeacherGradesAnalytics(studentGrades);
+  if (studentGrades.length > 0) {
+    renderTeacherGradesAnalytics(studentGrades);
+  } else if (teacherGradesAnalyticsEl) {
+    teacherGradesAnalyticsEl.classList.add("hidden");
+  }
 
   const dateSet = new Set(studentGrades.map((g) => g.data.date).filter(Boolean));
   const dates = [...dateSet].sort((a, b) => a.localeCompare(b));
@@ -4426,10 +4579,8 @@ function renderTeacherGradesTable() {
     .forEach((id) => subjectOrder.push(id));
 
   if (dates.length === 0 || subjectOrder.length === 0) {
-    if (teacherNoGradesMsg) {
-      teacherNoGradesMsg.classList.remove("hidden");
-      teacherNoGradesMsg.textContent = t("noGradesMsg");
-    }
+    if (teacherNoGradesMsg) teacherNoGradesMsg.classList.add("hidden");
+    renderFinalGradesSection(sid, studentGradesAll);
     return;
   }
 
@@ -4533,6 +4684,129 @@ function renderTeacherGradesTable() {
   wrap.appendChild(table);
   teacherGradesTableContainer.appendChild(legend);
   teacherGradesTableContainer.appendChild(wrap);
+
+  renderFinalGradesSection(sid, studentGradesAll);
+}
+
+function renderFinalGradesSection(studentId, currentGradesForAvg) {
+  if (!teacherGradesTableContainer) return;
+  const section = document.createElement("div");
+  section.className = "final-grades-section";
+  const heading = document.createElement("h3");
+  heading.className = "final-grades-heading";
+  heading.textContent = t("finalGradesHeading");
+  section.appendChild(heading);
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent = t("finalGradesHint");
+  section.appendChild(hint);
+
+  const subjectIds = new Set(
+    (currentGradesForAvg || [])
+      .map((g) => g.data.subjectId)
+      .filter(Boolean)
+  );
+  lastSubjects.forEach((subj) => {
+    if (teacherOwnsSubject(subj.id)) subjectIds.add(subj.id);
+  });
+  lastGrades
+    .filter((g) => g.data.type === "final" && g.data.studentId === studentId)
+    .forEach((g) => {
+      if (g.data.subjectId) subjectIds.add(g.data.subjectId);
+    });
+
+  const ordered = lastSubjects.map((subj) => subj.id).filter((id) => subjectIds.has(id));
+  [...subjectIds].filter((id) => !ordered.includes(id)).forEach((id) => ordered.push(id));
+
+  if (ordered.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = t("finalGradesNoSubjects");
+    section.appendChild(empty);
+    teacherGradesTableContainer.appendChild(section);
+    return;
+  }
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "schedule-table-wrap final-grades-table-wrap";
+  const table = document.createElement("table");
+  table.className = "schedule-table final-grades-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const corner = document.createElement("th");
+  corner.textContent = t("gradesTableSubjectHeader");
+  headRow.appendChild(corner);
+  FINAL_GRADE_PERIODS.forEach((p) => {
+    const th = document.createElement("th");
+    th.textContent = t("finalPeriod_" + p);
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  ordered.forEach((subjectId) => {
+    if (!teacherOwnsSubject(subjectId) && !isAdmin()) return;
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.className = "grades-table-subject";
+    th.textContent = getSubjectName(subjectId);
+    tr.appendChild(th);
+    FINAL_GRADE_PERIODS.forEach((period) => {
+      const td = document.createElement("td");
+      td.className = "final-grade-cell";
+      const cell = document.createElement("div");
+      cell.className = "final-grade-cell-inner";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "grade-input final-grade-input";
+      input.placeholder = "—";
+      input.autocomplete = "off";
+      const cur = getFinalGradeValue(studentId, subjectId, period);
+      if (cur !== null && cur !== undefined) input.value = String(cur);
+      const autoBtn = document.createElement("button");
+      autoBtn.type = "button";
+      autoBtn.className = "secondary small final-grade-auto-btn";
+      autoBtn.textContent = t("finalGradeAutoBtn");
+      autoBtn.title = t("finalGradeAutoTitle");
+      autoBtn.onclick = async (e) => {
+        e.preventDefault();
+        const avg = computeSubjectAverageForPeriod(studentId, subjectId, period);
+        if (avg === null) {
+          alert(t("finalGradeNoAvg"));
+          return;
+        }
+        const rounded = Math.round(avg);
+        input.value = String(rounded);
+        await saveFinalGrade(studentId, subjectId, period, String(rounded), true);
+        input.classList.add("final-grade-auto");
+      };
+      const persist = async () => {
+        const parsed = parseGradeInput(input.value);
+        if (input.value.trim() !== "" && (parsed === null || parsed === "Н")) {
+          const prev = getFinalGradeValue(studentId, subjectId, period);
+          input.value = prev !== null && prev !== undefined ? String(prev) : "";
+          return;
+        }
+        if (typeof parsed === "number") input.value = String(parsed);
+        await saveFinalGrade(studentId, subjectId, period, input.value, false);
+        input.classList.remove("final-grade-auto");
+      };
+      input.onchange = persist;
+      input.onblur = () => {
+        const parsed = parseGradeInput(input.value);
+        if (typeof parsed === "number") input.value = String(parsed);
+      };
+      cell.append(input, autoBtn);
+      td.appendChild(cell);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  section.appendChild(tableWrap);
+  teacherGradesTableContainer.appendChild(section);
 }
 
 if (teacherGradesStudentSelect) {
@@ -5124,7 +5398,7 @@ function subscribeTeacherNotifications() {
 
 async function notifyStudentsAboutLesson(payload) {
   const subjectName = getSubjectName(payload.subjectId) || "";
-  const hasHw = !!payload.homeworkDate;
+  const hasHw = lessonHasHomework(payload);
   const title = hasHw
     ? t("notifNewHomework")(subjectName, payload.title || "")
     : t("notifNewLesson")(subjectName, payload.title || "");

@@ -3626,3 +3626,65 @@ html.no-glass-bg .settings-fab {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+
+/* ---------- ДЗ без дати / has-homework toggle ---------- */
+.has-homework-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 6px;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-primary);
+}
+.has-homework-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* ---------- Підсумкові оцінки ---------- */
+.final-grades-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+.final-grades-heading {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 15px;
+  margin: 0 0 8px;
+  color: var(--color-primary);
+}
+.final-grades-table-wrap {
+  margin-top: 10px;
+}
+.final-grade-cell-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.final-grade-input {
+  width: 48px;
+  margin: 0;
+  text-align: center;
+  padding: 6px 4px;
+  font-weight: 700;
+}
+.final-grade-auto-btn {
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  white-space: nowrap;
+}
+.final-grade-input.final-grade-auto {
+  border-color: var(--color-accent);
+  background: var(--color-surface-tint);
+}

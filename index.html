@@ -317,8 +317,14 @@
                 <label class="date-field">
                   <span data-i18n="homeworkDateLabel">Дата дз (до)</span>
                   <input id="new-lesson-hw-date" type="date" />
+                  <span class="hint" data-i18n="homeworkDateOptionalHint">Необов’язково — можна залишити порожнім</span>
                 </label>
               </div>
+              <label class="has-homework-toggle">
+                <input type="checkbox" id="new-lesson-has-hw" />
+                <span data-i18n="hasHomeworkLabel">Є домашнє завдання</span>
+              </label>
+              <p class="hint class-assign-hint" data-i18n="hasHomeworkHint">Увімкніть, щоб додати ДЗ без дати здачі. Якщо вказано дату — ДЗ з’явиться автоматично.</p>
               <div class="class-assign-block">
                 <label class="class-assign-label" data-i18n="assignClassesLabel">Призначити класам</label>
                 <p class="hint class-assign-hint" data-i18n="assignClassesHint">Якщо нічого не вибрано — урок бачать усі класи. Можна обрати кілька.</p>
