@@ -109,9 +109,7 @@ export function initChat(opts) {
   const chatMessagesEl = document.getElementById("chat-messages");
   const chatComposeText = document.getElementById("chat-compose-text");
   const chatSendBtn = document.getElementById("chat-send-btn");
-  const chatSubjectSelect = document.getElementById("chat-subject-select");
   const chatSubjectFilter = document.getElementById("chat-subject-filter");
-  const chatComposeSubjectWrap = document.getElementById("chat-compose-subject-wrap");
   const chatNewModal = document.getElementById("chat-new-modal");
   const chatNewModalClose = document.getElementById("chat-new-modal-close");
   const chatNewModalBody = document.getElementById("chat-new-modal-body");
@@ -632,9 +630,6 @@ export function initChat(opts) {
       !chat.data.noSubjects &&
       (chat.data.type === "group" || chat.data.type === "class" || chat.data.type === "school" || chat.data.type === "students");
 
-    if (chatComposeSubjectWrap) {
-      chatComposeSubjectWrap.classList.toggle("hidden", !showSubject || !isTeacherSide);
-    }
     if (chatSubjectFilter) {
       chatSubjectFilter.classList.toggle("hidden", !showSubject);
       chatSubjectFilter.innerHTML = "";
@@ -652,20 +647,25 @@ export function initChat(opts) {
       chatSubjectFilter.onchange = () => {
         subjectFilterId = chatSubjectFilter.value;
         renderMessages();
+        updateSubjectHint();
       };
     }
-    if (chatSubjectSelect) {
-      chatSubjectSelect.innerHTML = "";
-      const none = document.createElement("option");
-      none.value = "";
-      none.textContent = t("chatNoSubject") || "Without subject";
-      chatSubjectSelect.appendChild(none);
-      subjects.forEach(({ id, data }) => {
-        const opt = document.createElement("option");
-        opt.value = id;
-        opt.textContent = data.name || id;
-        chatSubjectSelect.appendChild(opt);
-      });
+    updateSubjectHint();
+  }
+
+  function updateSubjectHint() {
+    const hint = document.querySelector(".chat-subject-hint");
+    if (!hint) return;
+    if (!subjectFilterId) {
+      hint.textContent = isTeacherSide
+        ? (t("chatSubjectHintTeacher") || "Оберіть предмет зверху — повідомлення отримає цей тег, і стрічка фільтруватиметься.")
+        : (t("chatSubjectHintStudent") || "Оберіть предмет зверху, щоб фільтрувати повідомлення.");
+    } else {
+      const sub = (typeof getSubjects === "function" ? getSubjects() : []).find((s) => s.id === subjectFilterId);
+      const name = (sub && sub.data && sub.data.name) || subjectFilterId;
+      hint.textContent = isTeacherSide
+        ? ((t("chatSubjectActiveTeacher") || "Пишете в предмет: {name}. Змініть зверху, щоб перейти до іншого.").replace("{name}", name))
+        : ((t("chatSubjectActiveStudent") || "Фільтр: {name}").replace("{name}", name));
     }
   }
 
@@ -729,8 +729,9 @@ export function initChat(opts) {
     if (!text) return;
     let subjectId = null;
     let subjectName = null;
-    if (chatSubjectSelect && chatSubjectSelect.value && isTeacherSide) {
-      subjectId = chatSubjectSelect.value;
+    // Верхній select (subjectFilterId) задає і фільтр стрічки, і тег повідомлення при відправці
+    if (subjectFilterId) {
+      subjectId = subjectFilterId;
       const sub = (getSubjects() || []).find((s) => s.id === subjectId);
       subjectName = (sub && sub.data && sub.data.name) || subjectId;
     }
@@ -1061,9 +1062,6 @@ export function initChat(opts) {
         </div>
         <div id="chat-messages" class="chat-messages"></div>
         <div class="chat-compose">
-          <div id="chat-compose-subject-wrap" class="chat-compose-subject-wrap hidden">
-            <select id="chat-subject-select" aria-label="Subject tag"></select>
-          </div>
           <div class="chat-compose-row">
             <textarea id="chat-compose-text" rows="2" placeholder="${(typeof t === "function" && t("chatComposePlaceholder")) || "Message..."}"></textarea>
             <button id="chat-send-btn" type="button">${(typeof t === "function" && t("chatSendBtn")) || "Send"}</button>
@@ -1143,13 +1141,7 @@ export function initChat(opts) {
     if (chatListEmpty) chatListEmpty.textContent = t("chatListEmpty") || "No chats yet.";
     if (chatComposeText) chatComposeText.placeholder = t("chatComposePlaceholder") || "Message...";
     if (chatSendBtn) chatSendBtn.textContent = t("chatSendBtn") || "Send";
-    const hint = document.querySelector(".chat-subject-hint");
-    if (hint) {
-      hint.textContent = isTeacherSide
-        ? t("chatSubjectHintTeacher") ||
-          "Optional: tag a subject so students can filter the thread."
-        : t("chatSubjectHintStudent") || "Filter by subject above if the chat is busy.";
-    }
+    updateSubjectHint();
     if (chatFab) {
       chatFab.setAttribute("aria-label", t("chatTitle") || "Chat");
       chatFab.title = t("chatTitle") || "Chat";
