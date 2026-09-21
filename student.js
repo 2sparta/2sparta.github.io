@@ -107,6 +107,8 @@ const tabScheduleBtn = document.getElementById("tab-schedule-btn");
 const tabTasksBtn = document.getElementById("tab-tasks-btn");
 const tabGradesBtn = document.getElementById("tab-grades-btn");
 const tabSelfGovBtn = document.getElementById("tab-selfgov-btn");
+const tabChatBtn = document.getElementById("tab-chat-btn");
+const chatPanelEl = document.getElementById("chat-panel");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
 const gradesPanel = document.getElementById("grades-panel");
@@ -380,6 +382,7 @@ const translations = {
     subjectsExpandBtn: "Розгорнути",
     subjectsCollapseBtn: "Згорнути",
     tabSelfGov: "Самоврядування",
+    tabChat: "Чат",
     selfGovHeading: "Самоврядування",
     selfGovStudentHint: "Тут ви можете подати кандидатуру на старосту або проголосувати під час виборів.",
     selfGovHistoryHeading: "Історія виборів / старост",
@@ -446,6 +449,17 @@ const translations = {
     chatSubjectHintTeacher: "Необов'язково: позначте предмет — можна фільтрувати стрічку.",
     chatSubjectHintStudent: "Фільтр за предметом зверху, якщо в чаті багато повідомлень.",
     chatSendError: "Не вдалося надіслати повідомлення.",
+    chatPickOrStart: "Оберіть чат справа або створіть новий.",
+    chatSearchInThread: "Пошук у чаті...",
+    chatIsTyping: "пише…",
+    chatMessageDeleted: "Повідомлення видалено",
+    chatEdited: "змінено",
+    chatSending: "Надсилання…",
+    chatCopy: "Копіювати",
+    chatDelete: "Видалити",
+    chatDayToday: "Сьогодні",
+    chatDayYesterday: "Вчора",
+    chatLoadOlderHint: "Прокрутіть вгору для старіших повідомлень",
     notifGradeComment: "Коментар учителя",
     errors: {
       "auth/invalid-email": "Некоректний email.",
@@ -738,19 +752,27 @@ function showTab(tab) {
   if (tabGradesBtn) tabGradesBtn.classList.toggle("active", tab === "grades");
   if (tabAnnouncementsBtn) tabAnnouncementsBtn.classList.toggle("active", tab === "announcements");
   if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
+  if (tabChatBtn) tabChatBtn.classList.toggle("active", tab === "chat");
   if (schedulePanel) schedulePanel.classList.toggle("hidden", tab !== "schedule");
   if (tasksPanel) tasksPanel.classList.toggle("hidden", tab !== "tasks");
   if (gradesPanel) gradesPanel.classList.toggle("hidden", tab !== "grades");
   if (announcementsPanel) announcementsPanel.classList.toggle("hidden", tab !== "announcements");
   if (selfgovPanel) selfgovPanel.classList.toggle("hidden", tab !== "selfgov");
+  if (chatPanelEl) chatPanelEl.classList.toggle("hidden", tab !== "chat");
   if (tab === "selfgov") renderSelfGovStudent();
   if (tab === "announcements") renderStudentAnnouncements();
+  if (tab === "chat") {
+    const api = typeof ensureStudentChatApi === "function" ? ensureStudentChatApi() : chatApi;
+    if (api && api.onTabActivated) api.onTabActivated();
+    else if (api && api.start) api.start();
+  }
 }
 if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
 if (tabTasksBtn) tabTasksBtn.onclick = () => showTab("tasks");
 if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
 if (tabAnnouncementsBtn) tabAnnouncementsBtn.onclick = () => showTab("announcements");
 if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
+if (tabChatBtn) tabChatBtn.onclick = () => showTab("chat");
 
 // Перемикач всередині вкладки "Завдання": розклад дня (сьогодні/завтра) чи ДЗ.
 function showTaskType(type) {

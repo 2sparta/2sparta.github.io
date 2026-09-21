@@ -190,6 +190,7 @@
         <button id="tab-announcements-btn" class="tab-btn" data-i18n="tabAnnouncements">Оголошення</button>
         <button id="tab-selfgov-btn" class="tab-btn" data-i18n="tabSelfGov">Самоврядування</button>
         <button id="tab-teachers-btn" class="tab-btn hidden" data-i18n="tabTeachers">Вчителі</button>
+        <button id="tab-chat-btn" class="tab-btn" data-i18n="tabChat">Чат</button>
       </nav>
 
       <!-- Віджети та контент: відцентровані та широкі -->
@@ -549,6 +550,67 @@
     </div>
   </div>
 
+
+
+        <div id="chat-panel" class="tab-panel hidden">
+          <section class="card card-wide chat-workspace-card">
+            <div class="chat-workspace" id="chat-workspace">
+              <div class="chat-main">
+                <div id="chat-thread-view" class="chat-thread-view hidden">
+                  <div class="chat-thread-header">
+                    <button id="chat-back-btn" type="button" class="chat-back-btn" aria-label="Back">←</button>
+                    <div class="chat-thread-titles">
+                      <div id="chat-thread-title" class="chat-thread-title"></div>
+                      <div id="chat-thread-meta" class="chat-thread-meta"></div>
+                    </div>
+                    <button id="chat-search-toggle" type="button" class="icon-btn secondary small" aria-label="Search">🔍</button>
+                  </div>
+                  <div id="chat-search-bar" class="chat-search-bar hidden">
+                    <input id="chat-search-input" type="search" placeholder="Пошук у чаті..." />
+                  </div>
+                  <div class="chat-subject-filter-wrap">
+                    <select id="chat-subject-filter" class="hidden" aria-label="Filter by subject"></select>
+                  </div>
+                  <div id="chat-messages" class="chat-messages"></div>
+                  <button id="chat-scroll-bottom-btn" type="button" class="chat-scroll-bottom-btn hidden">
+                    <span id="chat-new-count-badge" class="chat-new-count-badge hidden">0</span>
+                    ↓
+                  </button>
+                  <div class="chat-compose">
+                    <div id="chat-compose-subject-wrap" class="chat-compose-subject-wrap hidden">
+                      <select id="chat-subject-select" aria-label="Subject tag"></select>
+                    </div>
+                    <div class="chat-compose-row">
+                      <textarea id="chat-compose-text" rows="1" placeholder="Повідомлення..."></textarea>
+                      <button id="chat-send-btn" type="button">Надіслати</button>
+                    </div>
+                    <p class="hint chat-subject-hint"></p>
+                  </div>
+                </div>
+                <div id="chat-empty-state" class="chat-empty-state">
+                  <p class="hint">Оберіть чат справа або створіть новий.</p>
+                </div>
+              </div>
+              <aside class="chat-sidebar" id="chat-list-view">
+                <div class="chat-list-actions">
+                  <button id="chat-new-dm-btn" type="button" class="secondary small">Написати</button>
+                  <button id="chat-new-group-btn" type="button" class="secondary small">Нова група</button>
+                </div>
+                <div id="chat-list" class="chat-list"></div>
+                <p id="chat-list-empty" class="hint chat-list-empty hidden">Чатів ще немає.</p>
+              </aside>
+              <div id="chat-new-modal" class="chat-new-modal hidden" role="dialog">
+                <div class="chat-new-modal-inner">
+                  <div class="chat-new-modal-header">
+                    <h3 id="chat-new-modal-title"></h3>
+                    <button id="chat-new-modal-close" type="button" class="chat-panel-close" aria-label="Close">✕</button>
+                  </div>
+                  <div id="chat-new-modal-body" class="chat-new-modal-body"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
 
   <!-- Повідомлення: плаваюча кнопка + панель -->
   <button id="messages-fab" class="messages-fab hidden" type="button" aria-label="Повідомлення" title="Повідомлення">

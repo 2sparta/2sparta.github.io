@@ -16,8 +16,10 @@ import {
   onSnapshot,
   orderBy,
   limit,
+  startAfter,
   arrayUnion,
-  writeBatch,
+  arrayRemove,
+  runTransaction,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 /**
@@ -141,6 +143,8 @@ export function initChat(opts) {
     activeChatId = null;
     if (chatListView) chatListView.classList.remove("hidden");
     if (chatThreadView) chatThreadView.classList.add("hidden");
+    const empty = document.getElementById("chat-empty-state");
+    if (empty) empty.classList.remove("hidden");
     if (unsubscribeMessages) {
       unsubscribeMessages();
       unsubscribeMessages = null;
@@ -150,8 +154,11 @@ export function initChat(opts) {
 
   function openThread(chatId) {
     activeChatId = chatId;
-    if (chatListView) chatListView.classList.add("hidden");
+    const embedded = document.getElementById("chat-panel") && document.getElementById("chat-panel").classList.contains("tab-panel");
+    if (chatListView && !embedded) chatListView.classList.add("hidden");
     if (chatThreadView) chatThreadView.classList.remove("hidden");
+    const empty = document.getElementById("chat-empty-state");
+    if (empty) empty.classList.add("hidden");
     const chat = lastChats.find((c) => c.id === chatId);
     if (chatThreadTitle) {
       chatThreadTitle.textContent = chatDisplayName(chat);
@@ -409,11 +416,16 @@ export function initChat(opts) {
     }
     const map = {};
     lastChats.forEach(({ id, data }) => {
+      const counts = data.unreadCounts || {};
+      const n = counts[user.uid];
+      if (typeof n === "number" && n > 0) {
+        map[id] = n;
+        return;
+      }
       const me = data.members && data.members[user.uid];
       const lastRead = (me && me.lastReadAt) || 0;
       const lastMsg = data.lastMessageAt || 0;
-      // Approximate: if last message after lastRead and not from me
-      if (lastMsg > lastRead) {
+      if (lastMsg > lastRead && data.lastMessageSenderUid !== user.uid) {
         map[id] = 1;
       }
     });
@@ -422,7 +434,7 @@ export function initChat(opts) {
 
   function updateBadge() {
     if (!chatBadge) return;
-    const n = Object.keys(unreadByChat).length;
+    const n = Object.values(unreadByChat).reduce((a, b) => a + (Number(b) || 0), 0);
     if (n > 0) {
       chatBadge.textContent = n > 99 ? "99+" : String(n);
       chatBadge.classList.remove("hidden");
@@ -436,6 +448,7 @@ export function initChat(opts) {
     if (!user) return;
     await updateDoc(doc(db, "chats", chatId), {
       [`members.${user.uid}.lastReadAt`]: Date.now(),
+      [`unreadCounts.${user.uid}`]: 0,
     });
   }
 
@@ -511,14 +524,14 @@ export function initChat(opts) {
     const q = query(
       collection(db, "chatMessages"),
       where("chatId", "==", chatId),
-      orderBy("createdAt", "asc"),
-      limit(200)
+      orderBy("createdAt", "desc"),
+      limit(50))
     );
     unsubscribeMessages = onSnapshot(
       q,
       (snap) => {
-        lastMessages = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
-        renderMessages();
+        lastMessages = snap.docs.map((d) => ({ id: d.id, data: d.data() })).reverse();
+        renderMessages(true);
       },
       (err) => {
         console.warn("chatMessages", err);
@@ -627,7 +640,7 @@ export function initChat(opts) {
       row.appendChild(meta);
       chatMessagesEl.appendChild(row);
     });
-    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    if (arguments.length === 0 || arguments[0]) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
   }
 
   async function sendMessage() {
@@ -645,6 +658,16 @@ export function initChat(opts) {
     }
     const now = Date.now();
     const senderName = (profile && profile.displayName) || user.email || "User";
+    const tempId = "tmp-" + now;
+    lastMessages = lastMessages.concat([{
+      id: tempId,
+      data: { chatId: activeChatId, senderUid: user.uid, senderName, text, createdAt: now, subjectId, subjectName, _pending: true },
+    }]);
+    renderMessages(true);
+    if (chatComposeText) {
+      chatComposeText.value = "";
+      try { chatComposeText.style.height = "auto"; } catch (_) {}
+    }
     try {
       await addDoc(collection(db, "chatMessages"), {
         chatId: activeChatId,
@@ -656,14 +679,29 @@ export function initChat(opts) {
         subjectName,
       });
       const preview = subjectName ? `[${subjectName}] ${text}` : text;
-      await updateDoc(doc(db, "chats", activeChatId), {
-        lastMessageAt: now,
-        lastMessagePreview: preview.slice(0, 120),
-        [`members.${user.uid}.lastReadAt`]: now,
+      await runTransaction(db, async (tx) => {
+        const ref = doc(db, "chats", activeChatId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const members = snap.data().members || {};
+        const unreadCounts = Object.assign({}, snap.data().unreadCounts || {});
+        Object.keys(members).forEach((uid) => {
+          if (uid !== user.uid) unreadCounts[uid] = (unreadCounts[uid] || 0) + 1;
+        });
+        unreadCounts[user.uid] = 0;
+        tx.update(ref, {
+          lastMessageAt: now,
+          lastMessagePreview: preview.slice(0, 120),
+          lastMessageSenderUid: user.uid,
+          unreadCounts: unreadCounts,
+          ["members." + user.uid + ".lastReadAt"]: now,
+        });
       });
-      if (chatComposeText) chatComposeText.value = "";
+      lastMessages = lastMessages.filter((m) => m.id !== tempId);
     } catch (e) {
       console.error(e);
+      lastMessages = lastMessages.filter((m) => m.id !== tempId);
+      renderMessages(true);
       alert((typeof t === "function" && t("chatSendError")) || e.message || "Failed to send");
     }
   }
@@ -896,6 +934,7 @@ export function initChat(opts) {
 
   // ---------- DOM bootstrap ----------
   function ensureChatDom() {
+    if (document.getElementById("chat-panel") && document.getElementById("chat-list")) return;
     if (document.getElementById("chat-fab")) return;
 
     const fab = document.createElement("button");
@@ -984,6 +1023,10 @@ export function initChat(opts) {
         sendMessage();
       }
     });
+    chatComposeText.addEventListener("input", () => {
+      chatComposeText.style.height = "auto";
+      chatComposeText.style.height = Math.min(chatComposeText.scrollHeight, 120) + "px";
+    });
   }
   if (chatNewDmBtn) chatNewDmBtn.onclick = () => openNewDmModal();
   if (chatNewGroupBtn) chatNewGroupBtn.onclick = () => openNewGroupModal();
@@ -1034,14 +1077,24 @@ export function initChat(opts) {
     }
   }
 
+  function onTabActivated() {
+    panelOpen = true;
+    ensureAutoGroups().catch(function () {});
+    renderChatList();
+    if (!activeChatId) showListView();
+  }
+  if (document.getElementById("chat-panel") && document.getElementById("chat-panel").classList.contains("tab-panel")) {
+    if (chatFab) chatFab.classList.add("hidden");
+  }
   return {
-    start,
-    stop,
-    showFab,
-    openPanel,
-    closePanel,
-    ensureAutoGroups,
-    syncAutoGroupMembers,
-    refreshI18n,
+    start: start,
+    stop: stop,
+    showFab: showFab,
+    openPanel: openPanel,
+    closePanel: closePanel,
+    ensureAutoGroups: ensureAutoGroups,
+    syncAutoGroupMembers: syncAutoGroupMembers,
+    refreshI18n: refreshI18n,
+    onTabActivated: onTabActivated,
   };
 }

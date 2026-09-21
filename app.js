@@ -337,6 +337,7 @@ const translations = {
     notifNewAnnouncement: (title) => `Оголошення: ${title}`,
 
     tabSelfGov: "Самоврядування",
+    tabChat: "Чат",
     selfGovHeading: "Самоврядування",
     selfGovTeacherHint: "Оголосіть вибори старости для поточного класу. До початку виборів учні можуть подати кандидатуру; після початку — голосувати. Після завершення переможець стає старостою автоматично.",
     selfGovAnnounceHeading: "Оголосити вибори",
@@ -406,6 +407,17 @@ const translations = {
     chatSubjectHintTeacher: "Необов'язково: позначте предмет — учні зможуть фільтрувати стрічку (замість окремих груп у Telegram).",
     chatSubjectHintStudent: "Фільтр за предметом зверху, якщо в чаті багато повідомлень.",
     chatSendError: "Не вдалося надіслати повідомлення.",
+    chatPickOrStart: "Оберіть чат справа або створіть новий.",
+    chatSearchInThread: "Пошук у чаті...",
+    chatIsTyping: "пише…",
+    chatMessageDeleted: "Повідомлення видалено",
+    chatEdited: "змінено",
+    chatSending: "Надсилання…",
+    chatCopy: "Копіювати",
+    chatDelete: "Видалити",
+    chatDayToday: "Сьогодні",
+    chatDayYesterday: "Вчора",
+    chatLoadOlderHint: "Прокрутіть вгору для старіших повідомлень",
     messagesNotifOnlyHint: "Тут лише системні сповіщення (оцінки, ДЗ, оголошення). Писати людям — у чаті.",
     notifNewGrade: (value, subject, typeLabel) => `Нова оцінка: ${value} — ${subject} (${typeLabel})`,
     notifGradeComment: "Коментар учителя",
@@ -1510,6 +1522,8 @@ const tabGradesBtn = document.getElementById("tab-grades-btn");
 const tabAnnouncementsBtn = document.getElementById("tab-announcements-btn");
 const tabSelfGovBtn = document.getElementById("tab-selfgov-btn");
 const tabTeachersBtn = document.getElementById("tab-teachers-btn");
+const tabChatBtn = document.getElementById("tab-chat-btn");
+const chatPanelEl = document.getElementById("chat-panel");
 const pointsPanel = document.getElementById("points-panel");
 const schedulePanel = document.getElementById("schedule-panel");
 const tasksPanel = document.getElementById("tasks-panel");
@@ -1791,6 +1805,7 @@ function showTab(tab) {
   if (tabAnnouncementsBtn) tabAnnouncementsBtn.classList.toggle("active", tab === "announcements");
   if (tabSelfGovBtn) tabSelfGovBtn.classList.toggle("active", tab === "selfgov");
   if (tabTeachersBtn) tabTeachersBtn.classList.toggle("active", tab === "teachers");
+  if (tabChatBtn) tabChatBtn.classList.toggle("active", tab === "chat");
   pointsPanel.classList.toggle("hidden", tab !== "points");
   schedulePanel.classList.toggle("hidden", tab !== "schedule");
   tasksPanel.classList.toggle("hidden", tab !== "tasks");
@@ -1798,6 +1813,7 @@ function showTab(tab) {
   if (announcementsPanelEl) announcementsPanelEl.classList.toggle("hidden", tab !== "announcements");
   if (selfgovPanelEl) selfgovPanelEl.classList.toggle("hidden", tab !== "selfgov");
   if (teachersPanelEl) teachersPanelEl.classList.toggle("hidden", tab !== "teachers");
+  if (chatPanelEl) chatPanelEl.classList.toggle("hidden", tab !== "chat");
   if (tab === "grades") {
     renderTeacherGradesStudentSelect();
     renderTeacherGradesTable();
@@ -1812,6 +1828,11 @@ function showTab(tab) {
   if (tab === "teachers") {
     renderTeachersTab();
   }
+  if (tab === "chat") {
+    const api = ensureChatApi();
+    if (api && api.onTabActivated) api.onTabActivated();
+    else if (api && api.start) api.start();
+  }
 }
 tabPointsBtn.onclick = () => showTab("points");
 tabScheduleBtn.onclick = () => showTab("schedule");
@@ -1820,6 +1841,7 @@ if (tabGradesBtn) tabGradesBtn.onclick = () => showTab("grades");
 if (tabAnnouncementsBtn) tabAnnouncementsBtn.onclick = () => showTab("announcements");
 if (tabSelfGovBtn) tabSelfGovBtn.onclick = () => showTab("selfgov");
 if (tabTeachersBtn) tabTeachersBtn.onclick = () => showTab("teachers");
+if (tabChatBtn) tabChatBtn.onclick = () => showTab("chat");
 
 // ---------- Auth ----------
 loginBtn.onclick = async () => {
