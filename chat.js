@@ -525,8 +525,8 @@ export function initChat(opts) {
       collection(db, "chatMessages"),
       where("chatId", "==", chatId),
       orderBy("createdAt", "desc"),
-      limit(50))
-    };
+      limit(50)
+    );
     unsubscribeMessages = onSnapshot(
       q,
       (snap) => {
