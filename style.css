@@ -3893,7 +3893,7 @@ html.no-glass-bg .points-history-panel {
   right: 20px;
   bottom: 88px;
   z-index: 102;
-  width: min(400px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 280px));
   height: min(560px, calc(100vh - 140px));
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   backdrop-filter: blur(14px) saturate(1.2);
