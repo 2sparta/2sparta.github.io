@@ -137,7 +137,8 @@ service cloud.firestore {
                     && resource.data.createdBy == request.auth.uid
                     && resource.data.isAuto != true;
     }
-    // Повідомлення — лише учасники; update власних (м'яке видалення)
+    // Повідомлення — лише учасники; автор редагує/м'яко видаляє;
+    // будь-який учасник чату може лише закріпити/відкріпити (pinned/pinnedAt).
     match /chatMessages/{messageId} {
       allow read: if request.auth != null
                   && request.auth.uid in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.memberUids;
@@ -145,9 +146,15 @@ service cloud.firestore {
                     && request.resource.data.senderUid == request.auth.uid
                     && request.auth.uid in get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.memberUids;
       allow update: if request.auth != null
-                    && resource.data.senderUid == request.auth.uid
                     && request.resource.data.senderUid == resource.data.senderUid
-                    && request.resource.data.chatId == resource.data.chatId;
+                    && request.resource.data.chatId == resource.data.chatId
+                    && (
+                      resource.data.senderUid == request.auth.uid
+                      || (
+                        request.auth.uid in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.memberUids
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned', 'pinnedAt'])
+                      )
+                    );
       allow delete: if false;
     }
     match /chatTyping/{docId} {

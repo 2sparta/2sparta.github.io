@@ -124,6 +124,19 @@ export function initChat(opts) {
   let unsubscribeMessages = null;
   let unreadByChat = {}; // chatId -> count (local, based on lastReadAt in members)
 
+  const PAGE_SIZE = 40;
+  let oldestSnap = null; // DocumentSnapshot of oldest loaded message
+  let hasMoreOlder = true;
+  let loadingOlder = false;
+  let searchQuery = "";
+  let searchOpen = false;
+  let unsubscribeTyping = null;
+  let typingClearTimer = null;
+  let lastTypingWrite = 0;
+  let olderMessages = []; // prepended older pages (chronological)
+  let stickToBottom = true;
+  let editingMessageId = null;
+
   // ---------- Public API ----------
   function showFab(show) {
     if (chatFab) chatFab.classList.toggle("hidden", !show);
@@ -145,6 +158,20 @@ export function initChat(opts) {
       unsubscribeMessages();
       unsubscribeMessages = null;
     }
+
+    olderMessages = [];
+    oldestSnap = null;
+    hasMoreOlder = true;
+    loadingOlder = false;
+    searchQuery = "";
+    searchOpen = false;
+    editingMessageId = null;
+    stopTypingPresence();
+    const searchBar = document.getElementById("chat-search-bar");
+    if (searchBar) searchBar.classList.add("hidden");
+    const searchInput = document.getElementById("chat-search-input");
+    if (searchInput) searchInput.value = "";
+
   }
 
   function showListView() {
@@ -157,6 +184,20 @@ export function initChat(opts) {
       unsubscribeMessages();
       unsubscribeMessages = null;
     }
+
+    olderMessages = [];
+    oldestSnap = null;
+    hasMoreOlder = true;
+    loadingOlder = false;
+    searchQuery = "";
+    searchOpen = false;
+    editingMessageId = null;
+    stopTypingPresence();
+    const searchBar = document.getElementById("chat-search-bar");
+    if (searchBar) searchBar.classList.add("hidden");
+    const searchInput = document.getElementById("chat-search-input");
+    if (searchInput) searchInput.value = "";
+
     renderChatList();
   }
 
@@ -177,9 +218,22 @@ export function initChat(opts) {
       chatThreadMeta.textContent = chatMetaLine(chat);
     }
     subjectFilterId = "";
+    olderMessages = [];
+    oldestSnap = null;
+    hasMoreOlder = true;
+    loadingOlder = false;
+    searchQuery = "";
+    searchOpen = false;
+    editingMessageId = null;
+    stickToBottom = true;
+    const searchBar = document.getElementById("chat-search-bar");
+    if (searchBar) searchBar.classList.add("hidden");
+    const searchInput = document.getElementById("chat-search-input");
+    if (searchInput) searchInput.value = "";
     fillSubjectControls(chat);
     renderChatList();
     subscribeMessages(chatId);
+    subscribeTyping(chatId);
     markChatRead(chatId).catch(() => {});
   }
 
@@ -594,32 +648,132 @@ export function initChat(opts) {
   }
 
   // ---------- Messages ----------
+  function mergeMessages(live, older) {
+    const map = new Map();
+    older.forEach((m) => map.set(m.id, m));
+    live.forEach((m) => map.set(m.id, m));
+    return [...map.values()].sort((a, b) => (a.data.createdAt || 0) - (b.data.createdAt || 0));
+  }
+
   function subscribeMessages(chatId) {
     if (unsubscribeMessages) unsubscribeMessages();
+    olderMessages = [];
+    oldestSnap = null;
+    hasMoreOlder = true;
+    loadingOlder = false;
     const q = query(
       collection(db, "chatMessages"),
       where("chatId", "==", chatId),
       orderBy("createdAt", "desc"),
-      limit(50)
+      limit(PAGE_SIZE)
     );
     unsubscribeMessages = onSnapshot(
       q,
       (snap) => {
-        lastMessages = snap.docs.map((d) => ({ id: d.id, data: d.data() })).reverse();
-        renderMessages(true);
+        const live = snap.docs.map((d) => ({ id: d.id, data: d.data(), _snap: d })).reverse();
+        if (snap.docs.length > 0) {
+          if (olderMessages.length === 0) {
+            oldestSnap = snap.docs[snap.docs.length - 1];
+            hasMoreOlder = snap.docs.length >= PAGE_SIZE;
+          }
+        } else if (olderMessages.length === 0) {
+          hasMoreOlder = false;
+          oldestSnap = null;
+        }
+        lastMessages = mergeMessages(live, olderMessages);
+        renderMessages(stickToBottom);
+        updateScrollBottomBtn();
       },
       (err) => {
         console.warn("chatMessages", err);
-        // Fallback without orderBy if index missing
         const q2 = query(collection(db, "chatMessages"), where("chatId", "==", chatId), limit(200));
         unsubscribeMessages = onSnapshot(q2, (snap) => {
           lastMessages = snap.docs
-            .map((d) => ({ id: d.id, data: d.data() }))
+            .map((d) => ({ id: d.id, data: d.data(), _snap: d }))
             .sort((a, b) => (a.data.createdAt || 0) - (b.data.createdAt || 0));
-          renderMessages();
+          if (snap.docs.length) {
+            oldestSnap = snap.docs.slice().sort((a, b) => (a.data().createdAt || 0) - (b.data().createdAt || 0))[0];
+          }
+          hasMoreOlder = false;
+          renderMessages(true);
         });
       }
     );
+  }
+
+  async function loadOlderMessages() {
+    if (!activeChatId || loadingOlder || !hasMoreOlder || !oldestSnap) return;
+    loadingOlder = true;
+    renderLoadOlderHint(true);
+    try {
+      const q = query(
+        collection(db, "chatMessages"),
+        where("chatId", "==", activeChatId),
+        orderBy("createdAt", "desc"),
+        startAfter(oldestSnap),
+        limit(PAGE_SIZE)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty || snap.docs.length === 0) {
+        hasMoreOlder = false;
+      } else {
+        const batch = snap.docs.map((d) => ({ id: d.id, data: d.data(), _snap: d })).reverse();
+        olderMessages = mergeMessages(batch, olderMessages);
+        oldestSnap = snap.docs[snap.docs.length - 1];
+        if (snap.docs.length < PAGE_SIZE) hasMoreOlder = false;
+        const el = chatMessagesEl;
+        const prevHeight = el ? el.scrollHeight : 0;
+        const prevTop = el ? el.scrollTop : 0;
+        const liveOnly = lastMessages.filter((m) => !olderMessages.some((o) => o.id === m.id));
+        lastMessages = mergeMessages(liveOnly, olderMessages);
+        renderMessages(false);
+        if (el) {
+          const newHeight = el.scrollHeight;
+          el.scrollTop = prevTop + (newHeight - prevHeight);
+        }
+      }
+    } catch (e) {
+      console.warn("loadOlderMessages", e);
+      hasMoreOlder = false;
+    } finally {
+      loadingOlder = false;
+      renderLoadOlderHint(false);
+    }
+  }
+
+  function renderLoadOlderHint(loading) {
+    if (!chatMessagesEl) return;
+    let hint = chatMessagesEl.querySelector(".chat-load-older-hint");
+    if (!hasMoreOlder && !loading) {
+      if (hint) hint.remove();
+      return;
+    }
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.className = "chat-load-older-hint hint";
+      chatMessagesEl.insertBefore(hint, chatMessagesEl.firstChild);
+    }
+    hint.textContent = loading
+      ? (t("chatSending") || "…")
+      : (t("chatLoadOlderHint") || "Scroll up for older messages");
+  }
+
+  function dayKey(ts) {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+
+  function dayLabel(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (dayStart.getTime() === today.getTime()) return t("chatDayToday") || "Today";
+    if (dayStart.getTime() === yesterday.getTime()) return t("chatDayYesterday") || "Yesterday";
+    const locale = currentLang() === "uk" ? "uk-UA" : "en-US";
+    return d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
   }
 
   function fillSubjectControls(chat) {
@@ -646,7 +800,7 @@ export function initChat(opts) {
       chatSubjectFilter.value = subjectFilterId;
       chatSubjectFilter.onchange = () => {
         subjectFilterId = chatSubjectFilter.value;
-        renderMessages();
+        renderMessages(false);
         updateSubjectHint();
       };
     }
@@ -669,56 +823,258 @@ export function initChat(opts) {
     }
   }
 
-  function renderMessages() {
+  function updateScrollBottomBtn() {
+    const btn = document.getElementById("chat-scroll-bottom-btn");
+    if (!btn || !chatMessagesEl) return;
+    const dist = chatMessagesEl.scrollHeight - chatMessagesEl.scrollTop - chatMessagesEl.clientHeight;
+    const show = dist > 120;
+    btn.classList.toggle("hidden", !show);
+  }
+
+  function renderPinnedBar(msgs) {
+    let bar = document.getElementById("chat-pinned-bar");
+    const pinned = msgs.filter((m) => m.data && m.data.pinned && !m.data.deleted);
+    if (!chatThreadView) return;
+    if (pinned.length === 0) {
+      if (bar) bar.remove();
+      return;
+    }
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "chat-pinned-bar";
+      bar.className = "chat-pinned-bar";
+      const header = chatThreadView.querySelector(".chat-thread-header");
+      if (header && header.nextSibling) {
+        chatThreadView.insertBefore(bar, header.nextSibling);
+      } else {
+        chatThreadView.insertBefore(bar, chatThreadView.firstChild);
+      }
+    }
+    bar.innerHTML = "";
+    pinned.slice(0, 3).forEach(({ id, data }) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "chat-pinned-item";
+      item.innerHTML = `<span class="chat-pinned-icon">📌</span><span class="chat-pinned-text">${escapeText((data.text || "").slice(0, 80))}</span>`;
+      item.onclick = () => {
+        const el = chatMessagesEl && chatMessagesEl.querySelector(`[data-msg-id="${id}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("chat-msg--flash");
+          setTimeout(() => el.classList.remove("chat-msg--flash"), 1200);
+        }
+      };
+      bar.appendChild(item);
+    });
+  }
+
+  function renderMessages(scrollBottom) {
     if (!chatMessagesEl) return;
-    chatMessagesEl.innerHTML = "";
     const user = getUser();
     const locale = currentLang() === "uk" ? "uk-UA" : "en-US";
-    let msgs = lastMessages;
+    let msgs = lastMessages.slice();
     if (subjectFilterId) {
       msgs = msgs.filter((m) => m.data.subjectId === subjectFilterId);
     }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      msgs = msgs.filter((m) => (m.data.text || "").toLowerCase().includes(q));
+    }
+
+    renderPinnedBar(lastMessages);
+
+    chatMessagesEl.innerHTML = "";
+    if (hasMoreOlder && !searchQuery) {
+      const hint = document.createElement("div");
+      hint.className = "chat-load-older-hint hint";
+      hint.textContent = loadingOlder
+        ? (t("chatSending") || "…")
+        : (t("chatLoadOlderHint") || "Scroll up for older messages");
+      chatMessagesEl.appendChild(hint);
+    }
+
     if (msgs.length === 0) {
       const p = document.createElement("p");
       p.className = "hint chat-messages-empty";
       p.textContent = t("chatNoMessages") || "No messages yet. Say hello!";
       chatMessagesEl.appendChild(p);
+      if (scrollBottom) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
       return;
     }
-    msgs.forEach(({ data }) => {
+
+    let prevDay = null;
+    msgs.forEach(({ id, data }) => {
+      const ts = data.createdAt || 0;
+      const dk = dayKey(ts);
+      if (dk !== prevDay) {
+        prevDay = dk;
+        const sep = document.createElement("div");
+        sep.className = "chat-day-separator";
+        sep.textContent = dayLabel(ts);
+        chatMessagesEl.appendChild(sep);
+      }
+
       const mine = user && data.senderUid === user.uid;
+      const deleted = !!data.deleted;
       const row = document.createElement("div");
-      row.className = "chat-msg" + (mine ? " chat-msg--mine" : "");
-      if (!mine) {
+      row.className =
+        "chat-msg" +
+        (mine ? " chat-msg--mine" : "") +
+        (deleted ? " chat-msg--deleted" : "") +
+        (data._pending ? " chat-msg--pending" : "") +
+        (data.pinned ? " chat-msg--pinned" : "");
+      row.dataset.msgId = id;
+
+      if (!mine && !deleted) {
         const name = document.createElement("div");
         name.className = "chat-msg-name";
         name.textContent = data.senderName || "";
         row.appendChild(name);
       }
-      if (data.subjectId || data.subjectName) {
+      if (!deleted && (data.subjectId || data.subjectName)) {
         const chip = document.createElement("span");
         chip.className = "chat-msg-subject";
         chip.textContent = data.subjectName || data.subjectId;
         row.appendChild(chip);
       }
+
       const bubble = document.createElement("div");
       bubble.className = "chat-msg-bubble";
-      bubble.textContent = data.text || "";
+      if (deleted) {
+        bubble.textContent = t("chatMessageDeleted") || "Message deleted";
+      } else {
+        bubble.textContent = data.text || "";
+      }
       row.appendChild(bubble);
+
+      if (!data._pending) {
+        const actions = document.createElement("div");
+        actions.className = "chat-msg-actions";
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "chat-msg-action-btn";
+        copyBtn.textContent = t("chatCopy") || "Copy";
+        copyBtn.onclick = async (e) => {
+          e.stopPropagation();
+          try {
+            await navigator.clipboard.writeText(data.text || "");
+          } catch (_) {}
+        };
+        actions.appendChild(copyBtn);
+
+        if (!deleted) {
+          const pinBtn = document.createElement("button");
+          pinBtn.type = "button";
+          pinBtn.className = "chat-msg-action-btn";
+          pinBtn.textContent = data.pinned
+            ? (t("chatUnpin") || "Unpin")
+            : (t("chatPin") || "Pin");
+          pinBtn.onclick = async (e) => {
+            e.stopPropagation();
+            try {
+              await updateDoc(doc(db, "chatMessages", id), {
+                pinned: !data.pinned,
+                pinnedAt: !data.pinned ? Date.now() : null,
+              });
+            } catch (err) {
+              console.warn("pin", err);
+              alert(err.message || "Failed");
+            }
+          };
+          actions.appendChild(pinBtn);
+        }
+
+        if (mine && !deleted) {
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "chat-msg-action-btn";
+          editBtn.textContent = t("chatEdit") || "Edit";
+          editBtn.onclick = (e) => {
+            e.stopPropagation();
+            startEditMessage(id, data.text || "");
+          };
+          actions.appendChild(editBtn);
+
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "chat-msg-action-btn chat-msg-action-btn--danger";
+          delBtn.textContent = t("chatDelete") || "Delete";
+          delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm(t("chatDeleteConfirm") || "Delete this message?")) return;
+            try {
+              await updateDoc(doc(db, "chatMessages", id), {
+                deleted: true,
+                deletedAt: Date.now(),
+                text: "",
+              });
+            } catch (err) {
+              console.warn("delete", err);
+              alert(err.message || "Failed");
+            }
+          };
+          actions.appendChild(delBtn);
+        }
+        row.appendChild(actions);
+      }
+
       const meta = document.createElement("div");
       meta.className = "chat-msg-meta";
-      meta.textContent = data.createdAt
-        ? new Date(data.createdAt).toLocaleString(locale, {
-            day: "numeric",
-            month: "short",
+      const parts = [];
+      if (data.createdAt) {
+        parts.push(
+          new Date(data.createdAt).toLocaleString(locale, {
             hour: "2-digit",
             minute: "2-digit",
           })
-        : "";
+        );
+      }
+      if (data.editedAt && !deleted) parts.push(t("chatEdited") || "edited");
+      if (data.pinned && !deleted) parts.push("📌");
+      if (data._pending) parts.push(t("chatSending") || "…");
+      meta.textContent = parts.join(" · ");
       row.appendChild(meta);
       chatMessagesEl.appendChild(row);
     });
-    if (arguments.length === 0 || arguments[0]) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+
+    ensureTypingIndicatorEl();
+
+    if (scrollBottom) {
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+      stickToBottom = true;
+    }
+    updateScrollBottomBtn();
+  }
+
+  function startEditMessage(id, text) {
+    editingMessageId = id;
+    if (!chatComposeText) return;
+    chatComposeText.value = text;
+    chatComposeText.focus();
+    chatComposeText.style.height = "auto";
+    chatComposeText.style.height = Math.min(chatComposeText.scrollHeight, 120) + "px";
+    if (chatSendBtn) chatSendBtn.textContent = t("chatSaveEdit") || "Save";
+    let cancel = document.getElementById("chat-edit-cancel");
+    if (!cancel && chatComposeText.parentElement) {
+      cancel = document.createElement("button");
+      cancel.id = "chat-edit-cancel";
+      cancel.type = "button";
+      cancel.className = "secondary small";
+      cancel.textContent = t("cancelOverrideTitle") || "Cancel";
+      cancel.onclick = () => cancelEditMessage();
+      chatComposeText.parentElement.appendChild(cancel);
+    }
+  }
+
+  function cancelEditMessage() {
+    editingMessageId = null;
+    if (chatComposeText) {
+      chatComposeText.value = "";
+      chatComposeText.style.height = "auto";
+    }
+    if (chatSendBtn) chatSendBtn.textContent = t("chatSendBtn") || "Send";
+    const cancel = document.getElementById("chat-edit-cancel");
+    if (cancel) cancel.remove();
   }
 
   async function sendMessage() {
@@ -727,9 +1083,25 @@ export function initChat(opts) {
     if (!user || !activeChatId) return;
     const text = (chatComposeText && chatComposeText.value.trim()) || "";
     if (!text) return;
+
+    if (editingMessageId) {
+      const id = editingMessageId;
+      try {
+        await updateDoc(doc(db, "chatMessages", id), {
+          text,
+          editedAt: Date.now(),
+        });
+        cancelEditMessage();
+        clearTyping();
+      } catch (e) {
+        console.error(e);
+        alert((typeof t === "function" && t("chatSendError")) || e.message || "Failed");
+      }
+      return;
+    }
+
     let subjectId = null;
     let subjectName = null;
-    // Верхній select (subjectFilterId) задає і фільтр стрічки, і тег повідомлення при відправці
     if (subjectFilterId) {
       subjectId = subjectFilterId;
       const sub = (getSubjects() || []).find((s) => s.id === subjectId);
@@ -742,11 +1114,13 @@ export function initChat(opts) {
       id: tempId,
       data: { chatId: activeChatId, senderUid: user.uid, senderName, text, createdAt: now, subjectId, subjectName, _pending: true },
     }]);
+    stickToBottom = true;
     renderMessages(true);
     if (chatComposeText) {
       chatComposeText.value = "";
       try { chatComposeText.style.height = "auto"; } catch (_) {}
     }
+    clearTyping();
     try {
       await addDoc(collection(db, "chatMessages"), {
         chatId: activeChatId,
@@ -756,6 +1130,8 @@ export function initChat(opts) {
         createdAt: now,
         subjectId,
         subjectName,
+        deleted: false,
+        pinned: false,
       });
       const preview = subjectName ? `[${subjectName}] ${text}` : text;
       await runTransaction(db, async (tx) => {
@@ -783,6 +1159,111 @@ export function initChat(opts) {
       renderMessages(true);
       alert((typeof t === "function" && t("chatSendError")) || e.message || "Failed to send");
     }
+  }
+
+  // ---------- Typing indicator ----------
+  function typingDocId(chatId, uid) {
+    return `${chatId}_${uid}`;
+  }
+
+  function ensureTypingIndicatorEl() {
+    let el = document.getElementById("chat-typing-indicator");
+    if (!el && chatMessagesEl && chatMessagesEl.parentElement) {
+      el = document.createElement("div");
+      el.id = "chat-typing-indicator";
+      el.className = "chat-typing-indicator hidden";
+      chatMessagesEl.parentElement.insertBefore(el, chatMessagesEl.nextSibling);
+    }
+    return el;
+  }
+
+  function subscribeTyping(chatId) {
+    if (unsubscribeTyping) {
+      unsubscribeTyping();
+      unsubscribeTyping = null;
+    }
+    const user = getUser();
+    if (!user || !chatId) return;
+    const q = query(collection(db, "chatTyping"), where("chatId", "==", chatId));
+    unsubscribeTyping = onSnapshot(
+      q,
+      (snap) => {
+        const now = Date.now();
+        const names = [];
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          if (!data || data.uid === user.uid) return;
+          if ((data.updatedAt || 0) < now - 4000) return;
+          if (data.name) names.push(data.name);
+        });
+        const el = ensureTypingIndicatorEl();
+        if (!el) return;
+        if (names.length === 0) {
+          el.classList.add("hidden");
+          el.textContent = "";
+        } else {
+          el.classList.remove("hidden");
+          const label = t("chatIsTyping") || "is typing…";
+          el.textContent =
+            names.length === 1
+              ? `${names[0]} ${label}`
+              : `${names.slice(0, 3).join(", ")} ${label}`;
+        }
+      },
+      (err) => console.warn("chatTyping", err)
+    );
+  }
+
+  function stopTypingPresence() {
+    if (unsubscribeTyping) {
+      unsubscribeTyping();
+      unsubscribeTyping = null;
+    }
+    if (typingClearTimer) {
+      clearTimeout(typingClearTimer);
+      typingClearTimer = null;
+    }
+    const el = document.getElementById("chat-typing-indicator");
+    if (el) {
+      el.classList.add("hidden");
+      el.textContent = "";
+    }
+    clearTyping();
+  }
+
+  async function writeTyping() {
+    const user = getUser();
+    const profile = getProfile();
+    if (!user || !activeChatId) return;
+    const now = Date.now();
+    if (now - lastTypingWrite < 1500) return;
+    lastTypingWrite = now;
+    const id = typingDocId(activeChatId, user.uid);
+    try {
+      await setDoc(
+        doc(db, "chatTyping", id),
+        {
+          chatId: activeChatId,
+          uid: user.uid,
+          name: (profile && profile.displayName) || user.email || "User",
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      /* ignore */
+    }
+    if (typingClearTimer) clearTimeout(typingClearTimer);
+    typingClearTimer = setTimeout(() => clearTyping(), 3500);
+  }
+
+  async function clearTyping() {
+    const user = getUser();
+    if (!user || !activeChatId) return;
+    const id = typingDocId(activeChatId, user.uid);
+    try {
+      await updateDoc(doc(db, "chatTyping", id), { updatedAt: 0 }).catch(() => {});
+    } catch (_) {}
   }
 
   // ---------- New DM ----------
@@ -1098,15 +1579,68 @@ export function initChat(opts) {
         e.preventDefault();
         sendMessage();
       }
+      if (e.key === "Escape" && editingMessageId) {
+        e.preventDefault();
+        cancelEditMessage();
+      }
     });
     chatComposeText.addEventListener("input", () => {
       chatComposeText.style.height = "auto";
       chatComposeText.style.height = Math.min(chatComposeText.scrollHeight, 120) + "px";
+      if (chatComposeText.value.trim()) writeTyping();
+      else clearTyping();
     });
   }
   if (chatNewDmBtn) chatNewDmBtn.onclick = () => openNewDmModal();
   if (chatNewGroupBtn) chatNewGroupBtn.onclick = () => openNewGroupModal();
   if (chatNewModalClose) chatNewModalClose.onclick = () => closeNewModal();
+
+  // Search toggle
+  const chatSearchToggle = document.getElementById("chat-search-toggle");
+  const chatSearchBar = document.getElementById("chat-search-bar");
+  const chatSearchInput = document.getElementById("chat-search-input");
+  if (chatSearchToggle && chatSearchBar) {
+    chatSearchToggle.onclick = () => {
+      searchOpen = !searchOpen;
+      chatSearchBar.classList.toggle("hidden", !searchOpen);
+      if (searchOpen && chatSearchInput) {
+        chatSearchInput.focus();
+      } else {
+        searchQuery = "";
+        if (chatSearchInput) chatSearchInput.value = "";
+        renderMessages(false);
+      }
+    };
+  }
+  if (chatSearchInput) {
+    chatSearchInput.placeholder = (typeof t === "function" && t("chatSearchInThread")) || "Search…";
+    chatSearchInput.addEventListener("input", () => {
+      searchQuery = chatSearchInput.value.trim();
+      renderMessages(false);
+    });
+  }
+
+  // Scroll: load older + bottom button
+  if (chatMessagesEl) {
+    chatMessagesEl.addEventListener("scroll", () => {
+      const dist = chatMessagesEl.scrollHeight - chatMessagesEl.scrollTop - chatMessagesEl.clientHeight;
+      stickToBottom = dist < 80;
+      updateScrollBottomBtn();
+      if (chatMessagesEl.scrollTop < 60) {
+        loadOlderMessages();
+      }
+    });
+  }
+  const scrollBottomBtn = document.getElementById("chat-scroll-bottom-btn");
+  if (scrollBottomBtn) {
+    scrollBottomBtn.onclick = () => {
+      if (chatMessagesEl) {
+        chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        stickToBottom = true;
+        updateScrollBottomBtn();
+      }
+    };
+  }
 
   // ---------- Lifecycle ----------
   function start() {
@@ -1127,6 +1661,7 @@ export function initChat(opts) {
       unsubscribeMessages();
       unsubscribeMessages = null;
     }
+    stopTypingPresence();
     showFab(false);
     closePanel();
     setChatTabsVisible(false);
@@ -1140,7 +1675,11 @@ export function initChat(opts) {
     if (chatNewGroupBtn) chatNewGroupBtn.textContent = t("chatNewGroupBtn") || "New group";
     if (chatListEmpty) chatListEmpty.textContent = t("chatListEmpty") || "No chats yet.";
     if (chatComposeText) chatComposeText.placeholder = t("chatComposePlaceholder") || "Message...";
-    if (chatSendBtn) chatSendBtn.textContent = t("chatSendBtn") || "Send";
+    if (chatSendBtn) chatSendBtn.textContent = editingMessageId
+      ? (t("chatSaveEdit") || "Save")
+      : (t("chatSendBtn") || "Send");
+    const searchInputEl = document.getElementById("chat-search-input");
+    if (searchInputEl) searchInputEl.placeholder = t("chatSearchInThread") || "Search…";
     updateSubjectHint();
     if (chatFab) {
       chatFab.setAttribute("aria-label", t("chatTitle") || "Chat");
