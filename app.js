@@ -52,6 +52,7 @@ import {
   initSettingsPanel,
   isNumericGrade,
 } from "./common.js";
+import { initChat } from "./chat.js";
 
 // Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
 // щоб уникнути "блимання" світлою темою при завантаженні.
@@ -376,6 +377,36 @@ const translations = {
     messagesNeedRecipient: "Оберіть учня з прив'язаним акаунтом або колегу.",
     messagesNeedText: "Введіть текст повідомлення.",
     messagesMarkAllRead: "Позначити всі прочитаними",
+    chatTitle: "Чат",
+    chatNewDmBtn: "Написати",
+    chatNewGroupBtn: "Нова група",
+    chatListEmpty: "Чатів ще немає. Напишіть комусь або створіть групу.",
+    chatComposePlaceholder: "Повідомлення...",
+    chatSendBtn: "Надіслати",
+    chatNoMessages: "Повідомлень ще немає. Напишіть першим!",
+    chatAutoSchool: "Вся школа",
+    chatAutoStudents: "Учні",
+    chatTypeDm: "Особисті",
+    chatTypeSchool: "Школа",
+    chatTypeStudents: "Учні",
+    chatTypeGroup: "Група",
+    chatDmFallback: "Особисте повідомлення",
+    chatGroupFallback: "Група",
+    chatNewDmTitle: "Нове повідомлення",
+    chatNewGroupTitle: "Нова група",
+    chatSearchPeople: "Пошук...",
+    chatNoPeople: "Нікого не знайдено.",
+    chatGroupNamePlaceholder: "Назва групи",
+    chatGroupMembersHint: "Оберіть учасників:",
+    chatCreateGroupBtn: "Створити групу",
+    chatNeedGroupName: "Вкажіть назву групи.",
+    chatNeedMembers: "Оберіть хоча б одного учасника.",
+    chatFilterAllSubjects: "Усі предмети",
+    chatNoSubject: "Без предмета",
+    chatSubjectHintTeacher: "Необов'язково: позначте предмет — учні зможуть фільтрувати стрічку (замість окремих груп у Telegram).",
+    chatSubjectHintStudent: "Фільтр за предметом зверху, якщо в чаті багато повідомлень.",
+    chatSendError: "Не вдалося надіслати повідомлення.",
+    messagesNotifOnlyHint: "Тут лише системні сповіщення (оцінки, ДЗ, оголошення). Писати людям — у чаті.",
     notifNewGrade: (value, subject, typeLabel) => `Нова оцінка: ${value} — ${subject} (${typeLabel})`,
     notifGradeComment: "Коментар учителя",
     notifNewHomework: (subject, title) => `Нове ДЗ: ${subject}${title ? " — " + title : ""}`,
@@ -753,6 +784,36 @@ const translations = {
     messagesNeedRecipient: "Select a linked student or a colleague.",
     messagesNeedText: "Enter a message.",
     messagesMarkAllRead: "Mark all as read",
+    chatTitle: "Chat",
+    chatNewDmBtn: "Write",
+    chatNewGroupBtn: "New group",
+    chatListEmpty: "No chats yet. Message someone or create a group.",
+    chatComposePlaceholder: "Message...",
+    chatSendBtn: "Send",
+    chatNoMessages: "No messages yet. Say hello!",
+    chatAutoSchool: "Whole school",
+    chatAutoStudents: "Students",
+    chatTypeDm: "Direct",
+    chatTypeSchool: "School",
+    chatTypeStudents: "Students",
+    chatTypeGroup: "Group",
+    chatDmFallback: "Direct message",
+    chatGroupFallback: "Group",
+    chatNewDmTitle: "New message",
+    chatNewGroupTitle: "New group",
+    chatSearchPeople: "Search...",
+    chatNoPeople: "No one found.",
+    chatGroupNamePlaceholder: "Group name",
+    chatGroupMembersHint: "Select members:",
+    chatCreateGroupBtn: "Create group",
+    chatNeedGroupName: "Enter a group name.",
+    chatNeedMembers: "Select at least one member.",
+    chatFilterAllSubjects: "All subjects",
+    chatNoSubject: "No subject",
+    chatSubjectHintTeacher: "Optional: tag a subject so students can filter the thread (instead of separate Telegram groups).",
+    chatSubjectHintStudent: "Filter by subject above if the chat is busy.",
+    chatSendError: "Failed to send message.",
+    messagesNotifOnlyHint: "System notifications only (grades, homework, announcements). To write to people, use Chat.",
     notifNewGrade: (value, subject, typeLabel) => `New grade: ${value} — ${subject} (${typeLabel})`,
     notifGradeComment: "Teacher comment",
     notifNewHomework: (subject, title) => `New homework: ${subject}${title ? " — " + title : ""}`,
@@ -1856,6 +1917,11 @@ function enterApp(user) {
   initBellScheduleSettings();
   subscribeTeachersData();
   showMessagesFab(true);
+  try {
+    ensureChatApi().start();
+  } catch (e) {
+    console.warn("chat start", e);
+  }
 }
 
 function showSchoolScreen() {
@@ -2133,6 +2199,9 @@ function showAuthScreen() {
   }
   showMessagesFab(false);
   closeMessagesPanel();
+  if (chatApi) {
+    try { chatApi.stop(); } catch (e) { console.warn(e); }
+  }
 }
 
 function showAppScreen() {
@@ -5416,6 +5485,24 @@ const messagesRecipientSelect = document.getElementById("messages-recipient-sele
 const messagesComposeText = document.getElementById("messages-compose-text");
 const messagesSendBtn = document.getElementById("messages-send-btn");
 
+// ---------- Чат ----------
+let chatApi = null;
+function ensureChatApi() {
+  if (chatApi) return chatApi;
+  chatApi = initChat({
+    db,
+    getUser: () => auth.currentUser,
+    getProfile: () => currentUserProfile,
+    t: (k) => (typeof t === "function" ? t(k) : k),
+    currentLang: () => (typeof currentLang !== "undefined" ? currentLang : "uk"),
+    getStudents: () => lastStudents || [],
+    getTeachers: () => lastSchoolTeachers || [],
+    getSubjects: () => lastSubjects || [],
+    isTeacherSide: true,
+  });
+  return chatApi;
+}
+
 function showMessagesFab(show) {
   if (messagesFab) messagesFab.classList.toggle("hidden", !show);
   if (!show && messagesPanel) messagesPanel.classList.add("hidden");
@@ -5429,9 +5516,22 @@ function closeMessagesPanel() {
 function openMessagesPanel() {
   messagesPanelOpen = true;
   if (messagesPanel) messagesPanel.classList.remove("hidden");
-  renderMessagesRecipientSelect();
+  // Compose перенесено в чат — лише системні сповіщення
   renderMessagesList();
   markAllNotificationsRead().catch(() => {});
+  // Підказка один раз
+  const list = document.getElementById("messages-list");
+  if (list && !document.getElementById("messages-notif-hint")) {
+    const hint = document.createElement("p");
+    hint.id = "messages-notif-hint";
+    hint.className = "hint";
+    hint.style.padding = "8px 16px 0";
+    hint.textContent = typeof t === "function" ? t("messagesNotifOnlyHint") : "";
+    list.parentNode.insertBefore(hint, list);
+  } else {
+    const hint = document.getElementById("messages-notif-hint");
+    if (hint && typeof t === "function") hint.textContent = t("messagesNotifOnlyHint");
+  }
 }
 
 function renderMessagesRecipientSelect() {

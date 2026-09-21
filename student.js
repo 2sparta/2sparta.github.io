@@ -55,6 +55,7 @@ import {
   initSettingsPanel,
   isNumericGrade,
 } from "./common.js";
+import { initChat } from "./chat.js";
 
 // Тема (світла/темна) застосовується одразу, до будь-якого рендеру,
 // щоб уникнути "блимання" світлою темою при завантаженні.
@@ -415,6 +416,36 @@ const translations = {
     selectSubjectPlaceholder: "Оберіть предмет",
     messagesTitle: "Повідомлення",
     messagesEmpty: "Повідомлень ще немає.",
+    messagesNotifOnlyHint: "Тут лише системні сповіщення (оцінки, ДЗ, оголошення). Писати людям — у чаті.",
+    chatTitle: "Чат",
+    chatNewDmBtn: "Написати",
+    chatNewGroupBtn: "Нова група",
+    chatListEmpty: "Чатів ще немає. Напишіть комусь або створіть групу.",
+    chatComposePlaceholder: "Повідомлення...",
+    chatSendBtn: "Надіслати",
+    chatNoMessages: "Повідомлень ще немає. Напишіть першим!",
+    chatAutoSchool: "Вся школа",
+    chatAutoStudents: "Учні",
+    chatTypeDm: "Особисті",
+    chatTypeSchool: "Школа",
+    chatTypeStudents: "Учні",
+    chatTypeGroup: "Група",
+    chatDmFallback: "Особисте повідомлення",
+    chatGroupFallback: "Група",
+    chatNewDmTitle: "Нове повідомлення",
+    chatNewGroupTitle: "Нова група",
+    chatSearchPeople: "Пошук...",
+    chatNoPeople: "Нікого не знайдено.",
+    chatGroupNamePlaceholder: "Назва групи",
+    chatGroupMembersHint: "Оберіть учасників:",
+    chatCreateGroupBtn: "Створити групу",
+    chatNeedGroupName: "Вкажіть назву групи.",
+    chatNeedMembers: "Оберіть хоча б одного учасника.",
+    chatFilterAllSubjects: "Усі предмети",
+    chatNoSubject: "Без предмета",
+    chatSubjectHintTeacher: "Необов'язково: позначте предмет — можна фільтрувати стрічку.",
+    chatSubjectHintStudent: "Фільтр за предметом зверху, якщо в чаті багато повідомлень.",
+    chatSendError: "Не вдалося надіслати повідомлення.",
     notifGradeComment: "Коментар учителя",
     errors: {
       "auth/invalid-email": "Некоректний email.",
@@ -590,6 +621,36 @@ const translations = {
     selectSubjectPlaceholder: "Choose a subject",
     messagesTitle: "Messages",
     messagesEmpty: "No messages yet.",
+    messagesNotifOnlyHint: "System notifications only (grades, homework, announcements). To write to people, use Chat.",
+    chatTitle: "Chat",
+    chatNewDmBtn: "Write",
+    chatNewGroupBtn: "New group",
+    chatListEmpty: "No chats yet. Message someone or create a group.",
+    chatComposePlaceholder: "Message...",
+    chatSendBtn: "Send",
+    chatNoMessages: "No messages yet. Say hello!",
+    chatAutoSchool: "Whole school",
+    chatAutoStudents: "Students",
+    chatTypeDm: "Direct",
+    chatTypeSchool: "School",
+    chatTypeStudents: "Students",
+    chatTypeGroup: "Group",
+    chatDmFallback: "Direct message",
+    chatGroupFallback: "Group",
+    chatNewDmTitle: "New message",
+    chatNewGroupTitle: "New group",
+    chatSearchPeople: "Search...",
+    chatNoPeople: "No one found.",
+    chatGroupNamePlaceholder: "Group name",
+    chatGroupMembersHint: "Select members:",
+    chatCreateGroupBtn: "Create group",
+    chatNeedGroupName: "Enter a group name.",
+    chatNeedMembers: "Select at least one member.",
+    chatFilterAllSubjects: "All subjects",
+    chatNoSubject: "No subject",
+    chatSubjectHintTeacher: "Optional: tag a subject so the thread can be filtered.",
+    chatSubjectHintStudent: "Filter by subject above if the chat is busy.",
+    chatSendError: "Failed to send message.",
     notifGradeComment: "Teacher comment",
     errors: {
       "auth/invalid-email": "Invalid email.",
@@ -779,6 +840,9 @@ function teardownListeners() {
     liveStatusInterval = null;
   }
   showMessagesFab(false);
+  if (chatApi) { try { chatApi.stop(); } catch (e) {} chatApi = null; }
+  if (unsubscribePeerTeachers) { unsubscribePeerTeachers(); unsubscribePeerTeachers = null; }
+  if (unsubscribePeerStudents) { unsubscribePeerStudents(); unsubscribePeerStudents = null; }
   closeMessagesPanel();
   studentId = null;
   studentData = null;
@@ -894,10 +958,72 @@ linkBtn.onclick = async () => {
 };
 
 // ---------- Dashboard bootstrap ----------
+// ---------- Чат (учень) ----------
+let chatApi = null;
+let lastPeerTeachers = [];
+let lastPeerStudents = [];
+let unsubscribePeerTeachers = null;
+let unsubscribePeerStudents = null;
+
+function ensureStudentChatApi() {
+  if (chatApi) return chatApi;
+  chatApi = initChat({
+    db,
+    getUser: () => auth.currentUser,
+    getProfile: () => {
+      let schoolId = (studentData && studentData.schoolId) || null;
+      if (!schoolId && lastPeerTeachers.length) {
+        const withSchool = lastPeerTeachers.find((u) => u.data && u.data.schoolId);
+        if (withSchool) schoolId = withSchool.data.schoolId;
+      }
+      return {
+        role: "student",
+        displayName: (studentData && studentData.name) || (auth.currentUser && auth.currentUser.email) || "Student",
+        schoolId: schoolId || "default",
+        subjectIds: [],
+      };
+    },
+    t: (k) => (typeof t === "function" ? t(k) : k),
+    currentLang: () => (typeof currentLang !== "undefined" ? currentLang : "uk"),
+    getStudents: () => lastPeerStudents,
+    getTeachers: () => lastPeerTeachers,
+    getSubjects: () => lastSubjects || [],
+    isTeacherSide: false,
+  });
+  return chatApi;
+}
+
+function subscribeChatPeers() {
+  if (unsubscribePeerTeachers) unsubscribePeerTeachers();
+  if (unsubscribePeerStudents) unsubscribePeerStudents();
+  unsubscribePeerTeachers = onSnapshot(collection(db, "users"), (snap) => {
+    lastPeerTeachers = snap.docs
+      .map((d) => ({ id: d.id, data: d.data() }))
+      .filter((u) => {
+        const r = u.data.role;
+        return r === "teacher" || r === "admin" || r === "pending-teacher";
+      });
+    if (chatApi && chatApi.syncAutoGroupMembers) {
+      chatApi.syncAutoGroupMembers().catch(() => {});
+    }
+  }, (err) => console.warn("peer teachers", err));
+  unsubscribePeerStudents = onSnapshot(collection(db, "students"), (snap) => {
+    lastPeerStudents = snap.docs
+      .map((d) => ({ id: d.id, data: d.data() }))
+      .filter((s) => s.data && s.data.authUid);
+  }, (err) => console.warn("peer students", err));
+}
+
 function startDashboard(user) {
   loadHwPrefs();
   hwDoneIds = loadHwDoneSet();
   showAppScreen();
+  try {
+    subscribeChatPeers();
+    ensureStudentChatApi().start();
+  } catch (e) {
+    console.warn("chat start", e);
+  }
   if (avatarEl) {
     avatarEl.textContent = (studentData.name || user.email || "?").trim().charAt(0).toUpperCase();
     avatarEl.title = user.email || "";
@@ -2681,6 +2807,18 @@ function openMessagesPanel() {
   if (messagesPanel) messagesPanel.classList.remove("hidden");
   renderMessagesList();
   markAllNotificationsRead().catch(() => {});
+  const list = document.getElementById("messages-list");
+  if (list && !document.getElementById("messages-notif-hint")) {
+    const hint = document.createElement("p");
+    hint.id = "messages-notif-hint";
+    hint.className = "hint";
+    hint.style.padding = "8px 16px 0";
+    hint.textContent = typeof t === "function" ? t("messagesNotifOnlyHint") : "";
+    list.parentNode.insertBefore(hint, list);
+  } else {
+    const hint = document.getElementById("messages-notif-hint");
+    if (hint && typeof t === "function") hint.textContent = t("messagesNotifOnlyHint");
+  }
 }
 
 function renderMessagesList() {
