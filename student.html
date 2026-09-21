@@ -94,6 +94,17 @@
         <button id="tab-chat-btn" class="tab-btn" data-i18n="tabChat">Чат</button>
       </nav>
 
+      <!-- Список чатів справа (як вкладки зліва) -->
+      <nav class="chat-tabs hidden" id="chat-list-view" aria-label="Chats">
+        <div class="chat-list-actions">
+          <button id="chat-new-dm-btn" type="button" class="secondary small" data-i18n="chatNewDmBtn">Написати</button>
+          <button id="chat-new-group-btn" type="button" class="secondary small" data-i18n="chatNewGroupBtn">Нова група</button>
+        </div>
+        <div id="chat-list" class="chat-list"></div>
+        <p id="chat-list-empty" class="hint chat-list-empty hidden" data-i18n="chatListEmpty">Чатів ще немає.</p>
+      </nav>
+
+
       <!-- Віджети та контент: відцентровані та широкі -->
       <div class="app-main">
 
@@ -314,12 +325,6 @@
           </section>
         </div>
 
-      </div>
-    </div>
-
-  </div>
-
-
 
         <div id="chat-panel" class="tab-panel hidden">
           <section class="card card-wide chat-workspace-card">
@@ -357,17 +362,9 @@
                   </div>
                 </div>
                 <div id="chat-empty-state" class="chat-empty-state">
-                  <p class="hint">Оберіть чат справа або створіть новий.</p>
+                  <p class="hint" data-i18n="chatPickOrStart">Оберіть чат справа або створіть новий.</p>
                 </div>
               </div>
-              <aside class="chat-sidebar" id="chat-list-view">
-                <div class="chat-list-actions">
-                  <button id="chat-new-dm-btn" type="button" class="secondary small">Написати</button>
-                  <button id="chat-new-group-btn" type="button" class="secondary small">Нова група</button>
-                </div>
-                <div id="chat-list" class="chat-list"></div>
-                <p id="chat-list-empty" class="hint chat-list-empty hidden">Чатів ще немає.</p>
-              </aside>
               <div id="chat-new-modal" class="chat-new-modal hidden" role="dialog">
                 <div class="chat-new-modal-inner">
                   <div class="chat-new-modal-header">
@@ -380,6 +377,13 @@
             </div>
           </section>
         </div>
+
+      </div>
+    </div>
+
+  </div>
+
+
 
   <!-- Повідомлення: плаваюча кнопка + панель -->
   <button id="messages-fab" class="messages-fab hidden" type="button" aria-label="Повідомлення" title="Повідомлення">

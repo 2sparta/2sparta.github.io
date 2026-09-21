@@ -387,9 +387,12 @@ const translations = {
     chatNoMessages: "Повідомлень ще немає. Напишіть першим!",
     chatAutoSchool: "Вся школа",
     chatAutoStudents: "Учні",
+    chatAutoTeachers: "Учительський чат",
     chatTypeDm: "Особисті",
     chatTypeSchool: "Школа",
     chatTypeStudents: "Учні",
+    chatTypeTeachers: "Учителі",
+    chatTypeClass: "Клас",
     chatTypeGroup: "Група",
     chatDmFallback: "Особисте повідомлення",
     chatGroupFallback: "Група",
@@ -805,9 +808,12 @@ const translations = {
     chatNoMessages: "No messages yet. Say hello!",
     chatAutoSchool: "Whole school",
     chatAutoStudents: "Students",
+    chatAutoTeachers: "Teachers chat",
     chatTypeDm: "Direct",
     chatTypeSchool: "School",
     chatTypeStudents: "Students",
+    chatTypeTeachers: "Teachers",
+    chatTypeClass: "Class",
     chatTypeGroup: "Group",
     chatDmFallback: "Direct message",
     chatGroupFallback: "Group",
@@ -1814,6 +1820,11 @@ function showTab(tab) {
   if (selfgovPanelEl) selfgovPanelEl.classList.toggle("hidden", tab !== "selfgov");
   if (teachersPanelEl) teachersPanelEl.classList.toggle("hidden", tab !== "teachers");
   if (chatPanelEl) chatPanelEl.classList.toggle("hidden", tab !== "chat");
+  document.body.classList.toggle("chat-tab-open", tab === "chat");
+  const greeting = document.querySelector(".greeting-card");
+  const stats = document.querySelector(".stats-grid");
+  if (greeting) greeting.classList.toggle("hidden", tab === "chat");
+  if (stats) stats.classList.toggle("hidden", tab === "chat");
   if (tab === "grades") {
     renderTeacherGradesStudentSelect();
     renderTeacherGradesTable();
@@ -1832,6 +1843,9 @@ function showTab(tab) {
     const api = ensureChatApi();
     if (api && api.onTabActivated) api.onTabActivated();
     else if (api && api.start) api.start();
+  } else {
+    const api = chatApi;
+    if (api && api.onTabDeactivated) api.onTabDeactivated();
   }
 }
 tabPointsBtn.onclick = () => showTab("points");
@@ -5520,6 +5534,8 @@ function ensureChatApi() {
     getStudents: () => lastStudents || [],
     getTeachers: () => lastSchoolTeachers || [],
     getSubjects: () => lastSubjects || [],
+    getClasses: () => lastClasses || [],
+    getGroups: () => lastGroups || [],
     isTeacherSide: true,
   });
   return chatApi;

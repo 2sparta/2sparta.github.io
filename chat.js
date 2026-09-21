@@ -49,9 +49,17 @@ export function dmChatId(uidA, uidB) {
   return `dm_${a}_${b}`;
 }
 
+/** @deprecated legacy */
 export function schoolAutoChatId(schoolId, kind) {
-  // kind: "school" | "students"
   return `auto_${kind}_${schoolId}`;
+}
+
+export function teachersChatId(schoolId) {
+  return `auto_teachers_${schoolId}`;
+}
+
+export function classChatId(classId) {
+  return `auto_class_${classId}`;
 }
 
 /**
@@ -77,6 +85,8 @@ export function initChat(opts) {
     getStudents,
     getTeachers,
     getSubjects,
+    getClasses,
+    getGroups,
     isTeacherSide,
   } = opts;
 
@@ -155,7 +165,9 @@ export function initChat(opts) {
   function openThread(chatId) {
     activeChatId = chatId;
     const embedded = document.getElementById("chat-panel") && document.getElementById("chat-panel").classList.contains("tab-panel");
-    if (chatListView && !embedded) chatListView.classList.add("hidden");
+    if (chatListView && !embedded && !chatListView.classList.contains("chat-tabs")) {
+      chatListView.classList.add("hidden");
+    }
     if (chatThreadView) chatThreadView.classList.remove("hidden");
     const empty = document.getElementById("chat-empty-state");
     if (empty) empty.classList.add("hidden");
@@ -168,11 +180,14 @@ export function initChat(opts) {
     }
     subjectFilterId = "";
     fillSubjectControls(chat);
+    renderChatList();
     subscribeMessages(chatId);
     markChatRead(chatId).catch(() => {});
   }
 
   // ---------- Auto groups ----------
+  // Учительський чат (лише вчителі/адміни, без предметів) + чати по класах
+  // (учні класу + усі вчителі школи). Старі auto_school / auto_students більше не створюємо.
   async function ensureAutoGroups() {
     const user = getUser();
     const profile = getProfile();
@@ -180,111 +195,193 @@ export function initChat(opts) {
     const schoolId = profile.schoolId;
     const myUid = user.uid;
     const myName = profile.displayName || user.email || "User";
-    const myRole = profile.role === "admin" ? "admin" : profile.role === "student" ? "student" : "teacher";
+    const myRole =
+      profile.role === "admin" ? "admin" : profile.role === "student" ? "student" : "teacher";
 
-    // School-wide: teachers + students
-    await ensureAutoChat({
-      id: schoolAutoChatId(schoolId, "school"),
-      type: "school",
-      schoolId,
-      nameKey: "chatAutoSchool",
-      defaultNameUk: "Вся школа",
-      defaultNameEn: "Whole school",
-      myUid,
-      myName,
-      myRole,
-      includeStudents: true,
-      includeTeachers: true,
-    });
+    if (myRole === "teacher" || myRole === "admin") {
+      await ensureTeachersChat({ schoolId, myUid, myName, myRole });
+    }
 
-    // Students-only
-    await ensureAutoChat({
-      id: schoolAutoChatId(schoolId, "students"),
-      type: "students",
-      schoolId,
-      nameKey: "chatAutoStudents",
-      defaultNameUk: "Учні",
-      defaultNameEn: "Students",
-      myUid,
-      myName,
-      myRole,
-      includeStudents: true,
-      includeTeachers: false,
-    });
+    const classes = typeof getClasses === "function" ? getClasses() || [] : [];
+    if (myRole === "student") {
+      const classIdFromProfile = profile.classId || null;
+      const targetClassIds = [];
+      if (classIdFromProfile) targetClassIds.push(classIdFromProfile);
+      else {
+        classes.forEach((c) => targetClassIds.push(c.id));
+      }
+      for (const cid of targetClassIds) {
+        const cls = classes.find((c) => c.id === cid) || { id: cid, data: { name: cid } };
+        await ensureClassChat({
+          classId: cid,
+          className: (cls.data && cls.data.name) || cid,
+          schoolId,
+          myUid,
+          myName,
+          myRole,
+        });
+      }
+    } else {
+      for (const cls of classes) {
+        await ensureClassChat({
+          classId: cls.id,
+          className: (cls.data && cls.data.name) || cls.id,
+          schoolId,
+          myUid,
+          myName,
+          myRole,
+        });
+      }
+    }
   }
 
-  async function ensureAutoChat({
-    id,
-    type,
-    schoolId,
-    nameKey,
-    defaultNameUk,
-    defaultNameEn,
-    myUid,
-    myName,
-    myRole,
-    includeStudents,
-    includeTeachers,
-  }) {
-    // Students-only: teachers are not members (unless they need to create it as admin)
-    const teachersCanJoinStudents = type === "students" && (myRole === "admin" || myRole === "teacher");
-    // Actually for students group: only students are members. Teachers don't join.
-    // But we need someone to create the doc — any authenticated user of the school can ensure it exists.
-    const iAmStudent = myRole === "student";
-    const shouldBeMember =
-      type === "school"
-        ? true
-        : type === "students"
-          ? iAmStudent
-          : false;
-
+  async function ensureTeachersChat({ schoolId, myUid, myName, myRole }) {
+    const id = teachersChatId(schoolId);
     const ref = doc(db, "chats", id);
     const snap = await getDoc(ref);
     const name =
-      (typeof t === "function" && t(nameKey)) ||
-      (currentLang() === "en" ? defaultNameEn : defaultNameUk);
+      (typeof t === "function" && t("chatAutoTeachers")) ||
+      (currentLang() === "en" ? "Teachers chat" : "Учительський чат");
+
+    const members = {};
+    const memberUids = [];
+    const addTeacher = (uid, data) => {
+      if (!uid || members[uid]) return;
+      const r = data && data.role === "admin" ? "admin" : "teacher";
+      members[uid] = {
+        name: (data && (data.displayName || data.email)) || uid,
+        role: r,
+        joinedAt: Date.now(),
+        lastReadAt: uid === myUid ? Date.now() : 0,
+      };
+      memberUids.push(uid);
+    };
+
+    addTeacher(myUid, { displayName: myName, role: myRole });
+    if (getTeachers) {
+      getTeachers().forEach(({ id: tid, data }) => {
+        const r = data.role;
+        if (r === "teacher" || r === "admin" || r === "pending-teacher") {
+          addTeacher(tid, data);
+        }
+      });
+    }
 
     if (!snap.exists()) {
-      const members = {};
-      const memberUids = [];
-      if (shouldBeMember) {
-        members[myUid] = { name: myName, role: myRole, joinedAt: Date.now(), lastReadAt: Date.now() };
-        memberUids.push(myUid);
-      }
-      // Also add currently known peers for richer initial state
-      if (includeTeachers && getTeachers) {
-        getTeachers().forEach(({ id: tid, data }) => {
-          if (tid === myUid) return;
-          const r = data.role === "admin" ? "admin" : "teacher";
-          if (!members[tid]) {
-            members[tid] = {
-              name: data.displayName || data.email || tid,
-              role: r,
-              joinedAt: Date.now(),
-              lastReadAt: 0,
-            };
-            memberUids.push(tid);
-          }
-        });
-      }
-      if (includeStudents && getStudents) {
-        getStudents().forEach(({ data }) => {
-          const uid = data.authUid;
-          if (!uid || uid === myUid) return;
-          if (!members[uid]) {
-            members[uid] = {
-              name: data.name || uid,
-              role: "student",
-              joinedAt: Date.now(),
-              lastReadAt: 0,
-            };
-            memberUids.push(uid);
-          }
-        });
-      }
       await setDoc(ref, {
-        type,
+        type: "teachers",
         schoolId,
+        name,
+        memberUids,
+        members,
+        createdBy: myUid,
+        createdAt: Date.now(),
+        lastMessageAt: 0,
+        lastMessagePreview: "",
+        isAuto: true,
+        noSubjects: true,
+      });
+      return;
+    }
+
+    const data = snap.data();
+    const updates = {};
+    let needUpdate = false;
+    if (data.name !== name) {
+      updates.name = name;
+      needUpdate = true;
+    }
+    if (!(data.memberUids || []).includes(myUid)) {
+      updates.memberUids = arrayUnion(myUid);
+      updates[`members.${myUid}`] = {
+        name: myName,
+        role: myRole,
+        joinedAt: Date.now(),
+        lastReadAt: Date.now(),
+      };
+      needUpdate = true;
+    } else if (data.members && data.members[myUid] && data.members[myUid].name !== myName) {
+      updates[`members.${myUid}.name`] = myName;
+      needUpdate = true;
+    }
+    const existing = new Set(data.memberUids || []);
+    const missing = memberUids.filter((u) => !existing.has(u));
+    if (missing.length > 0) {
+      const mergedUids = [...existing, ...missing];
+      const mergedMembers = { ...(data.members || {}) };
+      missing.forEach((u) => {
+        mergedMembers[u] = members[u];
+      });
+      await updateDoc(ref, { name, memberUids: mergedUids, members: mergedMembers });
+      return;
+    }
+    if (needUpdate) await updateDoc(ref, updates);
+  }
+
+  function groupIdsForClass(classId) {
+    if (!classId || typeof getGroups !== "function") return new Set();
+    const groups = getGroups() || [];
+    return new Set(
+      groups.filter((g) => g.data && g.data.classId === classId).map((g) => g.id)
+    );
+  }
+
+  async function ensureClassChat({ classId, className, schoolId, myUid, myName, myRole }) {
+    if (!classId) return;
+    const id = classChatId(classId);
+    const ref = doc(db, "chats", id);
+    const snap = await getDoc(ref);
+    const name = className || classId;
+
+    const members = {};
+    const memberUids = [];
+    const addMember = (uid, info) => {
+      if (!uid || members[uid]) return;
+      members[uid] = {
+        name: info.name || uid,
+        role: info.role || "student",
+        joinedAt: Date.now(),
+        lastReadAt: uid === myUid ? Date.now() : 0,
+      };
+      memberUids.push(uid);
+    };
+
+    if (getTeachers) {
+      getTeachers().forEach(({ id: tid, data }) => {
+        const r = data.role;
+        if (r === "teacher" || r === "admin" || r === "pending-teacher") {
+          addMember(tid, {
+            name: data.displayName || data.email || tid,
+            role: r === "admin" ? "admin" : "teacher",
+          });
+        }
+      });
+    }
+    const groupIds = groupIdsForClass(classId);
+    if (getStudents) {
+      getStudents().forEach(({ data }) => {
+        const uid = data.authUid;
+        if (!uid) return;
+        const g = data.group;
+        if (groupIds.size > 0) {
+          if (!groupIds.has(g)) return;
+        } else if (data.classId && data.classId !== classId) {
+          return;
+        } else if (groupIds.size === 0 && !data.classId && myRole === "student") {
+          if (uid !== myUid) return;
+        }
+        addMember(uid, { name: data.name || uid, role: "student" });
+      });
+    }
+    if (myRole === "teacher" || myRole === "admin" || myRole === "student") {
+      addMember(myUid, { name: myName, role: myRole });
+    }
+
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        type: "class",
+        schoolId,
+        classId,
         name,
         memberUids,
         members,
@@ -297,91 +394,55 @@ export function initChat(opts) {
       return;
     }
 
-    // Join if should be member and not yet
     const data = snap.data();
-    if (shouldBeMember && !(data.memberUids || []).includes(myUid)) {
-      await updateDoc(ref, {
-        memberUids: arrayUnion(myUid),
-        [`members.${myUid}`]: {
+    const updates = {};
+    let needUpdate = false;
+    if (name && name !== classId && data.name !== name) {
+      updates.name = name;
+      needUpdate = true;
+    }
+    if (!(data.memberUids || []).includes(myUid)) {
+      updates.memberUids = arrayUnion(myUid);
+      updates[`members.${myUid}`] = {
+        name: myName,
+        role: myRole,
+        joinedAt: Date.now(),
+        lastReadAt: Date.now(),
+      };
+      needUpdate = true;
+    } else if (data.members && data.members[myUid] && data.members[myUid].name !== myName) {
+      updates[`members.${myUid}.name`] = myName;
+      needUpdate = true;
+    }
+    const existing = new Set(data.memberUids || []);
+    const missing = memberUids.filter((u) => !existing.has(u));
+    if (missing.length > 0) {
+      const mergedUids = [...existing, ...missing];
+      const mergedMembers = { ...(data.members || {}) };
+      missing.forEach((u) => {
+        mergedMembers[u] = members[u];
+      });
+      if (myUid && !mergedMembers[myUid]) {
+        mergedMembers[myUid] = {
           name: myName,
           role: myRole,
           joinedAt: Date.now(),
           lastReadAt: Date.now(),
-        },
-      });
-    } else if (shouldBeMember && data.members && data.members[myUid]) {
-      // refresh name
-      if (data.members[myUid].name !== myName) {
-        await updateDoc(ref, { [`members.${myUid}.name`]: myName });
+        };
       }
+      const payload = { memberUids: mergedUids, members: mergedMembers };
+      if (name && name !== classId) payload.name = name;
+      await updateDoc(ref, payload);
+      return;
     }
+    if (needUpdate) await updateDoc(ref, updates);
   }
 
-  // When teacher adds a linked student or teacher joins school, auto groups
-  // get members on next ensure / optional sync
   async function syncAutoGroupMembers() {
-    const profile = getProfile();
-    if (!profile || !profile.schoolId) return;
-    const schoolId = profile.schoolId;
-    for (const kind of ["school", "students"]) {
-      const id = schoolAutoChatId(schoolId, kind);
-      const ref = doc(db, "chats", id);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) continue;
-      const data = snap.data();
-      const members = { ...(data.members || {}) };
-      const memberUids = new Set(data.memberUids || []);
-      let changed = false;
-
-      if (kind === "school" || kind === "students") {
-        if (getStudents) {
-          getStudents().forEach(({ data: sd }) => {
-            const uid = sd.authUid;
-            if (!uid) return;
-            if (!memberUids.has(uid)) {
-              memberUids.add(uid);
-              members[uid] = {
-                name: sd.name || uid,
-                role: "student",
-                joinedAt: Date.now(),
-                lastReadAt: 0,
-              };
-              changed = true;
-            }
-          });
-        }
-      }
-      if (kind === "school" && getTeachers) {
-        getTeachers().forEach(({ id: tid, data: td }) => {
-          if (!memberUids.has(tid)) {
-            memberUids.add(tid);
-            members[tid] = {
-              name: td.displayName || td.email || tid,
-              role: td.role === "admin" ? "admin" : "teacher",
-              joinedAt: Date.now(),
-              lastReadAt: 0,
-            };
-            changed = true;
-          }
-        });
-      }
-      // students group: remove teachers if any slipped in
-      if (kind === "students") {
-        for (const uid of [...memberUids]) {
-          const m = members[uid];
-          if (m && m.role !== "student") {
-            memberUids.delete(uid);
-            delete members[uid];
-            changed = true;
-          }
-        }
-      }
-      if (changed) {
-        await updateDoc(ref, {
-          memberUids: [...memberUids],
-          members,
-        });
-      }
+    try {
+      await ensureAutoGroups();
+    } catch (e) {
+      console.warn("syncAutoGroupMembers", e);
     }
   }
 
@@ -462,6 +523,12 @@ export function initChat(opts) {
       const other = otherUid && data.members && data.members[otherUid];
       return (other && other.name) || t("chatDmFallback") || "Direct message";
     }
+    if (data.type === "teachers") {
+      return t("chatAutoTeachers") || data.name || "Учительський чат";
+    }
+    if (data.type === "class") {
+      return data.name || t("chatTypeClass") || "Class";
+    }
     if (data.type === "school") return t("chatAutoSchool") || data.name || "School";
     if (data.type === "students") return t("chatAutoStudents") || data.name || "Students";
     return data.name || t("chatGroupFallback") || "Group";
@@ -472,6 +539,8 @@ export function initChat(opts) {
     const data = chat.data;
     const n = (data.memberUids || []).length;
     if (data.type === "dm") return t("chatTypeDm") || "Direct";
+    if (data.type === "teachers") return `${t("chatTypeTeachers") || "Teachers"} · ${n}`;
+    if (data.type === "class") return `${t("chatTypeClass") || "Class"} · ${n}`;
     if (data.type === "school") return `${t("chatTypeSchool") || "School"} · ${n}`;
     if (data.type === "students") return `${t("chatTypeStudents") || "Students"} · ${n}`;
     return `${t("chatTypeGroup") || "Group"} · ${n}`;
@@ -479,6 +548,8 @@ export function initChat(opts) {
 
   function chatTypeIcon(type) {
     if (type === "dm") return "👤";
+    if (type === "teachers") return "👨‍🏫";
+    if (type === "class") return "📚";
     if (type === "school") return "🏫";
     if (type === "students") return "🎓";
     return "💬";
@@ -488,6 +559,11 @@ export function initChat(opts) {
     if (!chatListEl) return;
     chatListEl.innerHTML = "";
     const items = lastChats
+      .filter((c) => {
+        const ty = c.data && c.data.type;
+        if (c.data && c.data.isAuto && (ty === "school" || ty === "students")) return false;
+        return true;
+      })
       .slice()
       .sort((a, b) => (b.data.lastMessageAt || b.data.createdAt || 0) - (a.data.lastMessageAt || a.data.createdAt || 0));
     if (chatListEmpty) chatListEmpty.classList.toggle("hidden", items.length > 0);
@@ -513,6 +589,7 @@ export function initChat(opts) {
         dot.className = "chat-list-unread-dot";
         el.appendChild(dot);
       }
+      if (id === activeChatId) el.classList.add("active");
       el.onclick = () => openThread(id);
       chatListEl.appendChild(el);
     });
@@ -552,7 +629,8 @@ export function initChat(opts) {
     const showSubject =
       chat &&
       chat.data &&
-      (chat.data.type === "group" || chat.data.type === "school" || chat.data.type === "students");
+      !chat.data.noSubjects &&
+      (chat.data.type === "group" || chat.data.type === "class" || chat.data.type === "school" || chat.data.type === "students");
 
     if (chatComposeSubjectWrap) {
       chatComposeSubjectWrap.classList.toggle("hidden", !showSubject || !isTeacherSide);
@@ -1053,6 +1131,7 @@ export function initChat(opts) {
     }
     showFab(false);
     closePanel();
+    setChatTabsVisible(false);
     lastChats = [];
   }
 
@@ -1077,12 +1156,26 @@ export function initChat(opts) {
     }
   }
 
+  function setChatTabsVisible(show) {
+    const nav = document.getElementById("chat-list-view");
+    if (nav && nav.classList.contains("chat-tabs")) {
+      nav.classList.toggle("hidden", !show);
+    }
+    document.body.classList.toggle("chat-tab-open", !!show);
+  }
+
   function onTabActivated() {
     panelOpen = true;
+    setChatTabsVisible(true);
     ensureAutoGroups().catch(function () {});
     renderChatList();
     if (!activeChatId) showListView();
   }
+
+  function onTabDeactivated() {
+    setChatTabsVisible(false);
+  }
+
   if (document.getElementById("chat-panel") && document.getElementById("chat-panel").classList.contains("tab-panel")) {
     if (chatFab) chatFab.classList.add("hidden");
   }
@@ -1096,5 +1189,6 @@ export function initChat(opts) {
     syncAutoGroupMembers: syncAutoGroupMembers,
     refreshI18n: refreshI18n,
     onTabActivated: onTabActivated,
+    onTabDeactivated: onTabDeactivated,
   };
 }

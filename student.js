@@ -429,9 +429,12 @@ const translations = {
     chatNoMessages: "Повідомлень ще немає. Напишіть першим!",
     chatAutoSchool: "Вся школа",
     chatAutoStudents: "Учні",
+    chatAutoTeachers: "Учительський чат",
     chatTypeDm: "Особисті",
     chatTypeSchool: "Школа",
     chatTypeStudents: "Учні",
+    chatTypeTeachers: "Учителі",
+    chatTypeClass: "Клас",
     chatTypeGroup: "Група",
     chatDmFallback: "Особисте повідомлення",
     chatGroupFallback: "Група",
@@ -645,9 +648,12 @@ const translations = {
     chatNoMessages: "No messages yet. Say hello!",
     chatAutoSchool: "Whole school",
     chatAutoStudents: "Students",
+    chatAutoTeachers: "Teachers chat",
     chatTypeDm: "Direct",
     chatTypeSchool: "School",
     chatTypeStudents: "Students",
+    chatTypeTeachers: "Teachers",
+    chatTypeClass: "Class",
     chatTypeGroup: "Group",
     chatDmFallback: "Direct message",
     chatGroupFallback: "Group",
@@ -759,12 +765,18 @@ function showTab(tab) {
   if (announcementsPanel) announcementsPanel.classList.toggle("hidden", tab !== "announcements");
   if (selfgovPanel) selfgovPanel.classList.toggle("hidden", tab !== "selfgov");
   if (chatPanelEl) chatPanelEl.classList.toggle("hidden", tab !== "chat");
+  document.body.classList.toggle("chat-tab-open", tab === "chat");
+  const greeting = document.querySelector(".greeting-card");
+  if (greeting) greeting.classList.toggle("hidden", tab === "chat");
   if (tab === "selfgov") renderSelfGovStudent();
   if (tab === "announcements") renderStudentAnnouncements();
   if (tab === "chat") {
     const api = typeof ensureStudentChatApi === "function" ? ensureStudentChatApi() : chatApi;
     if (api && api.onTabActivated) api.onTabActivated();
     else if (api && api.start) api.start();
+  } else {
+    const api = chatApi;
+    if (api && api.onTabDeactivated) api.onTabDeactivated();
   }
 }
 if (tabScheduleBtn) tabScheduleBtn.onclick = () => showTab("schedule");
@@ -1002,6 +1014,7 @@ function ensureStudentChatApi() {
         role: "student",
         displayName: (studentData && studentData.name) || (auth.currentUser && auth.currentUser.email) || "Student",
         schoolId: schoolId || "default",
+        classId: studentClassId || null,
         subjectIds: [],
       };
     },
@@ -1010,6 +1023,14 @@ function ensureStudentChatApi() {
     getStudents: () => lastPeerStudents,
     getTeachers: () => lastPeerTeachers,
     getSubjects: () => lastSubjects || [],
+    getClasses: () => {
+      if (!studentClassId) return [];
+      return [{ id: studentClassId, data: { name: studentClassId } }];
+    },
+    getGroups: () => {
+      if (!studentData || !studentData.group) return [];
+      return [{ id: studentData.group, data: { classId: studentClassId } }];
+    },
     isTeacherSide: false,
   });
   return chatApi;
