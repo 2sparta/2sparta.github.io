@@ -132,6 +132,206 @@
   --color-purple-border: #4a3a5c;
 }
 
+/* ---------- Дизайн «Природа» (макет з листям: м’які картки, зелень/теракота) ----------
+   Увімкнення: html[data-design="nature"] (кнопка зліва від фону).
+   Перекриває токени поверх будь-якої data-theme, щоб вигляд відповідав фото. */
+html[data-design="nature"] {
+  --color-bg: #e8f0e6;
+  --color-surface: #f7faf5;
+  --color-surface-tint: #dce8d6;
+  --color-primary: #1e3d32;
+  --color-secondary: #5c7368;
+  --color-accent: #3d7a5a;
+  --color-accent-hover: #2f6248;
+  --color-accent-soft: #e4f0e8;
+  --color-border: #c5d4c0;
+  --color-avatar-bg: #c8dfc4;
+  --color-danger: #c45c4a;
+  --color-warning: #a67c3a;
+  --color-warning-bg: #f5ecd8;
+  --color-purple: #6b8f5a;
+  --color-purple-bg: #e8f2e4;
+  --color-purple-border: #b5cfc0;
+
+  --radius-lg: 28px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+  --radius-pill: 100px;
+
+  --nature-cream: #e8dcc8;
+  --nature-cream-hover: #d9cbb4;
+  --nature-leaf-green: #4a7c5c;
+  --nature-earth: #8b6b4a;
+  --nature-deep: #1a3d32;
+}
+
+html[data-design="nature"][data-theme="dark"],
+html[data-design="nature"][data-theme="ocean-dark"],
+html[data-design="nature"][data-theme="warm-dark"] {
+  --color-bg: #0f1a15;
+  --color-surface: #16241e;
+  --color-surface-tint: #1e3229;
+  --color-primary: #e4f0e8;
+  --color-secondary: #8fa89a;
+  --color-accent: #5a9e78;
+  --color-accent-hover: #6fb890;
+  --color-accent-soft: #1a3028;
+  --color-border: #2a4036;
+  --color-avatar-bg: #243830;
+  --color-danger: #e07a6a;
+  --color-warning: #e0b060;
+  --color-warning-bg: #3a3020;
+  --color-purple: #8fbc8f;
+  --color-purple-bg: #1e2e24;
+  --color-purple-border: #3a5044;
+  --nature-cream: #3d3428;
+  --nature-cream-hover: #4a4034;
+  --nature-leaf-green: #6ab088;
+  --nature-earth: #b89060;
+  --nature-deep: #0a1410;
+}
+
+html[data-design="nature"] .card,
+html[data-design="nature"] .greeting-card,
+html[data-design="nature"] .auth-card,
+html[data-design="nature"] .stat-card,
+html[data-design="nature"] .student-row,
+html[data-design="nature"] .grades-stat-card {
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 4px 20px rgba(30, 61, 50, 0.06),
+    0 1px 3px rgba(30, 61, 50, 0.04);
+  border-color: color-mix(in srgb, var(--color-border) 80%, transparent);
+}
+html[data-design="nature"][data-theme="dark"] .card,
+html[data-design="nature"][data-theme="dark"] .greeting-card,
+html[data-design="nature"][data-theme="dark"] .auth-card,
+html[data-design="nature"][data-theme="ocean-dark"] .card,
+html[data-design="nature"][data-theme="ocean-dark"] .greeting-card,
+html[data-design="nature"][data-theme="ocean-dark"] .auth-card,
+html[data-design="nature"][data-theme="warm-dark"] .card,
+html[data-design="nature"][data-theme="warm-dark"] .greeting-card,
+html[data-design="nature"][data-theme="warm-dark"] .auth-card {
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+html[data-design="nature"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove) {
+  background: var(--nature-cream);
+  color: var(--nature-deep);
+  border-radius: var(--radius-pill);
+  border: none;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(30, 61, 50, 0.1);
+}
+html[data-design="nature"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove):hover {
+  background: var(--nature-cream-hover);
+  color: var(--nature-deep);
+}
+html[data-design="nature"] button.secondary {
+  border-radius: var(--radius-pill);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+html[data-design="nature"] .quick-action-btn {
+  background: var(--nature-cream);
+  color: var(--nature-deep);
+  border-radius: var(--radius-pill);
+}
+html[data-design="nature"] .quick-action-btn:hover {
+  background: var(--nature-cream-hover);
+  color: var(--nature-deep);
+}
+html[data-design="nature"] .brand-badge {
+  background: var(--nature-leaf-green);
+  border-radius: 14px;
+}
+html[data-design="nature"] .avatar,
+html[data-design="nature"] .student-avatar {
+  border-radius: 16px;
+}
+html[data-design="nature"] input,
+html[data-design="nature"] textarea,
+html[data-design="nature"] select {
+  border-radius: var(--radius-md);
+}
+html[data-design="nature"] .tab-btn,
+html[data-design="nature"] .view-btn,
+html[data-design="nature"] .lang-btn {
+  border-radius: var(--radius-pill);
+}
+html[data-design="nature"] .stat-card {
+  background: color-mix(in srgb, var(--color-surface-tint) 70%, var(--color-surface));
+  border-radius: var(--radius-md);
+}
+html[data-design="nature"] .points-hero {
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, var(--color-surface-tint), color-mix(in srgb, var(--nature-leaf-green) 12%, var(--color-surface)));
+}
+html[data-design="nature"] .app-header {
+  border-bottom-color: color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+html[data-design="nature"] .auth-card::before,
+html[data-design="nature"] .setup-card::before {
+  content: "";
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  width: 120px;
+  height: 140px;
+  pointer-events: none;
+  opacity: 0.22;
+  background:
+    radial-gradient(ellipse 40% 55% at 60% 30%, var(--nature-leaf-green) 0%, transparent 70%),
+    radial-gradient(ellipse 35% 50% at 30% 60%, var(--nature-earth) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 40% at 75% 70%, #6b9e6a 0%, transparent 70%);
+  filter: blur(0.5px);
+  z-index: 0;
+}
+html[data-design="nature"] .auth-card > *,
+html[data-design="nature"] .setup-card > * {
+  position: relative;
+  z-index: 1;
+}
+html[data-design="nature"] .auth-card,
+html[data-design="nature"] .setup-card {
+  overflow: hidden;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--nature-leaf-green) 8%, var(--color-surface)) 0%, var(--color-surface) 45%, color-mix(in srgb, var(--nature-earth) 6%, var(--color-surface)) 100%);
+}
+
+html[data-design="nature"][data-theme="dark"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove),
+html[data-design="nature"][data-theme="ocean-dark"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove),
+html[data-design="nature"][data-theme="warm-dark"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove) {
+  background: var(--nature-leaf-green);
+  color: #f0f7f2;
+}
+html[data-design="nature"][data-theme="dark"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove):hover,
+html[data-design="nature"][data-theme="ocean-dark"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove):hover,
+html[data-design="nature"][data-theme="warm-dark"] button:not(.secondary):not(.theme-toggle-btn):not(.bg-mode-toggle-btn):not(.design-mode-toggle-btn):not(.lang-btn):not(.tab-btn):not(.view-btn):not(.icon-btn):not(.chat-back-btn):not(.chat-panel-close):not(.messages-panel-close):not(.settings-back-btn):not(.student-delete-btn):not(.announcement-delete-btn):not(.class-chip-remove):hover {
+  background: #6ab088;
+  color: #0a1410;
+}
+html[data-design="nature"][data-theme="dark"] .quick-action-btn,
+html[data-design="nature"][data-theme="ocean-dark"] .quick-action-btn,
+html[data-design="nature"][data-theme="warm-dark"] .quick-action-btn {
+  background: var(--nature-leaf-green);
+  color: #f0f7f2;
+}
+html[data-design="nature"][data-theme="dark"] .quick-action-btn:hover,
+html[data-design="nature"][data-theme="ocean-dark"] .quick-action-btn:hover,
+html[data-design="nature"][data-theme="warm-dark"] .quick-action-btn:hover {
+  background: #6ab088;
+  color: #0a1410;
+}
+html[data-design="nature"] .design-mode-toggle-btn,
+html[data-design="nature"] .bg-mode-toggle-btn,
+html[data-design="nature"] .theme-toggle-btn {
+  border-radius: 12px;
+}
+
 * { box-sizing: border-box; }
 html { color-scheme: light; }
 html[data-theme="dark"],
@@ -2173,6 +2373,39 @@ select {
   background: #3a2416;
   color: #f5a878;
   border-color: #e2733a;
+}
+
+/* ---------- Перемикач дизайну (класичний / природа) ---------- */
+.design-mode-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.design-mode-toggle-btn:hover {
+  background: var(--color-surface-tint);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.design-mode-toggle-btn svg { width: 18px; height: 18px; display: none; }
+.design-mode-toggle-btn.is-classic .icon-design-classic { display: block; }
+.design-mode-toggle-btn.is-nature .icon-design-nature { display: block; }
+.design-mode-toggle-btn.is-nature {
+  color: #5a8f5a;
+  border-color: #a8c9a0;
+  background: #f0f7ee;
+}
+.design-mode-toggle-btn.is-nature:hover {
+  background: #e2f0de;
+  color: #2d5a3a;
+  border-color: #5a8f5a;
 }
 
 /* ---------- Перемикач режиму фону (скло / network / plain / 3D) ---------- */

@@ -69,6 +69,98 @@ export function initThemeToggle() {
       applyTheme(theme);
     });
   });
+
+  // Режим дизайну (класичний / природа) — кнопка зліва від фону
+  initDesignModeToggle();
+}
+
+// ---------- Дизайн UI: класичний / природа (за макетом з листям) ----------
+export const DESIGN_STORAGE_KEY = "schooleballs-design";
+export const DESIGN_MODES = ["classic", "nature"];
+
+const DESIGN_LABELS = {
+  classic: { uk: "Класичний", en: "Classic" },
+  nature: { uk: "Природа", en: "Nature" },
+};
+
+export function getDesignMode() {
+  try {
+    const v = localStorage.getItem(DESIGN_STORAGE_KEY);
+    if (v && DESIGN_MODES.includes(v)) return v;
+  } catch (e) {
+    /* ignore */
+  }
+  return "classic";
+}
+
+export function setDesignMode(mode) {
+  const m = DESIGN_MODES.includes(mode) ? mode : "classic";
+  try {
+    localStorage.setItem(DESIGN_STORAGE_KEY, m);
+  } catch (e) {
+    /* ignore */
+  }
+  applyDesignMode(m);
+  return m;
+}
+
+export function applyDesignMode(mode) {
+  if (typeof document === "undefined") return;
+  const m = DESIGN_MODES.includes(mode) ? mode : getDesignMode();
+  document.documentElement.setAttribute("data-design", m);
+  document.documentElement.classList.toggle("design-nature", m === "nature");
+  document.documentElement.classList.toggle("design-classic", m === "classic");
+
+  const lang = (localStorage.getItem("schooleballs-lang") || "uk").startsWith("en") ? "en" : "uk";
+  document.querySelectorAll(".design-mode-toggle-btn").forEach((btn) => {
+    btn.classList.toggle("is-nature", m === "nature");
+    btn.classList.toggle("is-classic", m === "classic");
+    const label = (DESIGN_LABELS[m] && DESIGN_LABELS[m][lang]) || m;
+    btn.setAttribute("aria-label", `Дизайн: ${label}. Натисніть, щоб змінити`);
+    btn.setAttribute("aria-pressed", m === "nature" ? "true" : "false");
+    btn.title = label;
+  });
+}
+
+function ensureDesignModeButtons() {
+  const svgClassic = `<svg class="icon-design-classic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/></svg>`;
+  const svgNature = `<svg class="icon-design-nature" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 21c0-4 3-7 7-9-1 5-4 8-7 9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 21c0-4-3-7-7-9 1 5 4 8 7 9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 21V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 11c2-3 5-5 9-5-1 4-4 7-7 8M12 11C10 8 7 6 3 6c1 4 4 7 7 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+
+  document.querySelectorAll(".theme-toggle-btn").forEach((themeBtn) => {
+    const parent = themeBtn.parentElement;
+    if (!parent) return;
+    // Порядок: [design] [bg-mode] [theme]
+    let designBtn = parent.querySelector(".design-mode-toggle-btn");
+    if (!designBtn) {
+      designBtn = document.createElement("button");
+      designBtn.type = "button";
+      designBtn.className = "design-mode-toggle-btn";
+      designBtn.setAttribute("aria-label", "Дизайн");
+      const bgBtn = parent.querySelector(".bg-mode-toggle-btn");
+      if (bgBtn) parent.insertBefore(designBtn, bgBtn);
+      else parent.insertBefore(designBtn, themeBtn);
+    }
+    if (!designBtn.querySelector(".icon-design-nature")) {
+      designBtn.innerHTML = svgClassic + svgNature;
+    }
+  });
+}
+
+export function initDesignModeToggle() {
+  if (typeof document === "undefined") return;
+  ensureDesignModeButtons();
+  applyDesignMode(getDesignMode());
+
+  document.querySelectorAll(".design-mode-toggle-btn").forEach((btn) => {
+    if (btn.dataset.designBound) return;
+    btn.dataset.designBound = "1";
+    btn.addEventListener("click", () => {
+      const cur = getDesignMode();
+      const idx = DESIGN_MODES.indexOf(cur);
+      const next = DESIGN_MODES[(idx + 1) % DESIGN_MODES.length];
+      setDesignMode(next);
+    });
+  });
 }
 
 export const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -664,6 +756,9 @@ function ensureBgModeButtons() {
       btn.innerHTML = allIcons;
     }
   });
+  // Після появи кнопки фону — гарантуємо кнопку дизайну зліва від неї
+  ensureDesignModeButtons();
+  applyDesignMode(getDesignMode());
 }
 
 /** Повноекранні налаштування (FAB + екран з вкладками зліва, як у кабінеті). */
