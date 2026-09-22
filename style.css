@@ -4571,51 +4571,102 @@ body.settings-open .chat-panel {
   }
 }
 
-/* ---------- Chat: message actions, typing, pinned, load older ---------- */
+/* ---------- Chat: message context menu, typing, pinned, load older ---------- */
 .chat-msg {
   position: relative;
+  cursor: default;
 }
-.chat-msg-actions {
-  display: none;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-  max-width: 100%;
+.chat-msg-bubble {
+  user-select: text;
 }
-.chat-msg:hover .chat-msg-actions,
-.chat-msg:focus-within .chat-msg-actions {
-  display: flex;
-}
-.chat-msg-action-btn {
+
+/* Контекстне меню дій повідомлення (правий клік) */
+.chat-msg-context-menu {
+  position: fixed;
+  z-index: 400;
+  min-width: 168px;
+  max-width: min(260px, calc(100vw - 16px));
+  padding: 6px;
   background: var(--color-surface);
-  color: var(--color-secondary);
   border: 1px solid var(--color-border);
-  padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-family: var(--font-heading);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 10px 28px rgba(23, 53, 44, 0.16),
+    0 2px 8px rgba(23, 53, 44, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: chat-ctx-in 0.12s ease-out;
 }
-.chat-msg-action-btn:hover {
+@keyframes chat-ctx-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+:root[data-theme="dark"] .chat-msg-context-menu,
+:root[data-theme="ocean-dark"] .chat-msg-context-menu,
+:root[data-theme="warm-dark"] .chat-msg-context-menu {
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.chat-msg-context-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.chat-msg-context-item:hover,
+.chat-msg-context-item:focus-visible {
   background: var(--color-surface-tint);
   color: var(--color-primary);
-  border-color: var(--color-accent);
+  outline: none;
 }
-.chat-msg-action-btn--danger:hover {
+.chat-msg-context-item--active {
+  color: var(--color-accent);
+}
+.chat-msg-context-item--danger {
   color: var(--color-danger);
-  border-color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
 }
-.chat-msg--mine .chat-msg-action-btn {
-  background: color-mix(in srgb, #fff 18%, transparent);
-  color: #fff;
-  border-color: color-mix(in srgb, #fff 35%, transparent);
+.chat-msg-context-item--danger:hover,
+.chat-msg-context-item--danger:focus-visible {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
 }
-.chat-msg--mine .chat-msg-action-btn:hover {
-  background: color-mix(in srgb, #fff 30%, transparent);
-  color: #fff;
+.chat-msg-context-icon {
+  width: 18px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.85;
 }
+.chat-msg-context-label {
+  flex: 1;
+  min-width: 0;
+}
+.chat-msg-context-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--color-border);
+}
+
 .chat-msg--pinned .chat-msg-bubble {
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
@@ -4626,10 +4677,12 @@ body.settings-open .chat-panel {
   0%, 100% { background: transparent; }
   30% { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
 }
+
+/* Одна кнопка закріплених (цикл по всіх) */
 .chat-pinned-bar {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
   padding: 8px 12px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-tint);
@@ -4638,30 +4691,49 @@ body.settings-open .chat-panel {
 .chat-pinned-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
+  padding: 8px 12px;
   cursor: pointer;
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 600;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .chat-pinned-item:hover {
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
-.chat-pinned-icon {
+.chat-pinned-count {
   flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 .chat-pinned-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  flex: 1;
+  font-weight: 600;
+  color: var(--color-primary);
 }
+
 .chat-typing-indicator {
   padding: 4px 14px 6px;
   font-size: 12px;
@@ -4681,10 +4753,4 @@ body.settings-open .chat-panel {
   margin-left: 4px;
   flex-shrink: 0;
   height: 44px;
-}
-@media (max-width: 640px) {
-  .chat-msg-actions {
-    display: flex;
-    opacity: 0.85;
-  }
 }

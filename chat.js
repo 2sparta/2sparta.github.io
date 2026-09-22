@@ -167,6 +167,7 @@ export function initChat(opts) {
     searchOpen = false;
     editingMessageId = null;
     stopTypingPresence();
+    if (typeof closeMsgContextMenu === "function") closeMsgContextMenu();
     const searchBar = document.getElementById("chat-search-bar");
     if (searchBar) searchBar.classList.add("hidden");
     const searchInput = document.getElementById("chat-search-input");
@@ -193,6 +194,7 @@ export function initChat(opts) {
     searchOpen = false;
     editingMessageId = null;
     stopTypingPresence();
+    if (typeof closeMsgContextMenu === "function") closeMsgContextMenu();
     const searchBar = document.getElementById("chat-search-bar");
     if (searchBar) searchBar.classList.add("hidden");
     const searchInput = document.getElementById("chat-search-input");
@@ -831,9 +833,59 @@ export function initChat(opts) {
     btn.classList.toggle("hidden", !show);
   }
 
+  /** Закріплені повідомлення, відсортовані від найновіших до старіших. */
+  function getSortedPinned(msgs) {
+    return (msgs || [])
+      .filter((m) => m.data && m.data.pinned && !m.data.deleted)
+      .slice()
+      .sort((a, b) => {
+        const ta = a.data.pinnedAt || a.data.createdAt || 0;
+        const tb = b.data.pinnedAt || b.data.createdAt || 0;
+        return tb - ta;
+      });
+  }
+
+  /**
+   * Наступний закріп для переходу: найближчий вище по стрічці відносно
+   * поточного скролу. Якщо вже на найвищому — цикл на найновіший.
+   * Якщо користувач прокрутив вниз між двома закрепами — знову той самий,
+   * що був «цільовим» (той, що ще вище за viewport).
+   */
+  function resolveNextPinnedTarget(sorted) {
+    if (!sorted.length || !chatMessagesEl) return null;
+    const scrollTop = chatMessagesEl.scrollTop;
+    const threshold = 48;
+
+    const above = [];
+    for (const p of sorted) {
+      const el = chatMessagesEl.querySelector(`[data-msg-id="${p.id}"]`);
+      if (!el) continue;
+      const cRect = chatMessagesEl.getBoundingClientRect();
+      const eRect = el.getBoundingClientRect();
+      const top = eRect.top - cRect.top + chatMessagesEl.scrollTop;
+      if (top < scrollTop - threshold) {
+        above.push({ p, top });
+      }
+    }
+    if (above.length > 0) {
+      above.sort((a, b) => b.top - a.top);
+      return above[0].p;
+    }
+    return sorted[0];
+  }
+
+  function jumpToPinnedMessage(id) {
+    if (!chatMessagesEl || !id) return;
+    const el = chatMessagesEl.querySelector(`[data-msg-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("chat-msg--flash");
+    setTimeout(() => el.classList.remove("chat-msg--flash"), 1200);
+  }
+
   function renderPinnedBar(msgs) {
     let bar = document.getElementById("chat-pinned-bar");
-    const pinned = msgs.filter((m) => m.data && m.data.pinned && !m.data.deleted);
+    const pinned = getSortedPinned(msgs);
     if (!chatThreadView) return;
     if (pinned.length === 0) {
       if (bar) bar.remove();
@@ -851,21 +903,27 @@ export function initChat(opts) {
       }
     }
     bar.innerHTML = "";
-    pinned.slice(0, 3).forEach(({ id, data }) => {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "chat-pinned-item";
-      item.innerHTML = `<span class="chat-pinned-icon">📌</span><span class="chat-pinned-text">${escapeText((data.text || "").slice(0, 80))}</span>`;
-      item.onclick = () => {
-        const el = chatMessagesEl && chatMessagesEl.querySelector(`[data-msg-id="${id}"]`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("chat-msg--flash");
-          setTimeout(() => el.classList.remove("chat-msg--flash"), 1200);
-        }
-      };
-      bar.appendChild(item);
-    });
+    const preview = resolveNextPinnedTarget(pinned) || pinned[0];
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "chat-pinned-item";
+    const text = (preview && preview.data && preview.data.text) || "";
+    const countLabel =
+      pinned.length > 1
+        ? `<span class="chat-pinned-count">${pinned.length}</span>`
+        : "";
+    item.innerHTML = `${countLabel}<span class="chat-pinned-text">${escapeText(text.slice(0, 90))}</span>`;
+    item.title =
+      pinned.length > 1
+        ? (typeof t === "function" && t("chatPinnedCycleHint")) ||
+          "Натисніть, щоб перейти до наступного закріпленого"
+        : text;
+    item.onclick = () => {
+      const sorted = getSortedPinned(lastMessages);
+      const target = resolveNextPinnedTarget(sorted);
+      if (target) jumpToPinnedMessage(target.id);
+    };
+    bar.appendChild(item);
   }
 
   function renderMessages(scrollBottom) {
@@ -947,75 +1005,18 @@ export function initChat(opts) {
       }
       row.appendChild(bubble);
 
+      // Дії — через контекстне меню (правий клік)
       if (!data._pending) {
-        const actions = document.createElement("div");
-        actions.className = "chat-msg-actions";
-        const copyBtn = document.createElement("button");
-        copyBtn.type = "button";
-        copyBtn.className = "chat-msg-action-btn";
-        copyBtn.textContent = t("chatCopy") || "Copy";
-        copyBtn.onclick = async (e) => {
+        row.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
           e.stopPropagation();
-          try {
-            await navigator.clipboard.writeText(data.text || "");
-          } catch (_) {}
-        };
-        actions.appendChild(copyBtn);
-
-        if (!deleted) {
-          const pinBtn = document.createElement("button");
-          pinBtn.type = "button";
-          pinBtn.className = "chat-msg-action-btn";
-          pinBtn.textContent = data.pinned
-            ? (t("chatUnpin") || "Unpin")
-            : (t("chatPin") || "Pin");
-          pinBtn.onclick = async (e) => {
-            e.stopPropagation();
-            try {
-              await updateDoc(doc(db, "chatMessages", id), {
-                pinned: !data.pinned,
-                pinnedAt: !data.pinned ? Date.now() : null,
-              });
-            } catch (err) {
-              console.warn("pin", err);
-              alert(err.message || "Failed");
-            }
-          };
-          actions.appendChild(pinBtn);
-        }
-
-        if (mine && !deleted) {
-          const editBtn = document.createElement("button");
-          editBtn.type = "button";
-          editBtn.className = "chat-msg-action-btn";
-          editBtn.textContent = t("chatEdit") || "Edit";
-          editBtn.onclick = (e) => {
-            e.stopPropagation();
-            startEditMessage(id, data.text || "");
-          };
-          actions.appendChild(editBtn);
-
-          const delBtn = document.createElement("button");
-          delBtn.type = "button";
-          delBtn.className = "chat-msg-action-btn chat-msg-action-btn--danger";
-          delBtn.textContent = t("chatDelete") || "Delete";
-          delBtn.onclick = async (e) => {
-            e.stopPropagation();
-            if (!confirm(t("chatDeleteConfirm") || "Delete this message?")) return;
-            try {
-              await updateDoc(doc(db, "chatMessages", id), {
-                deleted: true,
-                deletedAt: Date.now(),
-                text: "",
-              });
-            } catch (err) {
-              console.warn("delete", err);
-              alert(err.message || "Failed");
-            }
-          };
-          actions.appendChild(delBtn);
-        }
-        row.appendChild(actions);
+          openMsgContextMenu(e.clientX, e.clientY, {
+            id,
+            data,
+            mine: !!mine,
+            deleted: !!deleted,
+          });
+        });
       }
 
       const meta = document.createElement("div");
@@ -1030,7 +1031,9 @@ export function initChat(opts) {
         );
       }
       if (data.editedAt && !deleted) parts.push(t("chatEdited") || "edited");
-      if (data.pinned && !deleted) parts.push("📌");
+      if (data.pinned && !deleted) {
+        parts.push(t("chatPinnedBadge") || "pinned");
+      }
       if (data._pending) parts.push(t("chatSending") || "…");
       meta.textContent = parts.join(" · ");
       row.appendChild(meta);
@@ -1044,6 +1047,153 @@ export function initChat(opts) {
       stickToBottom = true;
     }
     updateScrollBottomBtn();
+  }
+
+  // ---------- Контекстне меню повідомлення (правий клік) ----------
+  let msgMenuEl = null;
+  let msgMenuCloseHandlers = null;
+
+  function closeMsgContextMenu() {
+    if (msgMenuEl && msgMenuEl.parentNode) {
+      msgMenuEl.parentNode.removeChild(msgMenuEl);
+    }
+    msgMenuEl = null;
+    if (msgMenuCloseHandlers) {
+      document.removeEventListener("mousedown", msgMenuCloseHandlers.onDown, true);
+      document.removeEventListener("keydown", msgMenuCloseHandlers.onKey, true);
+      document.removeEventListener("scroll", msgMenuCloseHandlers.onScroll, true);
+      window.removeEventListener("resize", msgMenuCloseHandlers.onScroll, true);
+      msgMenuCloseHandlers = null;
+    }
+  }
+
+  function openMsgContextMenu(clientX, clientY, { id, data, mine, deleted }) {
+    closeMsgContextMenu();
+
+    const menu = document.createElement("div");
+    menu.className = "chat-msg-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.tabIndex = -1;
+
+    const addItem = (label, opts = {}) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "chat-msg-context-item" +
+        (opts.danger ? " chat-msg-context-item--danger" : "") +
+        (opts.active ? " chat-msg-context-item--active" : "");
+      btn.setAttribute("role", "menuitem");
+      if (opts.icon) {
+        const ic = document.createElement("span");
+        ic.className = "chat-msg-context-icon";
+        ic.setAttribute("aria-hidden", "true");
+        ic.textContent = opts.icon;
+        btn.appendChild(ic);
+      }
+      const lab = document.createElement("span");
+      lab.className = "chat-msg-context-label";
+      lab.textContent = label;
+      btn.appendChild(lab);
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        closeMsgContextMenu();
+        if (opts.onClick) await opts.onClick();
+      };
+      menu.appendChild(btn);
+      return btn;
+    };
+
+    if (!deleted) {
+      addItem(t("chatCopy") || "Copy", {
+        icon: "⧉",
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(data.text || "");
+          } catch (_) {}
+        },
+      });
+      addItem(
+        data.pinned ? t("chatUnpin") || "Unpin" : t("chatPin") || "Pin",
+        {
+          icon: data.pinned ? "⤓" : "⤒",
+          active: !!data.pinned,
+          onClick: async () => {
+            try {
+              await updateDoc(doc(db, "chatMessages", id), {
+                pinned: !data.pinned,
+                pinnedAt: !data.pinned ? Date.now() : null,
+              });
+            } catch (err) {
+              console.warn("pin", err);
+              alert(err.message || "Failed");
+            }
+          },
+        }
+      );
+    }
+
+    if (mine && !deleted) {
+      const sep = document.createElement("div");
+      sep.className = "chat-msg-context-sep";
+      sep.setAttribute("role", "separator");
+      menu.appendChild(sep);
+
+      addItem(t("chatEdit") || "Edit", {
+        icon: "✎",
+        onClick: () => startEditMessage(id, data.text || ""),
+      });
+      addItem(t("chatDelete") || "Delete", {
+        icon: "✕",
+        danger: true,
+        onClick: async () => {
+          if (!confirm(t("chatDeleteConfirm") || "Delete this message?")) return;
+          try {
+            await updateDoc(doc(db, "chatMessages", id), {
+              deleted: true,
+              deletedAt: Date.now(),
+              text: "",
+            });
+          } catch (err) {
+            console.warn("delete", err);
+            alert(err.message || "Failed");
+          }
+        },
+      });
+    }
+
+    if (!menu.childElementCount) {
+      return;
+    }
+
+    document.body.appendChild(menu);
+    msgMenuEl = menu;
+
+    const pad = 8;
+    const mw = menu.offsetWidth;
+    const mh = menu.offsetHeight;
+    let left = clientX;
+    let top = clientY;
+    if (left + mw > window.innerWidth - pad) left = window.innerWidth - mw - pad;
+    if (top + mh > window.innerHeight - pad) top = window.innerHeight - mh - pad;
+    if (left < pad) left = pad;
+    if (top < pad) top = pad;
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+
+    const onDown = (e) => {
+      if (msgMenuEl && !msgMenuEl.contains(e.target)) closeMsgContextMenu();
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") closeMsgContextMenu();
+    };
+    const onScroll = () => closeMsgContextMenu();
+    msgMenuCloseHandlers = { onDown, onKey, onScroll };
+    requestAnimationFrame(() => {
+      document.addEventListener("mousedown", onDown, true);
+      document.addEventListener("keydown", onKey, true);
+      document.addEventListener("scroll", onScroll, true);
+      window.addEventListener("resize", onScroll, true);
+    });
   }
 
   function startEditMessage(id, text) {
