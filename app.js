@@ -47,6 +47,7 @@ import {
   parseTimeToMinutes,
   formatDateLocal,
   escapeHtml,
+  setSparkleGreeting,
   initThemeToggle,
   initBackgroundParticles,
   initSettingsPanel,
@@ -984,7 +985,11 @@ function applyStaticTranslations() {
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n");
     if (translations[currentLang][key] !== undefined) {
-      el.textContent = t(key);
+      if (key === "greetingTitle" && el.id === "greeting-title") {
+        setSparkleGreeting(el, t(key));
+      } else {
+        el.textContent = t(key);
+      }
     }
   });
 

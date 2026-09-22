@@ -50,6 +50,7 @@ import {
   parseTimeToMinutes,
   formatDateLocal,
   escapeHtml,
+  setSparkleGreeting,
   initThemeToggle,
   initBackgroundParticles,
   initSettingsPanel,
@@ -1203,7 +1204,7 @@ function updateGreeting() {
     greetingDateEl.textContent = text.charAt(0).toUpperCase() + text.slice(1);
   }
   if (greetingTitleEl) {
-    greetingTitleEl.textContent = t("greeting")(studentData ? studentData.name : "");
+    setSparkleGreeting(greetingTitleEl, t("greeting")(studentData ? studentData.name : ""));
   }
   if (greetingSubtitleEl) greetingSubtitleEl.textContent = "";
   if (pointsHeroValueEl) pointsHeroValueEl.textContent = String(studentData ? studentData.points ?? 0 : 0);

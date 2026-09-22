@@ -250,6 +250,27 @@ export function escapeHtml(str) {
   return div.innerHTML;
 }
 
+const SPARKLE_SVG =
+  '<svg class="sparkle-svg" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M93.781 51.578C95 50.969 96 49.359 96 48c0-1.375-1-2.969-2.219-3.578 0 0-22.868-1.514-31.781-10.422-8.915-8.91-10.438-31.781-10.438-31.781C50.969 1 49.375 0 48 0s-2.969 1-3.594 2.219c0 0-1.5 22.87-10.406 31.781-8.908 8.913-31.781 10.422-31.781 10.422C1 45.031 0 46.625 0 48c0 1.359 1 2.969 2.219 3.578 0 0 22.873 1.51 31.781 10.422 8.906 8.911 10.406 31.781 10.406 31.781C45.031 95 46.625 96 48 96s2.969-1 3.562-2.219c0 0 1.523-22.871 10.438-31.781 8.913-8.908 31.781-10.422 31.781-10.422Z"/></svg>';
+
+/**
+ * Crystal Glow для заголовка привітання (адаптація Originkit Sparkle під сайт).
+ * Безпечно для i18n: текст екранується.
+ */
+export function setSparkleGreeting(el, text) {
+  if (!el) return;
+  const safe = escapeHtml(String(text || ""));
+  el.classList.add("sparkle-greeting");
+  el.innerHTML =
+    SPARKLE_SVG.repeat(5) +
+    `<span class="sparkle-greeting-base">${safe}</span>` +
+    `<span class="sparkle-greeting-shine" aria-hidden="true">${safe}</span>`;
+  el.classList.remove("is-sparkling");
+  void el.offsetWidth;
+  el.classList.add("is-sparkling");
+  window.setTimeout(() => el.classList.remove("is-sparkling"), 900);
+}
+
 /** Чи є значення оцінки числовим балом (1–12), а не "Н" (відсутність) чи іншим нечисловим маркером. */
 export function isNumericGrade(value) {
   if (value === "Н" || value === "н" || String(value).toUpperCase() === "Н") return false;
@@ -258,16 +279,27 @@ export function isNumericGrade(value) {
 }
 
 
-// ---------- Фон: 3 режими (glass / network / plain) ----------
+// ---------- Фон: glass / network / plain + 3D swarm (hyperfield / earth / saturn) ----------
 export const GLASS_BG_STORAGE_KEY = "schooleballs-glass-bg"; // legacy
 export const BG_MODE_STORAGE_KEY = "schooleballs-bg-mode";
-export const BG_MODES = ["glass", "network", "plain"];
+export const BG_MODES = ["glass", "network", "plain", "hyperfield", "earth", "saturn"];
 
 const BG_MODE_LABELS = {
   glass: { uk: "Матове скло", en: "Frosted glass" },
   network: { uk: "Particle Network", en: "Particle Network" },
   plain: { uk: "Звичайний фон", en: "Plain background" },
+  hyperfield: { uk: "Гіперполе", en: "Hyperfield" },
+  earth: { uk: "Земля", en: "Earth" },
+  saturn: { uk: "Сатурн", en: "Saturn" },
 };
+
+/** Three.js сцени з окремих HTML (iframe, pointer-events: none). */
+const SWARM_BG_SOURCES = {
+  hyperfield: "chat_gpt.html",
+  earth: "earth_with_cloud.html",
+  saturn: "rainbow_saturn.html",
+};
+const SWARM_BG_MODES = new Set(["hyperfield", "earth", "saturn"]);
 
 /** Поточний режим фону. Міграція зі старого ключа glass on/off. */
 export function getBackgroundMode() {
@@ -502,6 +534,33 @@ function startParticleNetwork() {
   networkState.raf = requestAnimationFrame(frame);
 }
 
+function stopSwarmBackground() {
+  const frame = document.getElementById("bg-swarm-iframe");
+  if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+}
+
+function startSwarmBackground(mode) {
+  if (typeof document === "undefined") return;
+  const src = SWARM_BG_SOURCES[mode];
+  if (!src) return;
+  let frame = document.getElementById("bg-swarm-iframe");
+  if (frame) {
+    if (frame.dataset.mode === mode) return;
+    frame.src = src;
+    frame.dataset.mode = mode;
+    return;
+  }
+  frame = document.createElement("iframe");
+  frame.id = "bg-swarm-iframe";
+  frame.dataset.mode = mode;
+  frame.src = src;
+  frame.title = "Background animation";
+  frame.setAttribute("aria-hidden", "true");
+  frame.setAttribute("tabindex", "-1");
+  frame.loading = "lazy";
+  document.body.prepend(frame);
+}
+
 export function applyBackgroundMode(mode) {
   if (typeof document === "undefined") return;
   const m = BG_MODES.includes(mode) ? mode : getBackgroundMode();
@@ -511,6 +570,10 @@ export function applyBackgroundMode(mode) {
   root.classList.toggle("bg-mode-network", m === "network");
   root.classList.toggle("bg-mode-plain", m === "plain");
   root.classList.toggle("bg-mode-glass", m === "glass");
+  root.classList.toggle("bg-mode-swarm", SWARM_BG_MODES.has(m));
+  root.classList.toggle("bg-mode-hyperfield", m === "hyperfield");
+  root.classList.toggle("bg-mode-earth", m === "earth");
+  root.classList.toggle("bg-mode-saturn", m === "saturn");
 
   const layer = document.getElementById("bg-particles");
   if (m === "glass") {
@@ -518,17 +581,31 @@ export function applyBackgroundMode(mode) {
     const l = document.getElementById("bg-particles");
     if (l) l.classList.remove("hidden");
     stopParticleNetwork();
+    stopSwarmBackground();
   } else if (m === "network") {
     if (layer) layer.classList.add("hidden");
+    stopSwarmBackground();
     startParticleNetwork();
+  } else if (SWARM_BG_MODES.has(m)) {
+    if (layer) layer.classList.add("hidden");
+    stopParticleNetwork();
+    startSwarmBackground(m);
   } else {
     if (layer) layer.classList.add("hidden");
     stopParticleNetwork();
+    stopSwarmBackground();
   }
 
   // sync toggle buttons
   document.querySelectorAll(".bg-mode-toggle-btn").forEach((btn) => {
-    btn.classList.remove("is-glass", "is-network", "is-plain");
+    btn.classList.remove(
+      "is-glass",
+      "is-network",
+      "is-plain",
+      "is-hyperfield",
+      "is-earth",
+      "is-saturn"
+    );
     btn.classList.add(`is-${m}`);
     const lang = (localStorage.getItem("schooleballs-lang") || "uk").startsWith("en") ? "en" : "uk";
     const label = (BG_MODE_LABELS[m] && BG_MODE_LABELS[m][lang]) || m;
@@ -567,18 +644,25 @@ function ensureBgModeButtons() {
   const svgGlass = `<svg class="icon-bg-glass" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 14c3-1 5-4 5-7 0 0 5 2 5 7 0 3-2 6-5 6s-5-3-5-6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 8c1.5.5 3 2 3 4.5 0 2-1 4-3 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="11" r="1.2" fill="currentColor"/></svg>`;
   const svgNetwork = `<svg class="icon-bg-network" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="6" cy="7" r="2" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="2" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="2" stroke="currentColor" stroke-width="2"/><circle cx="19" cy="16" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M8 8l3.2 7.2M16.2 7.2l-3 7.5M16.5 8.2l1.8 6.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   const svgPlain = `<svg class="icon-bg-plain" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 15h16" stroke="currentColor" stroke-width="2"/></svg>`;
+  const svgHyper = `<svg class="icon-bg-hyperfield" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/></svg>`;
+  const svgEarth = `<svg class="icon-bg-earth" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c2.5 2.5 4 5.5 4 9s-1.5 6.5-4 9c-2.5-2.5-4-5.5-4-9s1.5-6.5 4-9Z" stroke="currentColor" stroke-width="2"/><path d="M5 8.5c2 .8 4 .8 6 0s4-.8 6 0M5 15.5c2-.8 4-.8 6 0s4 .8 6 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  const svgSaturn = `<svg class="icon-bg-saturn" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><ellipse cx="12" cy="12" rx="10" ry="3.5" stroke="currentColor" stroke-width="1.6" transform="rotate(-20 12 12)"/></svg>`;
 
+  const allIcons = svgGlass + svgNetwork + svgPlain + svgHyper + svgEarth + svgSaturn;
   document.querySelectorAll(".theme-toggle-btn").forEach((themeBtn) => {
     const parent = themeBtn.parentElement;
     if (!parent) return;
-    if (parent.querySelector(".bg-mode-toggle-btn")) return;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "bg-mode-toggle-btn";
-    btn.setAttribute("aria-label", "Режим фону");
-    btn.innerHTML = svgGlass + svgNetwork + svgPlain;
-    // left of theme toggle
-    parent.insertBefore(btn, themeBtn);
+    let btn = parent.querySelector(".bg-mode-toggle-btn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "bg-mode-toggle-btn";
+      btn.setAttribute("aria-label", "Режим фону");
+      parent.insertBefore(btn, themeBtn);
+    }
+    if (!btn.querySelector(".icon-bg-hyperfield") || !btn.querySelector(".icon-bg-earth") || !btn.querySelector(".icon-bg-saturn")) {
+      btn.innerHTML = allIcons;
+    }
   });
 }
 
