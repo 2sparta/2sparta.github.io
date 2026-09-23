@@ -1,1 +1,11 @@
-(empty)
+node_modules
+.vercel
+.tanstack
+dist
+.grok
+screenshots
+attachments
+artifacts
+.project_id
+*.log
+.DS_Store

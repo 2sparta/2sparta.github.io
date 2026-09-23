@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Nunito", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-forest: #1b4d3e;
+  --color-forest-deep: #14382e;
+  --color-forest-mid: #2a6a54;
+  --color-forest-hover: #245c49;
+  --color-cream: #eef3ea;
+  --color-cream-deep: #e4ede0;
+  --color-paper: #f7f4ec;
+  --color-paper-2: #f3efe4;
+  --color-ink: #1a3d32;
+  --color-ink-soft: #3d5a4e;
+  --color-muted: #5c7368;
+  --color-terracotta: #c17a5a;
+  --color-sage: #5f8a6a;
+  --color-leaf-tan: #c4a574;
+  --color-hairline: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  --color-tile-forest: #215748;
+  --color-tile-sage: #5f8a6a;
+  --color-tile-terra: #c17a5a;
+  --color-tile-cream: #e8dcc8;
+  --color-tile-deep: #1b4d3e;
+  --color-sidebar: #1b4d3e;
+  --color-canvas: #eef3ea;
+  --color-avatar: #d5eadc;
+
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 18px 40px rgba(26, 61, 50, 0.08);
+  --shadow-soft: 0 8px 24px rgba(26, 61, 50, 0.06);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-theme="dark"] {
+  --color-forest: #14362c;
+  --color-forest-deep: #0d241e;
+  --color-forest-mid: #3d9a78;
+  --color-forest-hover: #4db08a;
+  --color-cream: #12201b;
+  --color-cream-deep: #182820;
+  --color-paper: #1a2a24;
+  --color-paper-2: #20332b;
+  --color-ink: #e8f3ec;
+  --color-ink-soft: #c5d8cc;
+  --color-muted: #8fa89a;
+  --color-terracotta: #e08b68;
+  --color-sage: #7fba90;
+  --color-hairline: color-mix(in srgb, #e8f3ec 12%, transparent);
+  --color-tile-forest: #1e4a3c;
+  --color-tile-sage: #4e7d5a;
+  --color-tile-terra: #b56a4c;
+  --color-tile-cream: #3a3228;
+  --color-tile-deep: #10241c;
+  --color-sidebar: #0f241d;
+  --color-canvas: #0f1a15;
+  --color-avatar: #243830;
+  --shadow-card: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+.nature-scene {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.nature-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(8px);
+  opacity: 0.55;
+}
+.nature-blob-a {
+  width: min(58vw, 720px);
+  height: min(58vw, 720px);
+  left: -18%;
+  top: -22%;
+  background: radial-gradient(circle at 40% 40%, #c5d9b8 0%, #dfe8d4 55%, transparent 72%);
+}
+.nature-blob-b {
+  width: min(50vw, 640px);
+  height: min(50vw, 640px);
+  right: -16%;
+  bottom: -24%;
+  background: radial-gradient(circle at 50% 50%, #d7c4a3 0%, #e8dfcf 50%, transparent 70%);
+}
+.nature-variant-forest .nature-blob-a {
+  background: radial-gradient(circle at 40% 40%, #2f6b54 0%, #1b4d3e 60%, transparent 75%);
+  opacity: 0.7;
+}
+.nature-variant-forest .nature-blob-b {
+  background: radial-gradient(circle at 50% 50%, #6b8f5a 0%, #1b4d3e 55%, transparent 75%);
+}
+.nature-photo {
+  position: absolute;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+.nature-photo-left {
+  left: -10%;
+  top: 4%;
+  width: min(50vw, 640px);
+  height: min(78vh, 720px);
+  object-position: left center;
+  mask-image: linear-gradient(90deg, #000 40%, transparent 96%);
+  -webkit-mask-image: linear-gradient(90deg, #000 40%, transparent 96%);
+}
+.nature-photo-right {
+  right: -12%;
+  bottom: -8%;
+  width: min(52vw, 680px);
+  height: min(82vh, 760px);
+  object-position: right center;
+  mask-image: linear-gradient(270deg, #000 36%, transparent 94%);
+  -webkit-mask-image: linear-gradient(270deg, #000 36%, transparent 94%);
+  transform: scaleX(-1);
+}
+
+.app-leaf {
+  position: absolute;
+  right: -80px;
+  top: 40px;
+  width: min(340px, 36vw);
+  height: min(520px, 70vh);
+  object-fit: cover;
+  object-position: right center;
+  mask-image: linear-gradient(270deg, #000 20%, transparent 88%);
+  -webkit-mask-image: linear-gradient(270deg, #000 20%, transparent 88%);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-theme="dark"] .app-leaf {
+  opacity: 0.28;
+}
+
+@media (max-width: 860px) {
+  .nature-photo-left,
+  .nature-photo-right {
+    opacity: 0.55;
+  }
+  .app-leaf {
+    opacity: 0.28;
+    width: 220px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
