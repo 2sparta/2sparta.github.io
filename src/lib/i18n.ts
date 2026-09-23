@@ -17,6 +17,8 @@ export const STRINGS = {
     continueGoogle: "Продовжити з Google",
     continueX: "Продовжити з X",
     authError: "Невірний email або пароль.",
+    unauthorizedDomain:
+      "Цей сайт ще не дозволений у Firebase. У консолі: Authentication → Settings → Authorized domains — додайте адресу сайту.",
     registerOk: "Акаунт створено. Увійдіть, якщо сесію не відкрито автоматично.",
     weakPassword: "Пароль має містити щонайменше 8 символів.",
     emailInUse: "Цей email вже зареєстрований.",
@@ -279,6 +281,8 @@ export const STRINGS = {
     continueGoogle: "Continue with Google",
     continueX: "Continue with X",
     authError: "Invalid email or password.",
+    unauthorizedDomain:
+      "This site is not allowed in Firebase yet. In the console: Authentication → Settings → Authorized domains — add this site's address.",
     registerOk: "Account created. Sign in if the session did not open automatically.",
     weakPassword: "Password must be at least 8 characters.",
     emailInUse: "This email is already registered.",

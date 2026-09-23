@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { GROK_PROVIDERS, authClient, signIn } from "@/lib/auth/client";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { STRINGS, type Lang } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { AuthCard, AuthLayout, Field, PrimaryButton, SecondaryButton } from "./auth-layout";
@@ -13,8 +14,6 @@ export function AuthForm({ role }: { role: "teacher" | "student" }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const callbackURL = role === "teacher" ? "/onboarding/school" : "/onboarding/link";
 
   async function afterAuth() {
     try {
@@ -29,14 +28,10 @@ export function AuthForm({ role }: { role: "teacher" | "student" }) {
     setError("");
     setBusy(true);
     try {
-      const { error: err } = await authClient.signIn.email({ email, password });
-      if (err) {
-        setError(mapAuthError(err.message ?? "", lang));
-        return;
-      }
+      await signInWithEmailAndPassword(auth(), email.trim(), password);
       await afterAuth();
     } catch (e) {
-      setError(mapAuthError(e instanceof Error ? e.message : "", lang));
+      setError(mapAuthError(e, lang));
     } finally {
       setBusy(false);
     }
@@ -50,15 +45,10 @@ export function AuthForm({ role }: { role: "teacher" | "student" }) {
     }
     setBusy(true);
     try {
-      const name = email.split("@")[0] || "User";
-      const { error: err } = await authClient.signUp.email({ email, password, name });
-      if (err) {
-        setError(mapAuthError(err.message ?? "", lang));
-        return;
-      }
+      await createUserWithEmailAndPassword(auth(), email.trim(), password);
       await afterAuth();
     } catch (e) {
-      setError(mapAuthError(e instanceof Error ? e.message : "", lang));
+      setError(mapAuthError(e, lang));
     } finally {
       setBusy(false);
     }
@@ -117,39 +107,17 @@ export function AuthForm({ role }: { role: "teacher" | "student" }) {
             </Link>
           )}
         </p>
-        <div className="mt-5 flex items-center gap-3">
-          <span className="h-px flex-1 bg-hairline" />
-          <span className="text-xs text-muted">{t.orContinue}</span>
-          <span className="h-px flex-1 bg-hairline" />
-        </div>
-        <div className="mt-3 grid gap-2">
-          {GROK_PROVIDERS.map((p) => (
-            <button
-              key={p.providerId}
-              type="button"
-              onClick={() => {
-                try {
-                  sessionStorage.setItem("kp-intended-role", role);
-                } catch {
-                  /* ignore */
-                }
-                void signIn(p.providerId, { callbackURL });
-              }}
-              className="h-11 rounded-full border border-forest/20 bg-white/50 font-display text-sm font-bold text-ink hover:bg-white"
-            >
-              {p.providerId.includes("google") ? t.continueGoogle : t.continueX}
-            </button>
-          ))}
-        </div>
       </AuthCard>
     </AuthLayout>
   );
 }
 
-function mapAuthError(msg: string | undefined, lang: Lang) {
+function mapAuthError(err: unknown, lang: Lang) {
   const t = STRINGS[lang];
-  const m = (msg ?? "").toLowerCase();
-  if (m.includes("already") || m.includes("exists")) return t.emailInUse;
-  if (m.includes("password") && m.includes("8")) return t.weakPassword;
+  const code = typeof err === "object" && err && "code" in err ? String((err as { code: string }).code) : "";
+  const m = (err instanceof Error ? err.message : "").toLowerCase();
+  if (code === "auth/unauthorized-domain" || m.includes("unauthorized-domain")) return t.unauthorizedDomain;
+  if (code === "auth/email-already-in-use" || m.includes("already") || m.includes("exists")) return t.emailInUse;
+  if (code === "auth/weak-password" || (m.includes("password") && m.includes("8"))) return t.weakPassword;
   return t.authError;
 }

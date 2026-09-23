@@ -6,7 +6,7 @@ import { RequireStep } from "@/components/session-gate";
 import { enterDemoAsStudent, linkStudent } from "@/lib/school/server";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
-import { signOut } from "@/lib/auth/client";
+import { signOutApp } from "@/lib/firebase";
 import { hasGateSessionMarker } from "@/lib/auth/gate-session-marker";
 
 export const Route = createFileRoute("/onboarding/link")({ component: Page });
@@ -74,7 +74,7 @@ function LinkScreen() {
         </SecondaryButton>
         <p className="mt-2 text-center text-xs leading-relaxed text-muted">{t.demoStudentHint}</p>
         {!gate && (
-          <button type="button" className="mt-2 h-12 w-full font-display text-sm font-bold text-muted" onClick={() => void signOut()}>
+          <button type="button" className="mt-2 h-12 w-full font-display text-sm font-bold text-muted" onClick={() => void signOutApp()}>
             {t.logout}
           </button>
         )}

@@ -7,7 +7,7 @@ import { completeSetup, listSubjects } from "@/lib/school/server";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { cn } from "@/lib/cn";
-import { signOut } from "@/lib/auth/client";
+import { signOutApp } from "@/lib/firebase";
 import { hasGateSessionMarker } from "@/lib/auth/gate-session-marker";
 
 export const Route = createFileRoute("/onboarding/setup")({ component: Page });
@@ -107,7 +107,7 @@ function SetupScreen() {
           {t.saveContinue}
         </PrimaryButton>
         {!gate && (
-          <button type="button" className="mt-2 h-12 w-full font-display text-sm font-bold text-muted" onClick={() => void signOut()}>
+          <button type="button" className="mt-2 h-12 w-full font-display text-sm font-bold text-muted" onClick={() => void signOutApp()}>
             {t.logout}
           </button>
         )}
