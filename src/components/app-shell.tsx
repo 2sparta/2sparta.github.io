@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   ChevronDown,
+  Coins,
   Home,
   LogOut,
   Menu,
@@ -23,6 +24,7 @@ import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import type { Profile } from "@/lib/school/types";
 import { BrandMark, ThemeLangPill } from "./theme-lang";
+import { NotificationsBell } from "./notifications-bell";
 
 const TEACHER_NAV = [
   { to: "/app", icon: Home, key: "tabHome" as const },
@@ -40,7 +42,9 @@ const STUDENT_NAV = [
   { to: "/app", icon: Home, key: "tabHome" as const },
   { to: "/app/schedule", icon: CalendarDays, key: "tabSchedule" as const },
   { to: "/app/tasks", icon: BookOpen, key: "tabTasks" as const },
-  { to: "/app/grades", icon: Star, key: "tabPoints" as const },
+  { to: "/app/grades", icon: Star, key: "tabGrades" as const },
+  { to: "/app/students", icon: Coins, key: "tabPoints" as const },
+  { to: "/app/announcements", icon: Megaphone, key: "tabAnnouncements" as const },
   { to: "/app/selfgov", icon: Users, key: "tabSelfGov" as const },
   { to: "/app/chat", icon: MessageCircle, key: "tabChat" as const },
 ];
@@ -131,6 +135,7 @@ export function AppShell({ profile }: { profile: Profile }) {
           </button>
           <div className="ml-auto flex items-center gap-2.5">
             <ThemeLangPill />
+            <NotificationsBell />
             <div className="flex items-center gap-2 rounded-full border border-hairline bg-white/70 py-1 pr-2.5 pl-1">
               {user?.profileImageUrl ? (
                 <img src={user.profileImageUrl} alt="" className="size-8 rounded-full object-cover" />

@@ -1,7 +1,7 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { generateTeacherInvite, listTeachers } from "@/lib/school/server";
+import { deleteTeacherInvite, generateTeacherInvite, listTeachers } from "@/lib/school/server";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
@@ -28,6 +28,10 @@ function Page() {
       await qc.invalidateQueries({ queryKey: ["teachers"] });
     },
   });
+  const drop = useMutation({
+    mutationFn: (code: string) => deleteTeacherInvite({ data: { code } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teachers"] }),
+  });
 
   if (me.data && me.data.profile.role !== "teacher") return <Navigate to="/app" />;
 
@@ -51,16 +55,21 @@ function Page() {
                 {data.data.invites.map((i) => (
                   <li key={i.code} className="flex items-center justify-between rounded-xl bg-cream/50 px-3 py-2">
                     <code className="font-mono tracking-wider">{i.code}</code>
-                    <button
-                      type="button"
-                      className="text-xs font-bold text-forest-mid"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(i.code);
-                        toast.success(t.codeCopied);
-                      }}
-                    >
-                      {t.copied}
-                    </button>
+                    <span className="flex gap-3">
+                      <button
+                        type="button"
+                        className="text-xs font-bold text-forest-mid"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(i.code);
+                          toast.success(t.codeCopied);
+                        }}
+                      >
+                        {t.copied}
+                      </button>
+                      <button type="button" className="text-xs text-terracotta" onClick={() => drop.mutate(i.code)}>
+                        {t.deleteInvite}
+                      </button>
+                    </span>
                   </li>
                 ))}
               </ul>

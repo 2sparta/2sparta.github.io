@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addAnnouncement, listAnnouncements, listClasses } from "@/lib/school/server";
+import { addAnnouncement, deleteAnnouncement, listAnnouncements, listClasses } from "@/lib/school/server";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
@@ -26,8 +26,13 @@ function Page() {
     onSuccess: async () => {
       setTitle("");
       setBody("");
+      setClassIds([]);
       await qc.invalidateQueries({ queryKey: ["announcements"] });
     },
+  });
+  const del = useMutation({
+    mutationFn: (id: string) => deleteAnnouncement({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["announcements"] }),
   });
 
   return (
@@ -73,7 +78,14 @@ function Page() {
           <ul className="space-y-3">
             {(list.data?.announcements ?? []).map((a) => (
               <li key={a.id} className="rounded-2xl bg-cream/50 p-4">
-                <p className="font-display text-lg font-extrabold">{a.title}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-display text-lg font-extrabold">{a.title}</p>
+                  {isTeacher && (
+                    <button type="button" className="text-xs text-terracotta" onClick={() => del.mutate(a.id)}>
+                      {t.delete}
+                    </button>
+                  )}
+                </div>
                 <p className="text-xs text-muted">
                   {t.from} {a.authorName}
                 </p>

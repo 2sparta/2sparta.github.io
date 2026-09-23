@@ -9,6 +9,7 @@ export type Profile = {
   groupId: string | null;
   rosterId: string | null;
   isAdmin: boolean;
+  isStarosta: boolean;
   setupComplete: boolean;
   email: string | null;
   schoolName: string | null;
@@ -47,6 +48,7 @@ export type RosterStudent = {
 export type ScheduleEntry = {
   id: string;
   classId: string;
+  groupId: string | null;
   weekday: string;
   period: number;
   startTime: string;
@@ -54,6 +56,14 @@ export type ScheduleEntry = {
   subjectId: string | null;
   subjectName: string | null;
   room: string;
+  meetLink: string;
+  customTimes: boolean;
+  overrideSubjectId: string | null;
+  overrideSubjectName: string | null;
+  overrideWeek: string | null;
+  shownSubjectId: string | null;
+  shownSubjectName: string | null;
+  overrideOn: boolean;
 };
 
 export type Lesson = {
@@ -67,6 +77,8 @@ export type Lesson = {
   hasHomework: boolean;
   homeworkDue: string | null;
   classIds: string[];
+  publishAt: string | null;
+  addedByStarosta: boolean;
 };
 
 export type Grade = {
@@ -79,6 +91,7 @@ export type Grade = {
   value: string;
   comment: string;
   createdAt: string;
+  finalPeriod: string | null;
 };
 
 export type Announcement = {
@@ -105,6 +118,9 @@ export type ChatMessage = {
   authorName: string;
   body: string;
   createdAt: string;
+  deleted: boolean;
+  subjectName: string;
+  edited: boolean;
 };
 
 export type Election = {
@@ -117,4 +133,13 @@ export type Election = {
   candidates: { rosterId: string; name: string; votes: number }[];
   myCandidate: boolean;
   myVote: string | null;
+};
+
+export type Notice = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: number;
+  read: boolean;
+  type: string;
 };
