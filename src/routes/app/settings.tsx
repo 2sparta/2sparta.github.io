@@ -27,14 +27,14 @@ function Page() {
             <button
               type="button"
               onClick={() => setTheme("light")}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${theme === "light" ? "bg-forest text-paper" : "bg-paper-2"}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${theme === "light" ? "bg-forest text-paper" : "bg-surface-2"}`}
             >
               {t.themeLight}
             </button>
             <button
               type="button"
               onClick={() => setTheme("dark")}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${theme === "dark" ? "bg-forest text-paper" : "bg-paper-2"}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${theme === "dark" ? "bg-forest text-paper" : "bg-surface-2"}`}
             >
               {t.themeDark}
             </button>
@@ -46,14 +46,14 @@ function Page() {
             <button
               type="button"
               onClick={() => setLang("uk")}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${lang === "uk" ? "bg-forest text-paper" : "bg-paper-2"}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${lang === "uk" ? "bg-forest text-paper" : "bg-surface-2"}`}
             >
               UA
             </button>
             <button
               type="button"
               onClick={() => setLang("en")}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${lang === "en" ? "bg-forest text-paper" : "bg-paper-2"}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${lang === "en" ? "bg-forest text-paper" : "bg-surface-2"}`}
             >
               EN
             </button>

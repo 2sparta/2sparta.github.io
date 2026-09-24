@@ -37,7 +37,7 @@ export function AuthLayout({
 
 export function AuthCard({ children }: { children: ReactNode }) {
   return (
-    <div className="relative z-10 mt-3 w-full max-w-[520px] rounded-[32px] border border-white/40 bg-paper px-9 py-9 shadow-[var(--shadow-card)] max-sm:px-5">
+    <div className="relative z-10 mt-3 w-full max-w-[520px] rounded-[32px] border border-white/40 bg-surface px-9 py-9 shadow-[var(--shadow-card)] max-sm:px-5">
       {children}
     </div>
   );
@@ -54,7 +54,7 @@ export function Field({
       </span>
       <input
         {...props}
-        className="h-12 w-full rounded-full border border-transparent bg-paper-2 pr-4 pl-11 text-[15px] text-ink outline-none transition placeholder:text-muted focus:border-forest-mid/35 focus:bg-paper focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-forest)_12%,transparent)]"
+        className="h-12 w-full rounded-full border border-transparent bg-surface-2 pr-4 pl-11 text-[15px] text-ink outline-none transition placeholder:text-muted focus:border-forest-mid/35 focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-forest)_12%,transparent)]"
       />
     </label>
   );

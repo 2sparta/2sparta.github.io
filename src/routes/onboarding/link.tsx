@@ -57,7 +57,7 @@ function LinkScreen() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder={t.linkPh}
-          className="mb-3 h-12 w-full rounded-full border border-transparent bg-paper-2 px-4 text-center text-[15px] tracking-widest outline-none focus:border-forest-mid/35 focus:bg-paper"
+          className="mb-3 h-12 w-full rounded-full border border-transparent bg-surface-2 px-4 text-center text-[15px] tracking-widest outline-none focus:border-forest-mid/35 focus:bg-surface"
         />
         <PrimaryButton
           type="button"

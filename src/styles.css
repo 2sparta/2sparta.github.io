@@ -12,6 +12,8 @@
   --color-cream-deep: #e4ede0;
   --color-paper: #f7f4ec;
   --color-paper-2: #f3efe4;
+  --color-surface: #f7f4ec;
+  --color-surface-2: #f3efe4;
   --color-ink: #1a3d32;
   --color-ink-soft: #3d5a4e;
   --color-muted: #5c7368;
@@ -27,6 +29,13 @@
   --color-sidebar: #1b4d3e;
   --color-canvas: #eef3ea;
   --color-avatar: #d5eadc;
+  --color-medal-gold: #8d6a12;
+  --color-medal-silver: #5c6770;
+  --color-medal-bronze: #8a5228;
+  --color-medal-gold-bg: #f8e7b0;
+  --color-medal-silver-bg: #e4e9ee;
+  --color-medal-bronze-bg: #f4dcc8;
+  --color-medal-ink: #1c1408;
 
   --radius-xs: 8px;
   --radius-sm: 12px;
@@ -42,28 +51,36 @@
 }
 
 html[data-theme="dark"] {
-  --color-forest: #14362c;
-  --color-forest-deep: #0d241e;
-  --color-forest-mid: #3d9a78;
-  --color-forest-hover: #4db08a;
-  --color-cream: #12201b;
-  --color-cream-deep: #182820;
-  --color-paper: #1a2a24;
-  --color-paper-2: #20332b;
-  --color-ink: #e8f3ec;
-  --color-ink-soft: #c5d8cc;
-  --color-muted: #8fa89a;
-  --color-terracotta: #e08b68;
-  --color-sage: #7fba90;
-  --color-hairline: color-mix(in srgb, #e8f3ec 12%, transparent);
-  --color-tile-forest: #1e4a3c;
-  --color-tile-sage: #4e7d5a;
-  --color-tile-terra: #b56a4c;
-  --color-tile-cream: #3a3228;
-  --color-tile-deep: #10241c;
-  --color-sidebar: #0f241d;
-  --color-canvas: #0f1a15;
-  --color-avatar: #243830;
+  --color-forest: #3dba8c;
+  --color-forest-deep: #10281f;
+  --color-forest-mid: #47c896;
+  --color-forest-hover: #62d4a8;
+  --color-cream: #243f36;
+  --color-cream-deep: #2c4b40;
+  --color-paper: #f4faf6;
+  --color-paper-2: #e7f3ec;
+  --color-surface: #1c3830;
+  --color-surface-2: #275046;
+  --color-ink: #f5fbf8;
+  --color-ink-soft: #dceee5;
+  --color-muted: #c9e0d5;
+  --color-terracotta: #f0a07c;
+  --color-sage: #9fd7b8;
+  --color-hairline: color-mix(in srgb, #f5fbf8 30%, transparent);
+  --color-tile-forest: #1f6b54;
+  --color-tile-sage: #3f8a62;
+  --color-tile-terra: #c47a58;
+  --color-tile-cream: #4a3d30;
+  --color-tile-deep: #164536;
+  --color-sidebar: #0c1c17;
+  --color-canvas: #081410;
+  --color-avatar: #2c5246;
+  --color-medal-gold: #f3c75a;
+  --color-medal-silver: #d5dee6;
+  --color-medal-bronze: #e8a56a;
+  --color-medal-gold-bg: #3e3416;
+  --color-medal-silver-bg: #2c363e;
+  --color-medal-bronze-bg: #3d2a1c;
   --shadow-card: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 

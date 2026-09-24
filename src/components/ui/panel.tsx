@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 export function Panel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cn("mb-4 rounded-[22px] border border-hairline bg-paper p-5 shadow-[var(--shadow-soft)]", className)}>
+    <section className={cn("mb-4 rounded-[22px] border border-hairline bg-surface p-5 shadow-[var(--shadow-soft)]", className)}>
       {children}
     </section>
   );
@@ -22,7 +22,7 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "h-11 rounded-full border border-transparent bg-paper-2 px-4 text-sm text-ink outline-none focus:border-forest-mid/35 focus:bg-white",
+        "h-11 rounded-full border border-transparent bg-surface-2 px-4 text-sm text-ink outline-none focus:border-forest-mid/35 focus:bg-surface",
         props.className,
       )}
     />
@@ -34,7 +34,7 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className={cn(
-        "h-11 rounded-full border border-transparent bg-paper-2 px-4 text-sm text-ink outline-none focus:border-forest-mid/35",
+        "h-11 rounded-full border border-transparent bg-surface-2 px-4 text-sm text-ink outline-none focus:border-forest-mid/35",
         props.className,
       )}
     />

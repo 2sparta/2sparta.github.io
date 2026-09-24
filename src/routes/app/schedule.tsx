@@ -163,7 +163,7 @@ function SchedulePage() {
   return (
     <div>
       {live && live.phase !== "none" && (
-        <section className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-hairline bg-white/80 px-4 py-3">
+        <section className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-hairline bg-surface px-4 py-3">
           <div>
             <p className="text-xs font-bold tracking-wide text-forest-mid uppercase">
               {live.phase === "lesson" ? t.liveLesson : live.phase === "break" ? t.liveBreak : t.nextLesson}
@@ -217,7 +217,7 @@ function SchedulePage() {
                         if (name) addClassMut.mutate(name);
                       }
                     }}
-                    className="h-9 w-44 rounded-lg border border-forest bg-paper px-3 text-sm text-ink outline-none"
+                    className="h-9 w-44 rounded-lg border border-forest bg-surface px-3 text-sm text-ink outline-none"
                   />
                 ) : (
                   <RoundBtn label={t.addClass} disabled={addClassMut.isPending} onClick={() => setDraft({ kind: "class", name: "" })}>
@@ -265,7 +265,7 @@ function SchedulePage() {
                         if (name) addGroupMut.mutate(name);
                       }
                     }}
-                    className="h-9 w-44 rounded-lg border border-forest bg-paper px-3 text-sm text-ink outline-none"
+                    className="h-9 w-44 rounded-lg border border-forest bg-surface px-3 text-sm text-ink outline-none"
                   />
                 ) : (
                   <RoundBtn
@@ -571,7 +571,7 @@ function RoundBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "grid size-9 place-items-center rounded-lg border bg-paper disabled:opacity-40",
+        "grid size-9 place-items-center rounded-lg border bg-surface disabled:opacity-40",
         tone === "danger"
           ? "border-terracotta text-terracotta hover:bg-terracotta/10"
           : "border-forest text-forest hover:bg-forest/10",
@@ -605,7 +605,7 @@ function IconBtn({
       onClick={onClick}
       className={cn(
         "grid size-11 place-items-center rounded-xl border disabled:opacity-40",
-        active ? "border-forest bg-forest text-paper" : "border-hairline bg-paper text-ink hover:border-forest hover:text-forest",
+        active ? "border-forest bg-forest text-paper" : "border-hairline bg-surface text-ink hover:border-forest hover:text-forest",
       )}
     >
       {children}
@@ -636,7 +636,7 @@ function TimePair({
         onBlur={() => {
           if (a && b && (a !== start || b !== end)) onCommit(a, b);
         }}
-        className="h-8 rounded-lg border border-hairline bg-paper px-1 text-xs"
+        className="h-8 rounded-lg border border-hairline bg-surface px-1 text-xs"
       />
       <span className="text-muted">–</span>
       <input
@@ -647,7 +647,7 @@ function TimePair({
         onBlur={() => {
           if (a && b && (a !== start || b !== end)) onCommit(a, b);
         }}
-        className="h-8 rounded-lg border border-hairline bg-paper px-1 text-xs"
+        className="h-8 rounded-lg border border-hairline bg-surface px-1 text-xs"
       />
     </span>
   );

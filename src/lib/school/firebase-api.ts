@@ -1577,6 +1577,7 @@ export async function listMessages(input?: { data?: { chatId: string } }) {
       deleted: d.data().deleted === true,
       subjectName: s(d.data().subjectName),
       edited: Boolean(d.data().editedAt),
+      pinned: d.data().pinned === true,
     }))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .slice(-200);
@@ -1594,12 +1595,15 @@ export async function sendMessage(input?: { data?: { chatId: string; body: strin
   if (!members.includes(p.userId)) throw new Error("Forbidden");
   const id = newId();
   const createdAt = new Date().toISOString();
+  const kind = s(chat.data()?.kind);
+  const subjectName = kind === "class" ? (data.subjectName ?? "").trim() : "";
   await setDoc(doc(db(), "chatMessages", id), {
     chatId: data.chatId,
     senderUid: p.userId,
     authorName: p.displayName,
     body,
-    subjectName: (data.subjectName ?? "").trim(),
+    subjectName,
+    pinned: false,
     deleted: false,
     createdAt,
   });
@@ -2011,6 +2015,20 @@ export async function createGroupChat(input?: { data?: { name: string; memberUid
     lastAt: null,
   });
   return { id };
+}
+
+export async function pinMessage(input?: { data?: { messageId: string; pinned: boolean } }) {
+  const p = await requireProfile();
+  const data = dataOf(input);
+  if (!data?.messageId) throw new Error("Missing");
+  const ref = doc(db(), "chatMessages", data.messageId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Not found");
+  const chat = await getDoc(doc(db(), "chats", s(snap.data().chatId)));
+  const members = (chat.data()?.memberUids ?? []) as string[];
+  if (!members.includes(p.userId)) throw new Error("Forbidden");
+  await updateDoc(ref, { pinned: Boolean(data.pinned), pinnedAt: data.pinned ? Date.now() : null });
+  return { ok: true };
 }
 
 export async function editMessage(input?: { data?: { messageId: string; body: string } }) {

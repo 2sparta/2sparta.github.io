@@ -99,7 +99,7 @@ function RoleCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        "rounded-[20px] border-[1.5px] bg-paper p-4 text-left transition",
+        "rounded-[20px] border-[1.5px] bg-surface p-4 text-left transition",
         selected
           ? "border-forest-mid bg-forest/[0.07] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-forest)_12%,transparent)]"
           : "border-hairline",

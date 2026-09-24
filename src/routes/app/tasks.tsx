@@ -164,7 +164,7 @@ function TasksPage() {
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={t.lessonContent}
                 rows={3}
-                className="rounded-2xl border border-transparent bg-paper-2 px-4 py-3 text-sm outline-none focus:border-forest-mid/35 focus:bg-white"
+                className="rounded-2xl border border-transparent bg-surface-2 px-4 py-3 text-sm outline-none focus:border-forest-mid/35 focus:bg-surface"
               />
               <div className="flex flex-wrap gap-2">
                 <label className="text-xs font-bold text-muted">
@@ -193,7 +193,7 @@ function TasksPage() {
                       key={c.id}
                       type="button"
                       onClick={() => setClassIds((p) => (on ? p.filter((x) => x !== c.id) : [...p, c.id]))}
-                      className={cn("rounded-full px-3 py-1 text-xs font-bold", on ? "bg-forest text-paper" : "bg-paper-2")}
+                      className={cn("rounded-full px-3 py-1 text-xs font-bold", on ? "bg-forest text-paper" : "bg-surface-2")}
                     >
                       {c.name}
                     </button>
@@ -239,7 +239,7 @@ function TasksPage() {
                 onChange={(e) => setStarBody(e.target.value)}
                 placeholder={t.lessonContent}
                 rows={2}
-                className="rounded-2xl bg-paper-2 px-4 py-3 text-sm outline-none"
+                className="rounded-2xl bg-surface-2 px-4 py-3 text-sm outline-none"
               />
               <TextInput type="date" value={starDate} onChange={(e) => setStarDate(e.target.value)} />
               <PillButton type="button" disabled={!starTitle.trim() || !starSubject || starHw.isPending} onClick={() => starHw.mutate()}>
@@ -257,7 +257,7 @@ function TasksPage() {
               key={v}
               type="button"
               onClick={() => setView(v)}
-              className={cn("rounded-full px-3 py-1.5 font-display text-xs font-bold", view === v ? "bg-forest text-paper" : "bg-paper-2")}
+              className={cn("rounded-full px-3 py-1.5 font-display text-xs font-bold", view === v ? "bg-forest text-paper" : "bg-surface-2")}
             >
               {v === "today" ? t.viewToday : v === "tomorrow" ? t.viewTomorrow : t.viewAll}
             </button>
@@ -268,7 +268,7 @@ function TasksPage() {
               key={v}
               type="button"
               onClick={() => setKind(v)}
-              className={cn("rounded-full px-3 py-1.5 font-display text-xs font-bold", kind === v ? "bg-forest text-paper" : "bg-paper-2")}
+              className={cn("rounded-full px-3 py-1.5 font-display text-xs font-bold", kind === v ? "bg-forest text-paper" : "bg-surface-2")}
             >
               {v === "lessons" ? t.viewLessons : t.viewHw}
             </button>
@@ -454,7 +454,7 @@ function GradeBox({ initial, onSave }: { initial: string; onSave: (value: string
         if (value.trim() !== initial) onSave(value.trim());
       }}
       placeholder="—"
-      className="h-8 w-16 rounded-lg bg-paper px-2 text-center text-sm"
+      className="h-8 w-16 rounded-lg bg-surface px-2 text-center text-sm"
     />
   );
 }

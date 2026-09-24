@@ -121,6 +121,7 @@ export type ChatMessage = {
   deleted: boolean;
   subjectName: string;
   edited: boolean;
+  pinned: boolean;
 };
 
 export type Election = {

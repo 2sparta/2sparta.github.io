@@ -24,7 +24,7 @@ import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import type { Profile } from "@/lib/school/types";
 import { BrandMark, ThemeLangPill } from "./theme-lang";
-import { NotificationsBell } from "./notifications-bell";
+import { NotificationsNav } from "./notifications-bell";
 
 const TEACHER_NAV = [
   { to: "/app", icon: Home, key: "tabHome" as const },
@@ -101,6 +101,7 @@ export function AppShell({ profile }: { profile: Profile }) {
             );
           })}
         </nav>
+        <NotificationsNav />
         <div className="mt-auto flex flex-col gap-1 border-t border-white/10 pt-3">
           <Link
             to="/app/settings"
@@ -127,7 +128,7 @@ export function AppShell({ profile }: { profile: Profile }) {
         <header className="relative z-10 flex items-center gap-3 px-7 pt-[18px] pb-2 max-md:px-4">
           <button
             type="button"
-            className="grid size-10 place-items-center rounded-xl border border-hairline bg-paper text-ink md:hidden"
+            className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface text-ink md:hidden"
             onClick={() => setOpen(true)}
             aria-label="Menu"
           >
@@ -135,8 +136,7 @@ export function AppShell({ profile }: { profile: Profile }) {
           </button>
           <div className="ml-auto flex items-center gap-2.5">
             <ThemeLangPill />
-            <NotificationsBell />
-            <div className="flex items-center gap-2 rounded-full border border-hairline bg-white/70 py-1 pr-2.5 pl-1">
+            <div className="flex items-center gap-2 rounded-full border border-hairline bg-surface/90 py-1 pr-2.5 pl-1">
               {user?.profileImageUrl ? (
                 <img src={user.profileImageUrl} alt="" className="size-8 rounded-full object-cover" />
               ) : (

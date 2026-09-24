@@ -71,12 +71,7 @@ function StudentPoints() {
         ) : (
           <ol className="space-y-1">
             {rows.slice(0, 15).map((s, i) => (
-              <li key={s.id} className="flex items-center gap-3 rounded-xl bg-cream/50 px-3 py-2">
-                <span className="w-6 font-display font-extrabold text-muted">{i + 1}</span>
-                <span className="flex-1 font-semibold">{s.name}</span>
-                <span className="text-xs text-muted">{s.className}</span>
-                <span className="font-display font-extrabold">{s.points}</span>
-              </li>
+              <RankRow key={s.id} place={i + 1} name={s.name} points={s.points} extra={s.className} />
             ))}
           </ol>
         )}
@@ -154,11 +149,7 @@ function TeacherStudents() {
         ) : (
           <ol className="space-y-1">
             {list.slice(0, 10).map((s, i) => (
-              <li key={s.id} className="flex items-center gap-3 rounded-xl bg-cream/50 px-3 py-2">
-                <span className="w-6 font-display font-extrabold text-muted">{i + 1}</span>
-                <span className="flex-1 font-semibold">{s.name}</span>
-                <span className="font-display font-extrabold">{s.points}</span>
-              </li>
+              <RankRow key={s.id} place={i + 1} name={s.name} points={s.points} ranked={sort === "points"} />
             ))}
           </ol>
         )}
@@ -222,6 +213,46 @@ function TeacherStudents() {
   );
 }
 
+function RankRow({ place, name, points, extra, ranked = true }: { place: number; name: string; points: number; extra?: string; ranked?: boolean }) {
+  const medal = ranked && place === 1 ? "gold" : ranked && place === 2 ? "silver" : ranked && place === 3 ? "bronze" : null;
+  return (
+    <li
+      className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
+        medal === "gold"
+          ? "bg-medal-gold-bg"
+          : medal === "silver"
+            ? "bg-medal-silver-bg"
+            : medal === "bronze"
+              ? "bg-medal-bronze-bg"
+              : "bg-cream/70"
+      }`}
+    >
+      <span
+        className={`grid size-7 place-items-center rounded-full font-display text-sm font-extrabold ${
+          medal === "gold"
+            ? "bg-medal-gold text-medal-ink"
+            : medal === "silver"
+              ? "bg-medal-silver text-medal-ink"
+              : medal === "bronze"
+                ? "bg-medal-bronze text-medal-ink"
+                : "text-muted"
+        }`}
+      >
+        {place}
+      </span>
+      <span className="flex-1 font-semibold text-ink">{name}</span>
+      {extra && <span className="text-xs text-ink-soft">{extra}</span>}
+      <span
+        className={`font-display font-extrabold ${
+          medal === "gold" ? "text-medal-gold" : medal === "silver" ? "text-medal-silver" : medal === "bronze" ? "text-medal-bronze" : "text-ink"
+        }`}
+      >
+        {points}
+      </span>
+    </li>
+  );
+}
+
 function TeacherRow({
   student,
   lang,
@@ -280,17 +311,17 @@ function TeacherRow({
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <button type="button" className="grid size-8 place-items-center rounded-full bg-paper" onClick={() => pts.mutate(-1)} aria-label="-1">
+          <button type="button" className="grid size-8 place-items-center rounded-full bg-surface" onClick={() => pts.mutate(-1)} aria-label="-1">
             <Minus className="size-3.5" />
           </button>
           <span className="w-10 text-center font-display font-extrabold">{student.points}</span>
-          <button type="button" className="grid size-8 place-items-center rounded-full bg-paper" onClick={() => pts.mutate(1)} aria-label="+1">
+          <button type="button" className="grid size-8 place-items-center rounded-full bg-surface" onClick={() => pts.mutate(1)} aria-label="+1">
             <Plus className="size-3.5" />
           </button>
         </div>
         <button
           type="button"
-          className="rounded-full bg-paper px-3 py-1 font-mono text-xs"
+          className="rounded-full bg-surface px-3 py-1 font-mono text-xs"
           onClick={() => {
             void navigator.clipboard.writeText(student.inviteCode);
             toast.success(t.copied);
@@ -298,7 +329,7 @@ function TeacherRow({
         >
           {student.inviteCode}
         </button>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${student.linkedUserId ? "bg-sage/20 text-forest" : "bg-paper-2 text-muted"}`}>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${student.linkedUserId ? "bg-sage/20 text-forest" : "bg-surface-2 text-muted"}`}>
           {student.linkedUserId ? t.linked : t.pending}
         </span>
         <button type="button" className="text-xs font-bold text-forest" onClick={() => star.mutate(!student.isStarosta)}>
@@ -390,7 +421,7 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-xs font-bold ${active ? "bg-forest text-paper" : "bg-paper-2"}`}
+      className={`rounded-full px-3 py-1.5 text-xs font-bold ${active ? "bg-forest text-paper" : "bg-surface-2"}`}
     >
       {children}
     </button>

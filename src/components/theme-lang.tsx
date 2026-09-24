@@ -10,7 +10,7 @@ export function ThemeLangPill({ inverted = false }: { inverted?: boolean }) {
         "flex items-center gap-1 rounded-full border p-1 shadow-[0_2px_10px_rgba(26,61,50,0.06)]",
         inverted
           ? "border-white/15 bg-[color-mix(in_srgb,#0e2a22_55%,transparent)]"
-          : "border-ink/8 bg-white/70",
+          : "border-ink/8 bg-surface/90",
       )}
     >
       <button

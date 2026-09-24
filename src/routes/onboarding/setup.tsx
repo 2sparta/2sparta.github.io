@@ -57,7 +57,7 @@ function SetupScreen() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t.setupNamePh}
-            className="h-12 w-full rounded-full border border-transparent bg-paper-2 px-4 text-[15px] outline-none focus:border-forest-mid/35 focus:bg-white"
+            className="h-12 w-full rounded-full border border-transparent bg-surface-2 px-4 text-[15px] outline-none focus:border-forest-mid/35 focus:bg-surface"
           />
         </label>
         <p className="mb-2 font-display text-sm font-bold">{t.setupRole}</p>
@@ -93,7 +93,7 @@ function SetupScreen() {
                     onClick={() => setPicked((prev) => (on ? prev.filter((x) => x !== s.id) : [...prev, s.id]))}
                     className={cn(
                       "rounded-full px-3 py-1.5 font-display text-xs font-bold",
-                      on ? "bg-forest text-paper" : "bg-paper-2 text-ink",
+                      on ? "bg-forest text-paper" : "bg-surface-2 text-ink",
                     )}
                   >
                     {s.name}

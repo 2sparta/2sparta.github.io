@@ -47,7 +47,7 @@ function Page() {
               onChange={(e) => setBody(e.target.value)}
               placeholder={t.annBody}
               rows={4}
-              className="rounded-2xl bg-paper-2 px-4 py-3 text-sm outline-none focus:bg-white"
+              className="rounded-2xl bg-surface-2 px-4 py-3 text-sm outline-none focus:bg-surface"
             />
             <div className="flex flex-wrap gap-2">
               {(classes.data ?? []).map((c) => {
@@ -57,7 +57,7 @@ function Page() {
                     key={c.id}
                     type="button"
                     onClick={() => setClassIds((p) => (on ? p.filter((x) => x !== c.id) : [...p, c.id]))}
-                    className={cn("rounded-full px-3 py-1 text-xs font-bold", on ? "bg-forest text-paper" : "bg-paper-2")}
+                    className={cn("rounded-full px-3 py-1 text-xs font-bold", on ? "bg-forest text-paper" : "bg-surface-2")}
                   >
                     {c.name}
                   </button>

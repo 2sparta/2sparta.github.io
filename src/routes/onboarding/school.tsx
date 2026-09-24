@@ -82,7 +82,7 @@ function SchoolScreen() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t.schoolNamePh}
-              className="h-12 w-full rounded-full border border-transparent bg-paper-2 px-4 text-[15px] outline-none focus:border-forest-mid/35 focus:bg-white"
+              className="h-12 w-full rounded-full border border-transparent bg-surface-2 px-4 text-[15px] outline-none focus:border-forest-mid/35 focus:bg-surface"
             />
           </label>
         ) : (
@@ -93,7 +93,7 @@ function SchoolScreen() {
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder={t.invitePh}
               maxLength={20}
-              className="h-12 w-full rounded-full border border-transparent bg-paper-2 px-4 text-[15px] tracking-widest outline-none focus:border-forest-mid/35 focus:bg-white"
+              className="h-12 w-full rounded-full border border-transparent bg-surface-2 px-4 text-[15px] tracking-widest outline-none focus:border-forest-mid/35 focus:bg-surface"
             />
           </label>
         )}
@@ -133,7 +133,7 @@ function Choice({
       type="button"
       onClick={onSelect}
       className={cn(
-        "rounded-[20px] border-[1.5px] bg-paper p-4 text-left",
+        "rounded-[20px] border-[1.5px] bg-surface p-4 text-left",
         selected
           ? "border-forest-mid bg-forest/[0.07] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-forest)_12%,transparent)]"
           : "border-hairline",

@@ -53,6 +53,7 @@ export {
   listSubjects,
   listTeachers,
   markNoticesRead,
+  pinMessage,
   runForElection,
   sendMessage,
   setGrade,
