@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { announceElection, closeElection, getElection, listClasses, runForElection, voteElection } from "@/lib/school/server";
+import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, deleteActivity, runForElection, voteElection } from "@/lib/school/server";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
+import { WideNotice } from "@/routes/app/announcements";
+import { cn } from "@/lib/cn";
 
 export const Route = createFileRoute("/app/selfgov")({ component: Page });
 
@@ -26,6 +28,18 @@ function Page() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [hist, setHist] = useState(false);
+  const [actTitle, setActTitle] = useState("");
+  const [actBody, setActBody] = useState("");
+  const [actClasses, setActClasses] = useState<string[]>([]);
+  const [actImportant, setActImportant] = useState(false);
+  const isStarosta = me.data?.profile.role === "student" && me.data.profile.isStarosta;
+  const canPost = isTeacher || isStarosta;
+  const postIds = isTeacher ? actClasses : me.data?.profile.classId ? [me.data.profile.classId] : [];
+  const activities = useQuery({
+    queryKey: ["activities", active],
+    queryFn: () => listActivities({ data: { classId: active } }),
+    enabled: Boolean(active),
+  });
 
   const announce = useMutation({
     mutationFn: () => announceElection({ data: { classId: active, startsAt: start, endsAt: end } }),
@@ -42,6 +56,19 @@ function Page() {
   const close = useMutation({
     mutationFn: () => closeElection({ data: { electionId: el.data?.election?.id ?? "" } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["election"] }),
+  });
+  const publish = useMutation({
+    mutationFn: () => addActivity({ data: { classIds: postIds, title: actTitle, body: actBody, important: actImportant } }),
+    onSuccess: async () => {
+      setActTitle("");
+      setActBody("");
+      setActImportant(false);
+      await qc.invalidateQueries({ queryKey: ["activities", active] });
+    },
+  });
+  const dropAct = useMutation({
+    mutationFn: (id: string) => deleteActivity({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["activities"] }),
   });
 
   const election = el.data?.election;
@@ -143,6 +170,83 @@ function Page() {
           </div>
         )}
       </Panel>
+      <Panel>
+        <PanelTitle>{t.activityTitle}</PanelTitle>
+        <Hint>{t.activityHint}</Hint>
+        {canPost && (
+          <div className="mb-4 grid gap-2">
+            {isTeacher ? (
+              <>
+                <p className="text-xs font-bold text-muted">{t.annPickClass}</p>
+                <div className="flex flex-wrap gap-2">
+                  {(classes.data ?? []).map((c) => {
+                    const on = actClasses.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setActClasses((cur) => (on ? cur.filter((id) => id !== c.id) : [...cur, c.id]))}
+                        className={cn("rounded-full px-3 py-1 text-xs font-bold", on ? "bg-forest text-paper" : "bg-surface-2 text-ink")}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs font-bold text-muted">
+                {t.annPickClass}: {me.data?.profile.className || "—"}
+              </p>
+            )}
+            {postIds.length === 0 && <p className="text-xs text-muted">{t.annNeedClass}</p>}
+            <TextInput value={actTitle} onChange={(e) => setActTitle(e.target.value)} placeholder={t.activityPhTitle} />
+            <textarea
+              value={actBody}
+              onChange={(e) => setActBody(e.target.value)}
+              placeholder={t.activityPhBody}
+              rows={3}
+              className="rounded-2xl bg-surface-2 px-4 py-3 text-sm text-ink outline-none focus:bg-surface"
+            />
+            <label className="flex items-center gap-2 text-sm font-bold">
+              <input type="checkbox" checked={actImportant} onChange={(e) => setActImportant(e.target.checked)} />
+              {t.annImportant}
+            </label>
+            <PillButton type="button" disabled={postIds.length === 0 || !actTitle.trim() || !actBody.trim() || publish.isPending} onClick={() => publish.mutate()}>
+              {t.activityPublish}
+            </PillButton>
+          </div>
+        )}
+        {!canPost && <p className="mb-3 text-xs text-muted">{t.activityCanPost}</p>}
+      </Panel>
+      {(activities.data?.activities ?? []).length === 0 ? (
+        <p className="mb-4 text-sm text-muted">{t.activityEmpty}</p>
+      ) : (
+        <ul className="mb-4 space-y-3">
+            {(activities.data?.activities ?? []).map((a) => {
+              const names = (a.classIds?.length ? a.classIds : [a.classId])
+                .map((id) => (classes.data ?? []).find((c) => c.id === id)?.name)
+                .filter(Boolean)
+                .join(", ");
+              return (
+                <WideNotice
+                  key={a.id}
+                  title={a.title}
+                  body={a.body}
+                  important={a.important}
+                  importantLabel={t.annImportant}
+                  meta={`${t.from} ${a.authorName}${names ? ` · ${names}` : ""}${
+                    a.createdAt
+                      ? ` · ${new Date(a.createdAt).toLocaleString(lang === "uk" ? "uk-UA" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+                      : ""
+                  }`}
+                  onDelete={isTeacher || a.authorId === me.data?.profile.userId ? () => dropAct.mutate(a.id) : undefined}
+                  deleteLabel={t.delete}
+                />
+              );
+            })}
+          </ul>
+      )}
       <Panel>
         <div className="flex items-center justify-between">
           <PanelTitle>{t.history}</PanelTitle>

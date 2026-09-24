@@ -22,6 +22,7 @@ import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
+import { PhotoAttach, PhotoStrip } from "@/components/photo-attach";
 import { cn } from "@/lib/cn";
 
 export const Route = createFileRoute("/app/tasks")({ component: TasksPage });
@@ -65,6 +66,8 @@ function TasksPage() {
   const [starTitle, setStarTitle] = useState("");
   const [starBody, setStarBody] = useState("");
   const [starDate, setStarDate] = useState(shift(todayFn(), 1));
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [starPhotos, setStarPhotos] = useState<string[]>([]);
 
   const addLes = useMutation({
     mutationFn: () =>
@@ -78,11 +81,13 @@ function TasksPage() {
           homeworkDue: hwDate || null,
           classIds,
           publishAt: publishAt ? new Date(publishAt).toISOString() : null,
+          imageUrls: photos,
         },
       }),
     onSuccess: async () => {
       setTitle("");
       setContent("");
+      setPhotos([]);
       await qc.invalidateQueries({ queryKey: ["lessons"] });
     },
   });
@@ -114,11 +119,12 @@ function TasksPage() {
   const starHw = useMutation({
     mutationFn: () =>
       addStarostaHomework({
-        data: { subjectId: starSubject, title: starTitle, content: starBody, homeworkDue: starDate },
+        data: { subjectId: starSubject, title: starTitle, content: starBody, homeworkDue: starDate, imageUrls: starPhotos },
       }),
     onSuccess: async () => {
       setStarTitle("");
       setStarBody("");
+      setStarPhotos([]);
       toast.success(t.gradeSaved);
       await qc.invalidateQueries({ queryKey: ["lessons"] });
     },
@@ -184,6 +190,7 @@ function TasksPage() {
                 <input type="checkbox" checked={hasHw} onChange={(e) => setHasHw(e.target.checked)} />
                 {t.hasHw}
               </label>
+              <PhotoAttach urls={photos} onChange={setPhotos} disabled={addLes.isPending} />
               <p className="text-xs font-bold text-muted">{t.assignClasses}</p>
               <div className="flex flex-wrap gap-2">
                 {(classesQ.data ?? []).map((c) => {
@@ -242,6 +249,7 @@ function TasksPage() {
                 className="rounded-2xl bg-surface-2 px-4 py-3 text-sm outline-none"
               />
               <TextInput type="date" value={starDate} onChange={(e) => setStarDate(e.target.value)} />
+              <PhotoAttach urls={starPhotos} onChange={setStarPhotos} disabled={starHw.isPending} />
               <PillButton type="button" disabled={!starTitle.trim() || !starSubject || starHw.isPending} onClick={() => starHw.mutate()}>
                 {t.add}
               </PillButton>
@@ -308,6 +316,7 @@ function TasksPage() {
                       </p>
                       <p className="text-xs font-bold text-forest-mid">{l.subjectName}</p>
                       {l.content && <p className="mt-1 text-sm text-ink-soft">{l.content}</p>}
+                      <PhotoStrip urls={l.imageUrls} />
                       <p className="mt-1 text-xs text-muted">
                         {t.lessonDate}: {l.lessonDate}
                         {l.homeworkDue ? ` · ${t.hwDate}: ${l.homeworkDue}` : ""}

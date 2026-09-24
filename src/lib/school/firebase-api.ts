@@ -7,7 +7,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  increment,
   query,
   setDoc,
   updateDoc,
@@ -115,9 +114,14 @@ export async function loadProfile(uid?: string): Promise<Profile> {
     email: s(d?.email) || s(u.email) || null,
     schoolName,
     className,
-    points: Number(roster?.points ?? 0) || 0,
+    points: clampPoints(Number(roster?.points ?? 0) || 0),
     linked: Boolean(roster),
   };
+}
+
+function clampPoints(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(1_000_000, Math.max(0, Math.trunc(n)));
 }
 
 function nextStep(p: Profile): "role" | "school" | "setup" | "link" | "app" {
@@ -782,7 +786,7 @@ export async function listStudents() {
       className: s(r.className),
       groupId: r.groupId ? s(r.groupId) : null,
       groupName: r.groupName ? s(r.groupName) : null,
-      points: Number(r.points) || 0,
+      points: clampPoints(Number(r.points) || 0),
       inviteCode: s(r.inviteCode),
       linkedUserId: r.linkedUserId ? s(r.linkedUserId) : r.authUid ? s(r.authUid) : null,
       isStarosta: r.isStarosta === true,
@@ -826,15 +830,19 @@ export async function adjustPoints(input?: { data?: { rosterId: string; delta: n
   const ref = doc(db(), "students", data.rosterId);
   const snap = await getDoc(ref);
   if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
-  await updateDoc(ref, { points: increment(data.delta) });
+  const current = clampPoints(Number(snap.data().points) || 0);
+  const next = clampPoints(current + (Number(data.delta) || 0));
+  const applied = next - current;
+  if (!applied) throw new Error("Limit");
+  await updateDoc(ref, { points: next });
   await setDoc(doc(db(), "pointsHistory", newId()), {
     schoolId: p.schoolId,
     rosterId: data.rosterId,
-    delta: data.delta,
+    delta: applied,
     note: (data.note ?? "").trim(),
     byUserId: p.userId,
     byName: p.displayName || "",
-    pointsAfter: (Number(snap.data().points) || 0) + data.delta,
+    pointsAfter: next,
     createdAt: Date.now(),
   });
   return { ok: true };
@@ -849,7 +857,7 @@ export async function listLeaderboard() {
       name: s(r.name),
       classId: s(r.classId),
       className: s(r.className),
-      points: Number(r.points) || 0,
+      points: clampPoints(Number(r.points) || 0),
     }))
     .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, "uk"));
 }
@@ -1110,6 +1118,7 @@ export async function listLessons() {
     classIds: Array.isArray(r.classIds) ? (r.classIds as string[]) : [],
     publishAt: r.publishAt ? s(r.publishAt) : null,
     addedByStarosta: r.addedByStarosta === true,
+    imageUrls: Array.isArray(r.imageUrls) ? (r.imageUrls as string[]).map((u) => s(u)).filter(Boolean) : [],
   }));
   lessons.sort((a, b) => b.lessonDate.localeCompare(a.lessonDate));
   if (p.role === "student" && p.classId) {
@@ -1142,6 +1151,7 @@ export async function addLesson(input?: {
     homeworkDue?: string | null;
     classIds: string[];
     publishAt?: string | null;
+    imageUrls?: string[];
   };
 }) {
   const p = await requireTeacher();
@@ -1165,6 +1175,7 @@ export async function addLesson(input?: {
     classIds: data.classIds ?? [],
     publishAt: data.publishAt || null,
     addedByStarosta: false,
+    imageUrls: (data.imageUrls ?? []).slice(0, 4),
     createdAt: Date.now(),
   });
   await notifyClass(p, data.classIds ?? [], {
@@ -1264,7 +1275,9 @@ export async function setGrade(input?: {
 
 export async function listAnnouncements() {
   const p = await requireProfile();
-  let list: Announcement[] = (await bySchool("announcements", p.schoolId!)).map((r) => ({
+  let list: Announcement[] = (await bySchool("announcements", p.schoolId!))
+    .filter((r) => s(r.kind) !== "activity")
+    .map((r) => ({
     id: s(r.id),
     authorId: s(r.authorId),
     authorName: s(r.authorName) || "—",
@@ -1272,21 +1285,24 @@ export async function listAnnouncements() {
     body: s(r.body),
     createdAt: s(r.createdAt),
     classIds: Array.isArray(r.classIds) ? (r.classIds as string[]) : [],
+    important: r.important === true,
   }));
-  list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  list.sort((a, b) => Number(b.important) - Number(a.important) || b.createdAt.localeCompare(a.createdAt));
   if (p.role === "student" && p.classId) {
-    list = list.filter((a) => a.classIds.length === 0 || a.classIds.includes(p.classId!));
+    list = list.filter((a) => a.classIds.includes(p.classId!));
   }
   return { announcements: list };
 }
 
-export async function addAnnouncement(input?: { data?: { title: string; body: string; classIds: string[] } }) {
+export async function addAnnouncement(input?: { data?: { title: string; body: string; classIds: string[]; important?: boolean } }) {
   const p = await requireTeacher();
   const data = dataOf(input);
   const title = (data?.title ?? "").trim();
   const body = (data?.body ?? "").trim();
-  if (!title || !body) throw new Error("Required");
+  const classIds = [...new Set((data?.classIds ?? []).map((id) => id.trim()).filter(Boolean))];
+  if (!title || !body || classIds.length === 0) throw new Error("Required");
   const id = newId();
+  const important = data?.important === true;
   await setDoc(doc(db(), "announcements", id), {
     schoolId: p.schoolId,
     authorId: p.userId,
@@ -1294,10 +1310,73 @@ export async function addAnnouncement(input?: { data?: { title: string; body: st
     title,
     body,
     createdAt: new Date().toISOString(),
-    classIds: data?.classIds ?? [],
+    classIds,
+    important,
   });
-  await notifyClass(p, data?.classIds ?? [], { type: "announcement", title: `Оголошення: ${title}`, body });
+  await notifyClass(p, classIds, { type: "announcement", title: `${important ? "Важливо: " : "Оголошення: "}${title}`, body });
   return { id };
+}
+
+export async function listActivities(input?: { data?: { classId?: string } }) {
+  const p = await requireProfile();
+  const classId = dataOf(input)?.classId || (p.role === "student" ? p.classId ?? "" : "");
+  let list = (await bySchool("announcements", p.schoolId!))
+    .filter((r) => s(r.kind) === "activity")
+    .map((r) => ({
+      id: s(r.id),
+      authorId: s(r.authorId),
+      authorName: s(r.authorName) || "—",
+      title: s(r.title),
+      body: s(r.body),
+      createdAt: s(r.createdAt),
+      classId: s(r.classId),
+      classIds: Array.isArray(r.classIds) ? (r.classIds as string[]).map((id) => s(id)) : s(r.classId) ? [s(r.classId)] : [],
+      important: r.important === true,
+    }));
+  if (classId) list = list.filter((a) => a.classIds.includes(classId) || a.classId === classId);
+  list.sort((a, b) => Number(b.important) - Number(a.important) || b.createdAt.localeCompare(a.createdAt));
+  return { activities: list };
+}
+
+export async function addActivity(input?: { data?: { classId?: string; classIds?: string[]; title: string; body: string; important?: boolean } }) {
+  const p = await requireProfile();
+  const data = dataOf(input);
+  const title = (data?.title ?? "").trim();
+  const body = (data?.body ?? "").trim();
+  let classIds = [...new Set([...(data?.classIds ?? []), data?.classId ?? ""].map((id) => id.trim()).filter(Boolean))];
+  const teacher = p.role === "teacher";
+  const starosta = p.role === "student" && p.isStarosta;
+  if (starosta) classIds = p.classId ? [p.classId] : [];
+  if ((!teacher && !starosta) || !title || !body || classIds.length === 0) throw new Error(classIds.length === 0 ? "Required" : "Forbidden");
+  const id = newId();
+  const important = data?.important === true;
+  await setDoc(doc(db(), "announcements", id), {
+    schoolId: p.schoolId,
+    kind: "activity",
+    classId: classIds[0],
+    classIds,
+    important,
+    authorId: p.userId,
+    authorName: p.displayName,
+    title,
+    body,
+    createdAt: new Date().toISOString(),
+  });
+  await notifyClass(p, classIds, { type: "announcement", title: `${important ? "Важливо: " : "Оголошення: "}${title}`, body });
+  return { id };
+}
+
+export async function deleteActivity(input?: { data?: { id: string } }) {
+  const p = await requireProfile();
+  const id = dataOf(input)?.id;
+  if (!id) throw new Error("Missing");
+  const ref = doc(db(), "announcements", id);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().schoolId !== p.schoolId || snap.data().kind !== "activity") throw new Error("Not found");
+  const teacher = p.role === "teacher";
+  if (!teacher && snap.data().authorId !== p.userId) throw new Error("Forbidden");
+  await deleteDoc(ref);
+  return { ok: true };
 }
 
 export async function listTeachers() {
@@ -1578,17 +1657,19 @@ export async function listMessages(input?: { data?: { chatId: string } }) {
       subjectName: s(d.data().subjectName),
       edited: Boolean(d.data().editedAt),
       pinned: d.data().pinned === true,
+      imageUrls: d.data().deleted === true || !Array.isArray(d.data().imageUrls) ? [] : (d.data().imageUrls as string[]).map((u) => s(u)).filter(Boolean),
     }))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .slice(-200);
   return { messages };
 }
 
-export async function sendMessage(input?: { data?: { chatId: string; body: string; subjectName?: string } }) {
+export async function sendMessage(input?: { data?: { chatId: string; body: string; subjectName?: string; imageUrls?: string[] } }) {
   const p = await requireProfile();
   const data = dataOf(input);
   const body = (data?.body ?? "").trim();
-  if (!data?.chatId || !body) throw new Error("Empty");
+  const imageUrls = (data?.imageUrls ?? []).filter(Boolean).slice(0, 4);
+  if (!data?.chatId || (!body && imageUrls.length === 0)) throw new Error("Empty");
   const chatRef = doc(db(), "chats", data.chatId);
   const chat = await getDoc(chatRef);
   const members = (chat.data()?.memberUids ?? []) as string[];
@@ -1603,11 +1684,12 @@ export async function sendMessage(input?: { data?: { chatId: string; body: strin
     authorName: p.displayName,
     body,
     subjectName,
+    imageUrls,
     pinned: false,
     deleted: false,
     createdAt,
   });
-  await updateDoc(chatRef, { lastBody: body, lastAt: createdAt });
+  await updateDoc(chatRef, { lastBody: body || "Фото", lastAt: createdAt });
   return { id };
 }
 
@@ -1753,7 +1835,7 @@ export async function deleteSubject(input?: { data?: { subjectId: string } }) {
 }
 
 export async function addStarostaHomework(input?: {
-  data?: { subjectId: string; title: string; content?: string; homeworkDue: string };
+  data?: { subjectId: string; title: string; content?: string; homeworkDue: string; imageUrls?: string[] };
 }) {
   const p = await requireProfile();
   if (!p.rosterId || !p.isStarosta) throw new Error("Monitor only");
@@ -1776,6 +1858,7 @@ export async function addStarostaHomework(input?: {
     classIds: p.classId ? [p.classId] : [],
     publishAt: null,
     addedByStarosta: true,
+    imageUrls: (data.imageUrls ?? []).slice(0, 4),
     createdAt: Date.now(),
   });
   await notifyClass(p, p.classId ? [p.classId] : [], {
@@ -2050,7 +2133,7 @@ export async function deleteMessage(input?: { data?: { messageId: string } }) {
   const ref = doc(db(), "chatMessages", id);
   const snap = await getDoc(ref);
   if (!snap.exists() || snap.data().senderUid !== p.userId) throw new Error("Forbidden");
-  await updateDoc(ref, { deleted: true, body: "" });
+  await updateDoc(ref, { deleted: true, body: "", imageUrls: [] });
   return { ok: true };
 }
 

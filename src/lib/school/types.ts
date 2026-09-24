@@ -79,6 +79,7 @@ export type Lesson = {
   classIds: string[];
   publishAt: string | null;
   addedByStarosta: boolean;
+  imageUrls: string[];
 };
 
 export type Grade = {
@@ -102,6 +103,7 @@ export type Announcement = {
   body: string;
   createdAt: string;
   classIds: string[];
+  important: boolean;
 };
 
 export type ChatSummary = {
@@ -122,6 +124,7 @@ export type ChatMessage = {
   subjectName: string;
   edited: boolean;
   pinned: boolean;
+  imageUrls: string[];
 };
 
 export type Election = {

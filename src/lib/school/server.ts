@@ -1,6 +1,7 @@
 /** School data lives in the client's Firebase project (no Postgres server). */
 export {
   addAnnouncement,
+  addActivity,
   addClass,
   addElective,
   addGroup,
@@ -19,6 +20,7 @@ export {
   createGroupChat,
   createSchool,
   deleteAnnouncement,
+  deleteActivity,
   deleteClass,
   deleteElective,
   deleteGroup,
@@ -37,6 +39,7 @@ export {
   getSchedule,
   joinSchool,
   linkStudent,
+  listActivities,
   listAnnouncements,
   listChats,
   listClasses,

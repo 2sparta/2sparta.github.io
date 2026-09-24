@@ -1,8 +1,11 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
-import { Hint, Panel, PanelTitle } from "@/components/ui/panel";
+import { Hint, Panel, PanelTitle, PillButton, TextInput } from "@/components/ui/panel";
+import { driveConfig, saveDriveConfig } from "@/lib/school/drive";
 
 export const Route = createFileRoute("/app/settings")({ component: Page });
 
@@ -11,6 +14,13 @@ function Page() {
   const t = STRINGS[lang];
   const me = useMeQuery();
   const p = me.data?.profile;
+  const [driveUrl, setDriveUrl] = useState("");
+  const [driveToken, setDriveToken] = useState("");
+  useEffect(() => {
+    const cfg = driveConfig();
+    setDriveUrl(cfg.url);
+    setDriveToken(cfg.token);
+  }, []);
 
   return (
     <div>
@@ -57,6 +67,23 @@ function Page() {
             >
               EN
             </button>
+          </div>
+        </div>
+        <div className="mt-6 border-t border-hairline pt-4">
+          <p className="mb-2 font-display text-sm font-bold">{t.driveTitle}</p>
+          <Hint>{t.driveHint}</Hint>
+          <div className="grid gap-2">
+            <TextInput value={driveUrl} onChange={(e) => setDriveUrl(e.target.value)} placeholder={t.driveUrl} />
+            <TextInput value={driveToken} onChange={(e) => setDriveToken(e.target.value)} placeholder={t.driveToken} />
+            <PillButton
+              type="button"
+              onClick={() => {
+                saveDriveConfig(driveUrl, driveToken);
+                toast.success(t.driveSaved);
+              }}
+            >
+              {t.driveSave}
+            </PillButton>
           </div>
         </div>
       </Panel>

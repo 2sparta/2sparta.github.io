@@ -7,6 +7,7 @@ import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
 import { Hint, Panel, PillButton, TextInput } from "@/components/ui/panel";
+import { PhotoAttach, PhotoStrip } from "@/components/photo-attach";
 import { cn } from "@/lib/cn";
 
 export const Route = createFileRoute("/app/chat")({ component: Page });
@@ -33,6 +34,7 @@ function Page() {
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState<string[]>([]);
   const [subjectTag, setSubjectTag] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string; mine: boolean; body: string; pinned: boolean } | null>(null);
@@ -50,10 +52,11 @@ function Page() {
         await editMessage({ data: { messageId: editingId, body: text } });
         return { id: editingId };
       }
-      return sendMessage({ data: { chatId: chatId!, body: text, subjectName: subjectChat ? subjectTag : "" } });
+      return sendMessage({ data: { chatId: chatId!, body: text, subjectName: subjectChat ? subjectTag : "", imageUrls: photos } });
     },
     onSuccess: async () => {
       setText("");
+      setPhotos([]);
       setEditingId(null);
       await qc.invalidateQueries({ queryKey: ["messages", chatId] });
       await qc.invalidateQueries({ queryKey: ["chats"] });
@@ -214,7 +217,7 @@ function Page() {
                     onClick={() => document.getElementById(`msg-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
                   >
                     <Pin className="size-3 shrink-0 text-forest" />
-                    <span className="truncate font-semibold">{m.body}</span>
+                    <span className="truncate font-semibold">{m.body || "Фото"}</span>
                   </button>
                 ))}
               </div>
@@ -245,6 +248,7 @@ function Page() {
                       {!mine && <p className="text-[11px] font-bold opacity-80">{m.authorName}</p>}
                       {subjectChat && m.subjectName && <p className="text-[10px] font-bold uppercase opacity-70">{m.subjectName}</p>}
                       <p className="text-sm whitespace-pre-wrap">{m.deleted ? t.deletedMsg : m.body}</p>
+                      {!m.deleted && <PhotoStrip urls={m.imageUrls} />}
                       <p className="mt-1 flex items-center gap-1 text-[10px] opacity-70">
                         {m.pinned && !m.deleted && <Pin className="size-3" />}
                         <span>
@@ -262,7 +266,7 @@ function Page() {
               className="flex flex-wrap gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (text.trim()) send.mutate();
+                if (text.trim() || (!editingId && photos.length)) send.mutate();
               }}
             >
               {subjectChat && (
@@ -295,10 +299,11 @@ function Page() {
                   {t.cancel}
                 </PillButton>
               )}
-              <PillButton type="submit" disabled={!text.trim() || send.isPending}>
+              <PillButton type="submit" disabled={(!text.trim() && (Boolean(editingId) || photos.length === 0)) || send.isPending}>
                 {editingId ? t.save : t.send}
               </PillButton>
             </form>
+            {!editingId && <div className="mt-2"><PhotoAttach urls={photos} onChange={setPhotos} disabled={send.isPending} /></div>}
           </>
         )}
       </Panel>

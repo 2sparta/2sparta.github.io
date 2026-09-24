@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Minus, Plus } from "lucide-react";
+import { History, Minus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   addStudent,
@@ -69,11 +69,7 @@ function StudentPoints() {
         {rows.length === 0 ? (
           <p className="text-sm text-muted">{t.noLeaderboard}</p>
         ) : (
-          <ol className="space-y-1">
-            {rows.slice(0, 15).map((s, i) => (
-              <RankRow key={s.id} place={i + 1} name={s.name} points={s.points} extra={s.className} />
-            ))}
-          </ol>
+          <PointsTop rows={rows} ranked />
         )}
       </Panel>
     </div>
@@ -147,11 +143,7 @@ function TeacherStudents() {
         {list.length === 0 ? (
           <p className="text-sm text-muted">{t.noLeaderboard}</p>
         ) : (
-          <ol className="space-y-1">
-            {list.slice(0, 10).map((s, i) => (
-              <RankRow key={s.id} place={i + 1} name={s.name} points={s.points} ranked={sort === "points"} />
-            ))}
-          </ol>
+          <PointsTop rows={list} ranked={sort === "points"} />
         )}
       </Panel>
 
@@ -213,42 +205,88 @@ function TeacherStudents() {
   );
 }
 
-function RankRow({ place, name, points, extra, ranked = true }: { place: number; name: string; points: number; extra?: string; ranked?: boolean }) {
-  const medal = ranked && place === 1 ? "gold" : ranked && place === 2 ? "silver" : ranked && place === 3 ? "bronze" : null;
+function PointsTop({
+  rows,
+  ranked,
+}: {
+  rows: { id: string; name: string; points: number; className?: string }[];
+  ranked: boolean;
+}) {
+  if (!ranked) {
+    return (
+      <ol className="space-y-1">
+        {rows.slice(0, 10).map((s, i) => (
+          <PlainRank key={s.id} place={i + 1} name={s.name} points={s.points} extra={s.className} />
+        ))}
+      </ol>
+    );
+  }
+  const top = rows.slice(0, 3);
+  const shown = top.length >= 3 ? [top[1]!, top[0]!, top[2]!] : top;
+  const places = top.length >= 3 ? [2, 1, 3] : top.map((_, i) => i + 1);
+  const rest = rows.slice(3, 10);
   return (
-    <li
-      className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
-        medal === "gold"
-          ? "bg-medal-gold-bg"
-          : medal === "silver"
-            ? "bg-medal-silver-bg"
-            : medal === "bronze"
-              ? "bg-medal-bronze-bg"
-              : "bg-cream/70"
+    <div>
+      <div className="mb-4 flex items-end justify-center gap-3 overflow-x-auto px-1 py-1">
+        {shown.map((s, i) => (
+          <PodiumCard key={s.id} place={places[i]!} name={s.name} points={s.points} extra={s.className} />
+        ))}
+      </div>
+      {rest.length > 0 && (
+        <ol className="space-y-1">
+          {rest.map((s, i) => (
+            <PlainRank key={s.id} place={i + 4} name={s.name} points={s.points} extra={s.className} />
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+const RINGS = {
+  gold: "conic-gradient(from 0deg, #fff4c4, #e0b43a, #8a6410, #fff8dc, #c9962a, #fff4c4)",
+  silver: "conic-gradient(from 0deg, #ffffff, #c5ced6, #6e7c88, #f7f9fb, #aeb8c2, #ffffff)",
+  bronze: "conic-gradient(from 0deg, #ffe6cf, #d08a4c, #7a4320, #fff1e2, #c4783a, #ffe6cf)",
+} as const;
+
+const INK = {
+  gold: "#8a6410",
+  silver: "#5c6770",
+  bronze: "#8a4e24",
+} as const;
+
+function PodiumCard({ place, name, points, extra }: { place: number; name: string; points: number; extra?: string }) {
+  const tone = place === 1 ? "gold" : place === 2 ? "silver" : "bronze";
+  return (
+    <article
+      className={`flex w-[132px] shrink-0 flex-col rounded-[18px] bg-[#fbf8f2] p-2 shadow-[0_12px_28px_rgba(26,61,50,0.14)] sm:w-[148px] ${
+        place === 1 ? "min-h-[228px]" : "min-h-[200px]"
       }`}
     >
-      <span
-        className={`grid size-7 place-items-center rounded-full font-display text-sm font-extrabold ${
-          medal === "gold"
-            ? "bg-medal-gold text-medal-ink"
-            : medal === "silver"
-              ? "bg-medal-silver text-medal-ink"
-              : medal === "bronze"
-                ? "bg-medal-bronze text-medal-ink"
-                : "text-muted"
-        }`}
-      >
-        {place}
-      </span>
+      <div className="relative flex flex-1 overflow-hidden rounded-[12px] p-[2.5px]">
+        <div className="medal-ring" style={{ background: RINGS[tone] }} />
+        <div className="relative z-[1] flex flex-1 flex-col rounded-[10px] bg-[#fbf8f2] px-3 py-3 text-[#1a3d32]">
+          <span className="font-display text-lg leading-none font-extrabold" style={{ color: INK[tone] }}>
+            {place}
+          </span>
+          <span className="mt-4 flex-1 font-display text-[15px] leading-tight font-extrabold">{name}</span>
+          {extra && <span className="mt-1 text-[11px] font-semibold text-[#5c7368]">{extra}</span>}
+          <span className="mt-3 font-display text-2xl leading-none font-extrabold tabular-nums" style={{ color: INK[tone] }}>
+            {points}
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function PlainRank({ place, name, points, extra }: { place: number; name: string; points: number; extra?: string }) {
+  return (
+    <li className="flex items-center gap-3 rounded-xl bg-cream/50 px-3 py-2">
+      <span className="w-6 text-center font-display text-sm font-extrabold text-muted">{place}</span>
       <span className="flex-1 font-semibold text-ink">{name}</span>
       {extra && <span className="text-xs text-ink-soft">{extra}</span>}
-      <span
-        className={`font-display font-extrabold ${
-          medal === "gold" ? "text-medal-gold" : medal === "silver" ? "text-medal-silver" : medal === "bronze" ? "text-medal-bronze" : "text-ink"
-        }`}
-      >
-        {points}
-      </span>
+      <span className="font-display font-extrabold text-ink">{points}</span>
     </li>
   );
 }
@@ -311,11 +349,23 @@ function TeacherRow({
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <button type="button" className="grid size-8 place-items-center rounded-full bg-surface" onClick={() => pts.mutate(-1)} aria-label="-1">
+          <button
+            type="button"
+            className="grid size-8 place-items-center rounded-full bg-surface disabled:opacity-40"
+            disabled={student.points <= 0 || pts.isPending}
+            onClick={() => pts.mutate(-1)}
+            aria-label="-1"
+          >
             <Minus className="size-3.5" />
           </button>
-          <span className="w-10 text-center font-display font-extrabold">{student.points}</span>
-          <button type="button" className="grid size-8 place-items-center rounded-full bg-surface" onClick={() => pts.mutate(1)} aria-label="+1">
+          <span className="w-16 text-center font-display font-extrabold tabular-nums">{student.points}</span>
+          <button
+            type="button"
+            className="grid size-8 place-items-center rounded-full bg-surface disabled:opacity-40"
+            disabled={student.points >= 1_000_000 || pts.isPending}
+            onClick={() => pts.mutate(1)}
+            aria-label="+1"
+          >
             <Plus className="size-3.5" />
           </button>
         </div>
@@ -335,11 +385,23 @@ function TeacherRow({
         <button type="button" className="text-xs font-bold text-forest" onClick={() => star.mutate(!student.isStarosta)}>
           {student.isStarosta ? t.unsetStarosta : t.makeStarosta}
         </button>
-        <button type="button" className="text-xs font-bold text-forest" onClick={() => setOpen((v) => !v)}>
-          {t.pointsHistory}
+        <button
+          type="button"
+          className={`grid size-8 place-items-center rounded-full bg-surface text-forest ${open ? "ring-2 ring-forest" : ""}`}
+          onClick={() => setOpen((v) => !v)}
+          aria-label={t.pointsHistory}
+          title={t.pointsHistory}
+        >
+          <History className="size-4" />
         </button>
-        <button type="button" className="text-xs text-terracotta" onClick={onDelete}>
-          {t.delete}
+        <button
+          type="button"
+          className="grid size-8 place-items-center rounded-full bg-surface text-terracotta"
+          onClick={onDelete}
+          aria-label={t.delete}
+          title={t.delete}
+        >
+          <Trash2 className="size-4" />
         </button>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -353,11 +415,15 @@ function TeacherRow({
         <TextInput className="h-9 min-w-[180px] flex-1" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.pointsNotePh} />
         <PillButton
           type="button"
-          disabled={!Number.isFinite(n) || n === 0 || pts.isPending}
-          onClick={() => pts.mutate(n)}
+          disabled={!Number.isFinite(n) || n === 0 || pts.isPending || (n > 0 && student.points >= 1_000_000) || (n < 0 && student.points <= 0)}
+          onClick={() => {
+            const room = n > 0 ? Math.min(n, 1_000_000 - student.points) : Math.max(n, -student.points);
+            if (room) pts.mutate(room);
+          }}
         >
           {t.pointsApply}
         </PillButton>
+        <span className="text-xs text-muted">{t.pointsRange}</span>
       </div>
       {open && (
         <ul className="mt-3 space-y-1.5 border-t border-hairline pt-3">
