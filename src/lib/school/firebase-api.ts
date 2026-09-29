@@ -492,7 +492,7 @@ export async function completeSetup(input?: { data?: { displayName: string; isAd
   const u = user();
   const name = (data?.displayName ?? "").trim();
   if (!name) throw new Error("NAME");
-  const admin = p.isAdmin ? Boolean(data?.isAdmin) : false;
+  const admin = Boolean(data?.isAdmin);
   const subjectIds = data?.subjectIds ?? [];
   if (!admin && subjectIds.length === 0) throw new Error("SUBJECTS");
   await updateDoc(doc(db(), "users", u.uid), {
@@ -652,8 +652,8 @@ function decorate(entries: ScheduleEntry[], subjects: Bag[]): ScheduleEntry[] {
   const byId = new Map(subjects.map((sub) => [s(sub.id), sub]));
   return entries.map((e) => {
     const base = e.subjectId ? byId.get(e.subjectId) : undefined;
-    let meetLink = e.meetLink || (base ? s(base.meetLink) : "");
-    let room = e.room || (base ? s(base.room) : "");
+    let meetLink = (base ? s(base.meetLink) : "") || e.meetLink;
+    let room = (base ? s(base.room) : "") || e.room;
     let shownSubjectId = e.subjectId;
     let shownSubjectName = e.subjectName;
     let overrideOn = false;

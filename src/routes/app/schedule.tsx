@@ -162,22 +162,6 @@ function SchedulePage() {
 
   return (
     <div>
-      {live && live.phase !== "none" && (
-        <section className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-hairline bg-surface px-4 py-3">
-          <div>
-            <p className="text-xs font-bold tracking-wide text-forest-mid uppercase">
-              {live.phase === "lesson" ? t.liveLesson : live.phase === "break" ? t.liveBreak : t.nextLesson}
-            </p>
-            <p className="font-display text-lg font-extrabold">{live.name}</p>
-            <p className="text-xs text-muted">{t.minutesLeft.replace("{n}", String(live.minutes))}</p>
-          </div>
-          {live.meetLink && (
-            <a href={live.meetLink} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center rounded-full bg-forest-mid px-5 font-display text-sm font-bold text-paper">
-              {t.joinMeeting}
-            </a>
-          )}
-        </section>
-      )}
       <Panel>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <PanelTitle>{isTeacher ? t.scheduleHeading : t.weeklySchedule}</PanelTitle>
@@ -398,6 +382,28 @@ function SchedulePage() {
             </tbody>
           </table>
         </div>
+
+        {live && live.phase !== "none" && (
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-hairline bg-cream/40 px-4 py-3">
+            <div>
+              <p className="text-xs font-bold tracking-wide text-forest-mid uppercase">
+                {live.phase === "lesson" ? t.liveLesson : live.phase === "break" ? t.liveBreak : t.nextLesson}
+              </p>
+              <p className="font-display text-lg font-extrabold">
+                {live.name}
+                {live.room ? <span className="ml-2 text-sm font-bold text-muted">{live.room}</span> : null}
+              </p>
+              <p className="text-xs text-muted">
+                {(live.phase === "lesson" ? t.minutesLeft : t.startsIn).replace("{n}", String(live.minutes))}
+              </p>
+            </div>
+            {live.meetLink && (live.phase === "lesson" || live.minutes <= 5) && (
+              <a href={live.meetLink} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center rounded-full bg-forest-mid px-5 font-display text-sm font-bold text-paper">
+                {t.joinMeeting}
+              </a>
+            )}
+          </section>
+        )}
 
         {isTeacher && (
           <div className="mt-3 flex flex-wrap items-center gap-2">

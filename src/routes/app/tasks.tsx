@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   addLesson,
@@ -109,7 +110,7 @@ function TasksPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["lessons"] }),
   });
   const patchSub = useMutation({
-    mutationFn: (d: { subjectId: string; studentsCanAddHw?: boolean }) => updateSubject({ data: d }),
+    mutationFn: (d: { subjectId: string; studentsCanAddHw?: boolean; room?: string; meetLink?: string }) => updateSubject({ data: d }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["subjects"] }),
   });
   const delSub = useMutation({
@@ -363,37 +364,107 @@ function TasksPage() {
         ) : (
           <ul className="space-y-1">
             {(subjectsQ.data?.subjects ?? []).map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-cream/50 px-3 py-2 text-sm">
-                <span>
-                  <span className="font-semibold">{s.name}</span>
-                  {s.room && <span className="ml-2 text-muted">{s.room}</span>}
-                  {s.meetLink && (
-                    <a href={s.meetLink} target="_blank" rel="noreferrer" className="ml-2 text-xs font-bold text-forest-mid">
-                      {t.joinMeeting}
-                    </a>
-                  )}
-                </span>
-                {isTeacher && teachable.some((x) => x.id === s.id) && (
-                  <span className="flex items-center gap-3">
-                    <label className="flex items-center gap-1 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={s.studentsCanAddHw}
-                        onChange={(e) => patchSub.mutate({ subjectId: s.id, studentsCanAddHw: e.target.checked })}
-                      />
-                      {t.studentsCanHw}
-                    </label>
-                    <button type="button" className="text-xs text-terracotta" onClick={() => { if (window.confirm(t.confirmDelete)) delSub.mutate(s.id); }}>
-                      {t.deleteSubject}
-                    </button>
-                  </span>
-                )}
-              </li>
+              <SubjectRow
+                key={s.id}
+                subject={s}
+                canEdit={Boolean(isTeacher && teachable.some((x) => x.id === s.id))}
+                onPatch={(data) => patchSub.mutate(data)}
+                onDelete={() => {
+                  if (window.confirm(t.confirmDelete)) delSub.mutate(s.id);
+                }}
+              />
             ))}
           </ul>
         )}
       </Panel>
     </div>
+  );
+}
+
+function SubjectRow({
+  subject,
+  canEdit,
+  onPatch,
+  onDelete,
+}: {
+  subject: { id: string; name: string; room: string; meetLink: string; studentsCanAddHw: boolean };
+  canEdit: boolean;
+  onPatch: (data: { subjectId: string; studentsCanAddHw?: boolean; room?: string; meetLink?: string }) => void;
+  onDelete: () => void;
+}) {
+  const { lang } = usePrefs();
+  const t = STRINGS[lang];
+  const [open, setOpen] = useState(false);
+  const [room, setRoom] = useState(subject.room);
+  const [meet, setMeet] = useState(subject.meetLink);
+
+  return (
+    <li className="rounded-xl bg-cream/50 px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>
+          <span className="font-semibold">{subject.name}</span>
+          {subject.room && <span className="ml-2 text-muted">{subject.room}</span>}
+          {subject.meetLink && (
+            <a href={subject.meetLink} target="_blank" rel="noreferrer" className="ml-2 text-xs font-bold text-forest-mid">
+              {t.joinMeeting}
+            </a>
+          )}
+        </span>
+        {canEdit && (
+          <span className="flex items-center gap-3">
+            <label className="flex items-center gap-1 text-xs">
+              <input
+                type="checkbox"
+                checked={subject.studentsCanAddHw}
+                onChange={(e) => onPatch({ subjectId: subject.id, studentsCanAddHw: e.target.checked })}
+              />
+              {t.studentsCanHw}
+            </label>
+            <button
+              type="button"
+              title={t.edit}
+              aria-label={t.edit}
+              aria-pressed={open}
+              onClick={() => {
+                setRoom(subject.room);
+                setMeet(subject.meetLink);
+                setOpen((v) => !v);
+              }}
+              className={cn(
+                "grid size-9 place-items-center rounded-xl border",
+                open ? "border-forest bg-forest text-paper" : "border-hairline bg-surface text-ink hover:border-forest hover:text-forest",
+              )}
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
+              title={t.deleteSubject}
+              aria-label={t.deleteSubject}
+              onClick={onDelete}
+              className="grid size-9 place-items-center rounded-xl border border-hairline bg-surface text-terracotta hover:border-terracotta"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </span>
+        )}
+      </div>
+      {open && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <TextInput value={room} onChange={(e) => setRoom(e.target.value)} placeholder={t.roomPh} className="h-9" />
+          <TextInput value={meet} onChange={(e) => setMeet(e.target.value)} placeholder={t.meetLink} className="h-9 min-w-[220px] flex-1" />
+          <PillButton
+            type="button"
+            onClick={() => {
+              onPatch({ subjectId: subject.id, room, meetLink: meet });
+              setOpen(false);
+            }}
+          >
+            {t.save}
+          </PillButton>
+        </div>
+      )}
+    </li>
   );
 }
 

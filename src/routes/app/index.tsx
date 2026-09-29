@@ -75,9 +75,11 @@ function HomePage() {
               {live.name}
               {live.room ? <span className="ml-2 text-sm font-bold text-muted">{live.room}</span> : null}
             </p>
-            <p className="text-xs text-muted">{t.minutesLeft.replace("{n}", String(live.minutes))}</p>
+            <p className="text-xs text-muted">
+              {(live.phase === "lesson" ? t.minutesLeft : t.startsIn).replace("{n}", String(live.minutes))}
+            </p>
           </div>
-          {live.meetLink && (
+          {live.meetLink && (live.phase === "lesson" || live.minutes <= 5) && (
             <a
               href={live.meetLink}
               target="_blank"
