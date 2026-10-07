@@ -16,7 +16,9 @@ import { Route as StudentRouteImport } from './routes/student'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppAnnouncementsRouteImport } from './routes/app/announcements'
 import { Route as AppChatRouteImport } from './routes/app/chat'
+import { Route as AppClubsRouteImport } from './routes/app/clubs'
 import { Route as AppGradesRouteImport } from './routes/app/grades'
+import { Route as AppHomeworkRouteImport } from './routes/app/homework'
 import { Route as AppScheduleRouteImport } from './routes/app/schedule'
 import { Route as AppSelfgovRouteImport } from './routes/app/selfgov'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
@@ -64,9 +66,19 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AppClubsRoute = AppClubsRouteImport.update({
+  id: '/clubs',
+  path: '/clubs',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGradesRoute = AppGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHomeworkRoute = AppHomeworkRouteImport.update({
+  id: '/homework',
+  path: '/homework',
   getParentRoute: () => AppRoute,
 } as any)
 const AppScheduleRoute = AppScheduleRouteImport.update({
@@ -132,7 +144,9 @@ export interface FileRoutesByFullPath {
   '/student': typeof StudentRoute
   '/app/announcements': typeof AppAnnouncementsRoute
   '/app/chat': typeof AppChatRoute
+  '/app/clubs': typeof AppClubsRoute
   '/app/grades': typeof AppGradesRoute
+  '/app/homework': typeof AppHomeworkRoute
   '/app/schedule': typeof AppScheduleRoute
   '/app/selfgov': typeof AppSelfgovRoute
   '/app/settings': typeof AppSettingsRoute
@@ -152,7 +166,9 @@ export interface FileRoutesByTo {
   '/student': typeof StudentRoute
   '/app/announcements': typeof AppAnnouncementsRoute
   '/app/chat': typeof AppChatRoute
+  '/app/clubs': typeof AppClubsRoute
   '/app/grades': typeof AppGradesRoute
+  '/app/homework': typeof AppHomeworkRoute
   '/app/schedule': typeof AppScheduleRoute
   '/app/selfgov': typeof AppSelfgovRoute
   '/app/settings': typeof AppSettingsRoute
@@ -174,7 +190,9 @@ export interface FileRoutesById {
   '/student': typeof StudentRoute
   '/app/announcements': typeof AppAnnouncementsRoute
   '/app/chat': typeof AppChatRoute
+  '/app/clubs': typeof AppClubsRoute
   '/app/grades': typeof AppGradesRoute
+  '/app/homework': typeof AppHomeworkRoute
   '/app/schedule': typeof AppScheduleRoute
   '/app/selfgov': typeof AppSelfgovRoute
   '/app/settings': typeof AppSettingsRoute
@@ -197,7 +215,9 @@ export interface FileRouteTypes {
     | '/student'
     | '/app/announcements'
     | '/app/chat'
+    | '/app/clubs'
     | '/app/grades'
+    | '/app/homework'
     | '/app/schedule'
     | '/app/selfgov'
     | '/app/settings'
@@ -217,7 +237,9 @@ export interface FileRouteTypes {
     | '/student'
     | '/app/announcements'
     | '/app/chat'
+    | '/app/clubs'
     | '/app/grades'
+    | '/app/homework'
     | '/app/schedule'
     | '/app/selfgov'
     | '/app/settings'
@@ -238,7 +260,9 @@ export interface FileRouteTypes {
     | '/student'
     | '/app/announcements'
     | '/app/chat'
+    | '/app/clubs'
     | '/app/grades'
+    | '/app/homework'
     | '/app/schedule'
     | '/app/selfgov'
     | '/app/settings'
@@ -316,11 +340,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/clubs': {
+      id: '/app/clubs'
+      path: '/clubs'
+      fullPath: '/app/clubs'
+      preLoaderRoute: typeof AppClubsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/grades': {
       id: '/app/grades'
       path: '/grades'
       fullPath: '/app/grades'
       preLoaderRoute: typeof AppGradesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/homework': {
+      id: '/app/homework'
+      path: '/homework'
+      fullPath: '/app/homework'
+      preLoaderRoute: typeof AppHomeworkRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/schedule': {
@@ -406,7 +444,9 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAnnouncementsRoute: typeof AppAnnouncementsRoute
   AppChatRoute: typeof AppChatRoute
+  AppClubsRoute: typeof AppClubsRoute
   AppGradesRoute: typeof AppGradesRoute
+  AppHomeworkRoute: typeof AppHomeworkRoute
   AppScheduleRoute: typeof AppScheduleRoute
   AppSelfgovRoute: typeof AppSelfgovRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -419,7 +459,9 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAnnouncementsRoute: AppAnnouncementsRoute,
   AppChatRoute: AppChatRoute,
+  AppClubsRoute: AppClubsRoute,
   AppGradesRoute: AppGradesRoute,
+  AppHomeworkRoute: AppHomeworkRoute,
   AppScheduleRoute: AppScheduleRoute,
   AppSelfgovRoute: AppSelfgovRoute,
   AppSettingsRoute: AppSettingsRoute,

@@ -2,8 +2,11 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Line, LineChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { listGrades, listStudents, listSubjects, setGrade } from "@/lib/school/server";
-import { STRINGS } from "@/lib/i18n";
+import { toast } from "sonner";
+import { gradeOutOfRange, listGradebook, listGrades, listLessons, listStudents, listSubjects, setGrade } from "@/lib/school/server";
+import { kyivToday } from "@/lib/school/ids";
+import { STRINGS, type Lang } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
@@ -31,6 +34,7 @@ function GradesPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [finalPeriod, setFinalPeriod] = useState("semester1");
+  const [journal, setJournal] = useState(false);
   const add = useMutation({
     mutationFn: () =>
       setGrade({
@@ -46,6 +50,9 @@ function GradesPage() {
     onSuccess: () => {
       setComment("");
       void qc.invalidateQueries({ queryKey: ["grades"] });
+    },
+    onError: (e) => {
+      if (e instanceof Error && e.message === "GRADE_RANGE") toast.error(t.gradeRange);
     },
   });
 
@@ -109,8 +116,11 @@ function GradesPage() {
                 <option value="year">{t.yearGrade}</option>
               </Select>
             )}
-            <TextInput value={value} onChange={(e) => setValue(e.target.value)} placeholder="1–12 / Н" className="w-24" />
+            <TextInput value={value} onChange={(e) => { if (!gradeOutOfRange(e.target.value)) setValue(e.target.value); }} placeholder="1–12 / Н" className="w-24" />
             <TextInput value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t.commentPh} />
+            <PillButton type="button" tone={journal ? "primary" : "ghost"} onClick={() => setJournal((v) => !v)}>
+              {t.gradebook}
+            </PillButton>
             <PillButton type="button" disabled={!rosterId || add.isPending} onClick={() => add.mutate()}>
               {t.save}
             </PillButton>
@@ -123,7 +133,7 @@ function GradesPage() {
                   (g) => g.subjectId === (subjectId || subjects.data?.subjects[0]?.id) && g.kind !== "final" && /^\d+$/.test(g.value),
                 );
                 if (!pool.length) return;
-                const avgN = Math.round(pool.reduce((a, g) => a + Number(g.value), 0) / pool.length);
+                const avgN = Math.min(12, Math.max(1, Math.round(pool.reduce((a, g) => a + Number(g.value), 0) / pool.length)));
                 setValue(String(avgN));
                 setKind("final");
               }}
@@ -184,6 +194,7 @@ function GradesPage() {
           </div>
         )}
       </Panel>
+      {isTeacher && journal && <GradeJournal t={t} lang={lang} />}
       {finals.length > 0 && (
         <Panel>
           <PanelTitle>{t.finalGrades}</PanelTitle>
@@ -229,6 +240,202 @@ function GradesPage() {
       </Panel>
     </div>
   );
+}
+
+function GradeJournal({ t, lang }: { t: (typeof STRINGS)[Lang]; lang: Lang }) {
+  const today = kyivToday();
+  const lessonsQ = useQuery({ queryKey: ["lessons"], queryFn: () => listLessons() });
+  const studentsQ = useQuery({ queryKey: ["students"], queryFn: () => listStudents() });
+  const bookQ = useQuery({ queryKey: ["gradebook"], queryFn: () => listGradebook() });
+  const qc = useQueryClient();
+  const [subjectId, setSubjectId] = useState("");
+  const [classId, setClassId] = useState("");
+  const [kind, setKind] = useState<"lesson" | "homework">("lesson");
+  const [period, setPeriod] = useState("thisMonth");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const save = useMutation({
+    mutationFn: (d: { rosterId: string; subjectId: string; lessonId: string; value: string }) =>
+      setGrade({ data: { ...d, kind, comment: "" } }),
+    onSuccess: () => {
+      toast.success(t.gradeSaved);
+      void qc.invalidateQueries({ queryKey: ["gradebook"] });
+      void qc.invalidateQueries({ queryKey: ["grades"] });
+    },
+    onError: (e) => {
+      if (e instanceof Error && e.message === "GRADE_RANGE") toast.error(t.gradeRange);
+    },
+  });
+
+  const lessons = useMemo(() => {
+    return (lessonsQ.data?.lessons ?? [])
+      .filter((l) => !subjectId || l.subjectId === subjectId)
+      .filter((l) => !classId || l.classIds.length === 0 || l.classIds.includes(classId))
+      .filter((l) => lessonInPeriod(l.lessonDate, period, from, to))
+      .slice()
+      .sort((a, b) => a.lessonDate.localeCompare(b.lessonDate) || a.subjectName.localeCompare(b.subjectName, lang));
+  }, [lessonsQ.data, subjectId, classId, period, from, to, lang]);
+
+  const subjects = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const l of lessonsQ.data?.lessons ?? []) map.set(l.subjectId, l.subjectName);
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], lang));
+  }, [lessonsQ.data, lang]);
+
+  const classes = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of studentsQ.data ?? []) if (s.classId) map.set(s.classId, s.className || s.classId);
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], lang));
+  }, [studentsQ.data, lang]);
+
+  const students = useMemo(() => {
+    const classIds = new Set(lessons.flatMap((l) => l.classIds));
+    return (studentsQ.data ?? [])
+      .filter((s) => (classId ? s.classId === classId : classIds.size === 0 || classIds.has(s.classId)))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, lang));
+  }, [studentsQ.data, lessons, classId, lang]);
+
+  const gradeAt = (rosterId: string, lessonId: string) =>
+    bookQ.data?.grades.find((g) => g.rosterId === rosterId && g.lessonId === lessonId && g.kind === kind)?.value ?? "";
+
+  return (
+    <Panel>
+      <PanelTitle>{t.gradebook}</PanelTitle>
+      <Hint>{t.gradebookHint}</Hint>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="h-9">
+          <option value="">{t.allSubjects}</option>
+          {subjects.map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </Select>
+        <Select value={classId} onChange={(e) => setClassId(e.target.value)} className="h-9">
+          <option value="">{t.allClasses}</option>
+          {classes.map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </Select>
+        <Select value={kind} onChange={(e) => setKind(e.target.value as "lesson" | "homework")} className="h-9">
+          <option value="lesson">{t.gradeLesson}</option>
+          <option value="homework">{t.gradeHw}</option>
+        </Select>
+        <Select value={period} onChange={(e) => setPeriod(e.target.value)} className="h-9">
+          <option value="all">{t.periodAll}</option>
+          <option value="thisMonth">{t.periodMonth}</option>
+          <option value="lastMonth">{t.periodLast}</option>
+          <option value="semester1">{t.periodSem1}</option>
+          <option value="semester2">{t.periodSem2}</option>
+          <option value="custom">{t.periodCustom}</option>
+        </Select>
+        {period === "custom" && (
+          <span className="inline-flex flex-wrap items-center gap-2 text-xs font-bold text-muted">
+            {t.periodFrom}
+            <TextInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" />
+            {t.periodTo}
+            <TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" />
+          </span>
+        )}
+      </div>
+      {lessons.length === 0 ? (
+        <p className="text-sm text-muted">{t.gradebookEmpty}</p>
+      ) : students.length === 0 ? (
+        <p className="text-sm text-muted">{t.noStudents}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-10 min-w-44 bg-surface px-3 py-2 text-left font-display text-xs font-extrabold text-muted">
+                  {t.tabStudents}
+                </th>
+                {lessons.map((l) => {
+                  const on = l.lessonDate === today;
+                  return (
+                    <th
+                      key={l.id}
+                      className={cn(
+                        "min-w-24 px-2 py-2 text-center font-display text-xs font-extrabold",
+                        on ? "bg-forest/5 text-forest" : "text-ink",
+                      )}
+                    >
+                      <div>{shortDate(l.lessonDate, lang)}</div>
+                      <div className={cn("mt-0.5 text-[10px] font-bold", on ? "text-forest" : "text-muted")}>{l.subjectName}</div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((s) => (
+                <tr key={s.id}>
+                  <td className="sticky left-0 z-10 border-t border-hairline bg-surface px-3 py-1.5 font-semibold">{s.name}</td>
+                  {lessons.map((l) => {
+                    const value = gradeAt(s.id, l.id);
+                    return (
+                      <td key={l.id} className={cn("border-t border-hairline px-1 py-1 text-center", l.lessonDate === today && "bg-forest/5")}>
+                        <JournalCell
+                          key={`${s.id}-${l.id}-${kind}-${value}`}
+                          initial={value}
+                          onSave={(next) => save.mutate({ rosterId: s.id, subjectId: l.subjectId, lessonId: l.id, value: next })}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function JournalCell({ initial, onSave }: { initial: string; onSave: (value: string) => void }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <input
+      value={value}
+      onChange={(e) => {
+        if (!gradeOutOfRange(e.target.value)) setValue(e.target.value);
+      }}
+      onBlur={() => {
+        if (value.trim() !== initial) onSave(value.trim());
+      }}
+      placeholder="—"
+      className="h-8 w-14 rounded-lg bg-surface text-center text-sm font-bold text-ink outline-none"
+    />
+  );
+}
+
+function shortDate(iso: string, lang: "uk" | "en") {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(lang === "uk" ? "uk-UA" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+function lessonInPeriod(iso: string, period: string, from: string, to: string) {
+  if (!iso || period === "all") return true;
+  const [y, m] = iso.split("-").map(Number);
+  if (!y || !m) return false;
+  const now = new Date();
+  if (period === "thisMonth") return y === now.getFullYear() && m === now.getMonth() + 1;
+  if (period === "lastMonth") {
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return y === prev.getFullYear() && m === prev.getMonth() + 1;
+  }
+  if (period === "semester1") return m >= 9 && m <= 12;
+  if (period === "semester2") return m >= 1 && m <= 5;
+  if (period === "custom") {
+    if (from && iso < from) return false;
+    if (to && iso > to) return false;
+  }
+  return true;
 }
 
 function Mini({ label, value, extra }: { label: string; value: string; extra?: string }) {

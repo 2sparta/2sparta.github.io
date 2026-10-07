@@ -1,4 +1,4 @@
-export type Role = "teacher" | "student";
+export type Role = "teacher" | "student" | "parent";
 
 export type Profile = {
   userId: string;
@@ -16,6 +16,10 @@ export type Profile = {
   className: string | null;
   points: number;
   linked: boolean;
+  office: string | null;
+  budget: number;
+  canPostHw: boolean;
+  childName: string | null;
 };
 
 export type Subject = {
@@ -43,6 +47,9 @@ export type RosterStudent = {
   inviteCode: string;
   linkedUserId: string | null;
   isStarosta: boolean;
+  office: string | null;
+  budget: number;
+  canPostHw: boolean;
 };
 
 export type ScheduleEntry = {

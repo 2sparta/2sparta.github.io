@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { GraduationCap, School } from "lucide-react";
+import { GraduationCap, School, Users } from "lucide-react";
 import { AuthCard, AuthLayout, PrimaryButton, SecondaryButton } from "@/components/auth-layout";
 import { RequireStep } from "@/components/session-gate";
 import { chooseRole, enterDemoAsStudent } from "@/lib/school/server";
@@ -28,7 +28,7 @@ function RoleScreen() {
     typeof window !== "undefined"
       ? (sessionStorage.getItem("kp-intended-role") as "teacher" | "student" | null)
       : null;
-  const [role, setRole] = useState<"teacher" | "student">(intended ?? "teacher");
+  const [role, setRole] = useState<"teacher" | "student" | "parent">(intended ?? "teacher");
   const mut = useMutation({
     mutationFn: () => chooseRole({ data: { role } }),
     onSuccess: async () => {
@@ -51,7 +51,7 @@ function RoleScreen() {
         <h1 className="mb-2 text-center font-display text-[28px] font-extrabold text-ink">{t.roleHeading}</h1>
         <p className="mb-5 text-center text-sm text-muted">{t.roleHint}</p>
         <p className="mb-2 font-display text-sm font-bold text-ink">{t.whatToDo}</p>
-        <div className="mb-4 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+        <div className="mb-4 grid grid-cols-3 gap-3 max-sm:grid-cols-1">
           <RoleCard
             selected={role === "teacher"}
             onSelect={() => setRole("teacher")}
@@ -65,6 +65,13 @@ function RoleScreen() {
             icon={<GraduationCap className="size-6" />}
             title={t.iAmStudent}
             desc={t.iAmStudentDesc}
+          />
+          <RoleCard
+            selected={role === "parent"}
+            onSelect={() => setRole("parent")}
+            icon={<Users className="size-6" />}
+            title={t.iAmParent}
+            desc={t.iAmParentDesc}
           />
         </div>
         <PrimaryButton type="button" disabled={mut.isPending || demo.isPending} onClick={() => mut.mutate()}>

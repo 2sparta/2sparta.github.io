@@ -60,6 +60,7 @@ function s(v: unknown, fallback = "") {
 
 function appRole(role: unknown): Profile["role"] {
   if (role === "student") return "student";
+  if (role === "parent") return "parent";
   if (role === "teacher" || role === "admin" || role === "pending-teacher") return "teacher";
   return null;
 }
@@ -83,7 +84,17 @@ export async function loadProfile(uid?: string): Promise<Profile> {
   const fire = db();
   const snap = await getDoc(doc(fire, "users", id));
   const d = snap.exists() ? snap.data() : null;
-  const roster = await findRoster(id, d?.rosterId ? s(d.rosterId) : null);
+  const isParent = d?.role === "parent";
+  const childId = isParent ? s(d?.childRosterId || d?.rosterId) : "";
+  let roster: Bag | null = null;
+  if (isParent) {
+    if (childId) {
+      const child = await getDoc(doc(fire, "students", childId));
+      if (child.exists()) roster = { id: child.id, ...child.data() };
+    }
+  } else {
+    roster = await findRoster(id, d?.rosterId ? s(d.rosterId) : null);
+  }
   let schoolName: string | null = d?.schoolName ? s(d.schoolName) : null;
   const schoolId = d?.schoolId ? s(d.schoolId) : roster?.schoolId ? s(roster.schoolId) : null;
   if (!schoolName && schoolId) {
@@ -96,7 +107,7 @@ export async function loadProfile(uid?: string): Promise<Profile> {
     const klass = await getDoc(doc(fire, "classes", classId));
     className = klass.exists() ? s(klass.data().name) : null;
   }
-  const role = appRole(d?.role);
+  const role = isParent ? "parent" : appRole(d?.role);
   const setupComplete =
     d?.setupComplete === true ||
     (d?.setupComplete == null && Boolean(schoolId) && (d?.role === "admin" || d?.role === "teacher"));
@@ -109,13 +120,17 @@ export async function loadProfile(uid?: string): Promise<Profile> {
     groupId: d?.groupId ? s(d.groupId) : roster?.groupId ? s(roster.groupId) : null,
     rosterId: roster ? roster.id : d?.rosterId ? s(d.rosterId) : null,
     isAdmin: d?.role === "admin" || d?.isAdmin === true,
-    isStarosta: roster?.isStarosta === true,
+    isStarosta: !isParent && roster?.isStarosta === true,
     setupComplete,
     email: s(d?.email) || s(u.email) || null,
     schoolName,
     className,
     points: clampPoints(Number(roster?.points ?? 0) || 0),
     linked: Boolean(roster),
+    office: isParent || !roster?.office ? null : s(roster.office),
+    budget: isParent ? 0 : clampPoints(Number(roster?.budget) || 0),
+    canPostHw: !isParent && roster?.canPostHw === true,
+    childName: isParent && roster ? s(roster.name) : null,
   };
 }
 
@@ -131,6 +146,7 @@ function nextStep(p: Profile): "role" | "school" | "setup" | "link" | "app" {
     if (!p.setupComplete) return "setup";
     return "app";
   }
+  if (p.role === "parent") return p.linked ? "app" : "link";
   if (!p.linked) return "link";
   return "app";
 }
@@ -182,13 +198,13 @@ export async function getMe() {
   return { profile, nextStep: nextStep(profile) };
 }
 
-export async function chooseRole(input?: { data?: { role: "teacher" | "student"; displayName?: string } }) {
+export async function chooseRole(input?: { data?: { role: "teacher" | "student" | "parent"; displayName?: string } }) {
   const data = dataOf(input);
   const u = user();
   const ref = doc(db(), "users", u.uid);
   const snap = await getDoc(ref);
   if (snap.exists()) return loadProfile();
-  const role = data?.role === "student" ? "student" : "pending-teacher";
+  const role = data?.role === "student" ? "student" : data?.role === "parent" ? "parent" : "pending-teacher";
   const displayName = (data?.displayName ?? "").trim() || u.displayName || (u.email ?? "").split("@")[0];
   await setDoc(ref, {
     role,
@@ -549,6 +565,33 @@ export async function linkStudent(input?: { data?: { code: string } }) {
   return loadProfile();
 }
 
+export async function linkParent(input?: { data?: { code: string } }) {
+  const code = (dataOf(input)?.code ?? "").replace(/\s+/g, "");
+  const u = user();
+  const snap = await getDocs(query(collection(db(), "students"), where("inviteCode", "==", code)));
+  if (snap.empty) throw new Error("CODE_NOT_FOUND");
+  const row = snap.docs[0];
+  const d = row.data();
+  await updateDoc(row.ref, { parentUids: arrayUnion(u.uid) });
+  const userRef = doc(db(), "users", u.uid);
+  const existing = await getDoc(userRef);
+  const patch = {
+    role: "parent",
+    displayName: existing.exists() && s(existing.data().displayName) ? s(existing.data().displayName) : (u.email ?? "").split("@")[0],
+    email: u.email,
+    schoolId: d.schoolId ?? null,
+    classId: d.classId ?? null,
+    groupId: d.groupId ?? null,
+    rosterId: row.id,
+    childRosterId: row.id,
+    isAdmin: false,
+    setupComplete: true,
+  };
+  if (existing.exists()) await updateDoc(userRef, patch);
+  else await setDoc(userRef, { ...patch, createdAt: Date.now() });
+  return loadProfile();
+}
+
 export async function enterDemoAsStudent() {
   const u = user();
   const existing = await loadProfile();
@@ -790,6 +833,9 @@ export async function listStudents() {
       inviteCode: s(r.inviteCode),
       linkedUserId: r.linkedUserId ? s(r.linkedUserId) : r.authUid ? s(r.authUid) : null,
       isStarosta: r.isStarosta === true,
+      office: r.office ? s(r.office) : null,
+      budget: clampPoints(Number(r.budget) || 0),
+      canPostHw: r.canPostHw === true,
     }))
     .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, "uk")) satisfies RosterStudent[];
 }
@@ -817,6 +863,9 @@ export async function addStudent(input?: { data?: { name: string; classId: strin
     authUid: null,
     linkedUserId: null,
     isStarosta: false,
+    canPostHw: false,
+    office: null,
+    budget: 0,
     doneLessonIds: [],
     createdAt: Date.now(),
   });
@@ -1121,7 +1170,7 @@ export async function listLessons() {
     imageUrls: Array.isArray(r.imageUrls) ? (r.imageUrls as string[]).map((u) => s(u)).filter(Boolean) : [],
   }));
   lessons.sort((a, b) => b.lessonDate.localeCompare(a.lessonDate));
-  if (p.role === "student" && p.classId) {
+  if ((p.role === "student" || p.role === "parent") && p.classId) {
     const now = Date.now();
     lessons = lessons.filter((l) => l.classIds.length === 0 || l.classIds.includes(p.classId!));
     lessons = lessons.filter((l) => !l.publishAt || new Date(l.publishAt).getTime() <= now);
@@ -1198,7 +1247,7 @@ export async function toggleHomeworkDone(input?: { data?: { lessonId: string; do
 
 export async function listGrades(input?: { data?: { rosterId?: string } }) {
   const p = await requireProfile();
-  const rosterId = p.role === "student" ? p.rosterId : dataOf(input)?.rosterId;
+  const rosterId = p.role === "student" || p.role === "parent" ? p.rosterId : dataOf(input)?.rosterId;
   if (!rosterId) return { grades: [] as Grade[] };
   const grades = (await bySchool("grades", p.schoolId!))
     .filter((g) => s(g.rosterId) === rosterId)
@@ -1244,6 +1293,7 @@ export async function setGrade(input?: {
     if (existing) await deleteDoc(doc(db(), "grades", s(existing.id)));
     return { id: existing ? s(existing.id) : null };
   }
+  if (gradeOutOfRange(value)) throw new Error("GRADE_RANGE");
   const sub = await getDoc(doc(db(), "subjects", data.subjectId));
   const subjectName = sub.exists() ? s(sub.data().name) : "";
   const payload = {
@@ -1273,6 +1323,13 @@ export async function setGrade(input?: {
   return { id };
 }
 
+export function gradeOutOfRange(value: string) {
+  const t = value.trim().replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(t)) return false;
+  const n = Number(t);
+  return n < 1 || n > 12;
+}
+
 export async function listAnnouncements() {
   const p = await requireProfile();
   let list: Announcement[] = (await bySchool("announcements", p.schoolId!))
@@ -1288,7 +1345,7 @@ export async function listAnnouncements() {
     important: r.important === true,
   }));
   list.sort((a, b) => Number(b.important) - Number(a.important) || b.createdAt.localeCompare(a.createdAt));
-  if (p.role === "student" && p.classId) {
+  if ((p.role === "student" || p.role === "parent") && p.classId) {
     list = list.filter((a) => a.classIds.includes(p.classId!));
   }
   return { announcements: list };

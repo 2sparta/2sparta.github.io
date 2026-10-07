@@ -5,7 +5,6 @@ import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   addLesson,
-  addStarostaHomework,
   addSubject,
   deleteLesson,
   deleteSubject,
@@ -14,6 +13,7 @@ import {
   listLessons,
   listStudents,
   listSubjects,
+  gradeOutOfRange,
   setGrade,
   toggleHomeworkDone,
   updateSubject,
@@ -39,7 +39,7 @@ function TasksPage() {
   const t = STRINGS[lang];
   const me = useMeQuery();
   const isTeacher = me.data?.profile.role === "teacher";
-  const isStarosta = Boolean(me.data?.profile.isStarosta);
+  const isStudent = me.data?.profile.role === "student";
   const qc = useQueryClient();
   const lessonsQ = useQuery({ queryKey: ["lessons"], queryFn: () => listLessons() });
   const subjectsQ = useQuery({ queryKey: ["subjects"], queryFn: () => listSubjects() });
@@ -63,12 +63,7 @@ function TasksPage() {
   const [hwSort, setHwSort] = useState<"date" | "subject">("date");
   const [subjectFilter, setSubjectFilter] = useState("");
   const [openJournal, setOpenJournal] = useState<string | null>(null);
-  const [starSubject, setStarSubject] = useState("");
-  const [starTitle, setStarTitle] = useState("");
-  const [starBody, setStarBody] = useState("");
-  const [starDate, setStarDate] = useState(shift(todayFn(), 1));
   const [photos, setPhotos] = useState<string[]>([]);
-  const [starPhotos, setStarPhotos] = useState<string[]>([]);
 
   const addLes = useMutation({
     mutationFn: () =>
@@ -117,19 +112,6 @@ function TasksPage() {
     mutationFn: (subjectId: string) => deleteSubject({ data: { subjectId } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["subjects"] }),
   });
-  const starHw = useMutation({
-    mutationFn: () =>
-      addStarostaHomework({
-        data: { subjectId: starSubject, title: starTitle, content: starBody, homeworkDue: starDate, imageUrls: starPhotos },
-      }),
-    onSuccess: async () => {
-      setStarTitle("");
-      setStarBody("");
-      setStarPhotos([]);
-      toast.success(t.gradeSaved);
-      await qc.invalidateQueries({ queryKey: ["lessons"] });
-    },
-  });
 
   const today = todayFn();
   const tomorrow = shift(today, 1);
@@ -138,7 +120,6 @@ function TasksPage() {
   const isAdmin = Boolean(me.data?.profile.isAdmin);
   const mineIds = new Set(subjectsQ.data?.mine ?? []);
   const teachable = (subjectsQ.data?.subjects ?? []).filter((s) => isAdmin || mineIds.size === 0 || mineIds.has(s.id));
-  const allowedHw = (subjectsQ.data?.subjects ?? []).filter((s) => s.studentsCanAddHw);
   const filtered = useMemo(() => {
     let list = lessons;
     if (kind === "homework") list = list.filter((l) => l.hasHomework);
@@ -227,38 +208,6 @@ function TasksPage() {
         </>
       )}
 
-      {isStarosta && !isTeacher && (
-        <Panel>
-          <PanelTitle>{t.starostaHw}</PanelTitle>
-          <Hint>{t.starostaHwHint}</Hint>
-          {allowedHw.length === 0 ? (
-            <p className="text-sm text-muted">{t.empty}</p>
-          ) : (
-            <div className="grid gap-2">
-              <Select value={starSubject} onChange={(e) => setStarSubject(e.target.value)}>
-                <option value="">{t.subjectName}</option>
-                {allowedHw.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </Select>
-              <TextInput value={starTitle} onChange={(e) => setStarTitle(e.target.value)} placeholder={t.lessonTitle} />
-              <textarea
-                value={starBody}
-                onChange={(e) => setStarBody(e.target.value)}
-                placeholder={t.lessonContent}
-                rows={2}
-                className="rounded-2xl bg-surface-2 px-4 py-3 text-sm outline-none"
-              />
-              <TextInput type="date" value={starDate} onChange={(e) => setStarDate(e.target.value)} />
-              <PhotoAttach urls={starPhotos} onChange={setStarPhotos} disabled={starHw.isPending} />
-              <PillButton type="button" disabled={!starTitle.trim() || !starSubject || starHw.isPending} onClick={() => starHw.mutate()}>
-                {t.add}
-              </PillButton>
-            </div>
-          )}
-        </Panel>
-      )}
-
       <Panel>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {(["today", "tomorrow", "all"] as const).map((v) => (
@@ -294,7 +243,7 @@ function TasksPage() {
               <option value="subject">{t.hwBySubject}</option>
             </Select>
           )}
-          {kind === "homework" && !isTeacher && (
+          {kind === "homework" && isStudent && (
             <label className="flex items-center gap-2 text-xs">
               <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />
               {t.hideDone}
@@ -325,7 +274,7 @@ function TasksPage() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      {!isTeacher && l.hasHomework && (
+                      {isStudent && l.hasHomework && (
                         <PillButton tone="ghost" type="button" onClick={() => tog.mutate({ lessonId: l.id, done: !done.has(l.id) })}>
                           {done.has(l.id) ? t.done : t.markDone}
                         </PillButton>
@@ -412,14 +361,6 @@ function SubjectRow({
         </span>
         {canEdit && (
           <span className="flex items-center gap-3">
-            <label className="flex items-center gap-1 text-xs">
-              <input
-                type="checkbox"
-                checked={subject.studentsCanAddHw}
-                onChange={(e) => onPatch({ subjectId: subject.id, studentsCanAddHw: e.target.checked })}
-              />
-              {t.studentsCanHw}
-            </label>
             <button
               type="button"
               title={t.edit}
@@ -490,6 +431,9 @@ function Journal({
       void qc.invalidateQueries({ queryKey: ["gradebook"] });
       void qc.invalidateQueries({ queryKey: ["grades"] });
     },
+    onError: (e) => {
+      if (e instanceof Error && e.message === "GRADE_RANGE") toast.error(t.gradeRange);
+    },
   });
   if (students.length === 0) return <p className="mt-3 text-sm text-muted">{t.noStudents}</p>;
   return (
@@ -529,7 +473,9 @@ function GradeBox({ initial, onSave }: { initial: string; onSave: (value: string
   return (
     <input
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => {
+        if (!gradeOutOfRange(e.target.value)) setValue(e.target.value);
+      }}
       onBlur={() => {
         if (value.trim() !== initial) onSave(value.trim());
       }}

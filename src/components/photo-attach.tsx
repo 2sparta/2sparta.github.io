@@ -9,10 +9,12 @@ export function PhotoAttach({
   urls,
   onChange,
   disabled,
+  max = 4,
 }: {
   urls: string[];
   onChange: (urls: string[]) => void;
   disabled?: boolean;
+  max?: number;
 }) {
   const { lang } = usePrefs();
   const t = STRINGS[lang];
@@ -21,7 +23,7 @@ export function PhotoAttach({
 
   async function pick(list: FileList | null) {
     if (!list?.length) return;
-    const room = 4 - urls.length;
+    const room = max - urls.length;
     if (room <= 0) return;
     setBusy(true);
     try {
@@ -44,7 +46,7 @@ export function PhotoAttach({
     <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
-        disabled={disabled || busy || urls.length >= 4}
+        disabled={disabled || busy || urls.length >= max}
         onClick={() => input.current?.click()}
         className="inline-flex h-11 items-center gap-2 rounded-full bg-surface-2 px-3 text-xs font-bold text-ink disabled:opacity-40"
       >

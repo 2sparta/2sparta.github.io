@@ -68,6 +68,20 @@ export function minutesOf(hhmm: string): number | null {
 export const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
 
+export const OFFICES = [
+  { id: "interschool", name: "Голова комітету міжшкільних зв’язків" },
+  { id: "public", name: "Голова комітету зв’язків з громадськістю" },
+  { id: "culture", name: "Голова комітету культури і дозвілля" },
+  { id: "sport", name: "Голова комітету фізкультури і спорту" },
+  { id: "media", name: "Голова комітету інформації та медіаресурсів" },
+  { id: "tech", name: "Голова комітету звукового і технічного оформлення" },
+  { id: "speaker", name: "Спікер" },
+] as const;
+
+export function officeName(id: string | null | undefined) {
+  return OFFICES.find((o) => o.id === id)?.name ?? "";
+}
+
 export const DEFAULT_BELLS: { start: string; end: string }[] = [
   { start: "08:30", end: "09:15" },
   { start: "09:25", end: "10:10" },

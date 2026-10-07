@@ -33,6 +33,7 @@ function HomePage() {
     year: "numeric",
   });
   const isStudent = profile?.role === "student";
+  const isParent = profile?.role === "parent";
   const [clock, setClock] = useState(kyivClock());
   useEffect(() => {
     const id = window.setInterval(() => setClock(kyivClock()), 30000);
@@ -48,8 +49,12 @@ function HomePage() {
     { to: "/app/schedule", title: t.tabSchedule, desc: isStudent ? t.tileSchedule : t.tileScheduleT, tone: "forest" as const, icon: CalendarDays, texture: "/img/tile-schedule.jpg", pos: "center" },
     { to: "/app/tasks", title: t.tabTasks, desc: isStudent ? t.tileTasks : t.tileTasksT, tone: "sage" as const, icon: BookOpen, texture: "/img/tile-green.jpg", pos: "center" },
     { to: "/app/grades", title: t.tabGrades, desc: isStudent ? t.tileGrades : t.tileGradesT, tone: "terra" as const, icon: Star, texture: "/img/tile-terra.jpg", pos: "left bottom" },
-    { to: "/app/selfgov", title: t.tabSelfGov, desc: t.tileSelfGov, tone: "cream" as const, icon: Users, texture: "/img/tile-selfgov.jpg", pos: "left bottom" },
-    { to: "/app/chat", title: t.tabChat, desc: t.tileChat, tone: "deep" as const, icon: MessageCircle, texture: "/img/tile-chat.jpg", pos: "center" },
+    ...(isParent
+      ? []
+      : [
+          { to: "/app/selfgov", title: t.tabSelfGov, desc: t.tileSelfGov, tone: "cream" as const, icon: Users, texture: "/img/tile-selfgov.jpg", pos: "left bottom" },
+          { to: "/app/chat", title: t.tabChat, desc: t.tileChat, tone: "deep" as const, icon: MessageCircle, texture: "/img/tile-chat.jpg", pos: "center" },
+        ]),
   ];
 
   return (
@@ -57,7 +62,7 @@ function HomePage() {
       <section className="mb-2 flex items-start justify-between gap-4 pt-2">
         <div>
           <h1 className="font-display text-[clamp(26px,3vw,34px)] font-extrabold tracking-tight text-ink">{greet}</h1>
-          <p className="mt-1 text-sm text-muted">{subtitle}</p>
+          <p className="mt-1 text-sm text-muted">{isParent ? `${t.parentHome}${profile?.childName ? ` · ${profile.childName}` : ""}` : subtitle}</p>
         </div>
         <span className="hidden items-center gap-2 rounded-full border border-hairline bg-surface/90 px-3.5 py-2 font-display text-xs font-extrabold text-ink-soft md:inline-flex">
           <CalendarDays className="size-3.5" />

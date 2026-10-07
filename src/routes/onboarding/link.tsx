@@ -3,9 +3,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AuthCard, AuthLayout, PrimaryButton, SecondaryButton } from "@/components/auth-layout";
 import { RequireStep } from "@/components/session-gate";
-import { enterDemoAsStudent, linkStudent } from "@/lib/school/server";
+import { enterDemoAsStudent, linkParent, linkStudent } from "@/lib/school/server";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
+import { useMeQuery } from "@/components/session-gate";
 import { signOutApp } from "@/lib/firebase";
 import { hasGateSessionMarker } from "@/lib/auth/gate-session-marker";
 
@@ -26,7 +27,8 @@ function LinkScreen() {
   const qc = useQueryClient();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const gate = typeof window !== "undefined" && hasGateSessionMarker();
+  const me = useMeQuery();
+  const isParent = me.data?.profile.role === "parent";
 
   async function goHome() {
     await qc.invalidateQueries({ queryKey: ["me"] });
@@ -34,8 +36,9 @@ function LinkScreen() {
     await navigate({ to: "/app" });
   }
 
+  const gate = typeof window !== "undefined" && hasGateSessionMarker();
   const mut = useMutation({
-    mutationFn: () => linkStudent({ data: { code } }),
+    mutationFn: () => (isParent ? linkParent({ data: { code } }) : linkStudent({ data: { code } })),
     onSuccess: goHome,
     onError: (e) => {
       const msg = e instanceof Error ? e.message : "";
@@ -52,7 +55,7 @@ function LinkScreen() {
     <AuthLayout variant="forest">
       <AuthCard>
         <h1 className="mb-2 text-center font-display text-[28px] font-extrabold text-ink">{t.linkHeading}</h1>
-        <p className="mb-5 text-center text-sm text-muted">{t.linkHint}</p>
+        <p className="mb-5 text-center text-sm text-muted">{isParent ? t.parentLinkHint : t.linkHint}</p>
         <input
           value={code}
           onChange={(e) => setCode(e.target.value)}
@@ -69,10 +72,14 @@ function LinkScreen() {
         >
           {t.linkBtn}
         </PrimaryButton>
-        <SecondaryButton type="button" disabled={mut.isPending || demo.isPending} onClick={() => demo.mutate()}>
-          {t.demoStudent}
-        </SecondaryButton>
-        <p className="mt-2 text-center text-xs leading-relaxed text-muted">{t.demoStudentHint}</p>
+        {!isParent && (
+          <>
+            <SecondaryButton type="button" disabled={mut.isPending || demo.isPending} onClick={() => demo.mutate()}>
+              {t.demoStudent}
+            </SecondaryButton>
+            <p className="mt-2 text-center text-xs leading-relaxed text-muted">{t.demoStudentHint}</p>
+          </>
+        )}
         {!gate && (
           <button type="button" className="mt-2 h-12 w-full font-display text-sm font-bold text-muted" onClick={() => void signOutApp()}>
             {t.logout}

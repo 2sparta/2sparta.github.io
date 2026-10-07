@@ -29,6 +29,7 @@ import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
 import { cn } from "@/lib/cn";
+import { ClubPlan } from "@/components/club-plan";
 
 export const Route = createFileRoute("/app/schedule")({ component: SchedulePage });
 
@@ -514,7 +515,9 @@ function SchedulePage() {
         </div>
       </Panel>
 
-      {!isTeacher && (
+      {me.data?.profile.role !== "teacher" && <ClubPlan />}
+
+      {me.data?.profile.role === "student" && (
         <Panel>
           <PanelTitle>{t.myElectives}</PanelTitle>
           <Hint>{t.electivesHint}</Hint>

@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Класний простір",
+    "slug": "klasnyi-prostir",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.schoolpoints.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#1a3d32"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.schoolpoints.mobile",
+      "supportsTablet": true
+    }
+  }
+}

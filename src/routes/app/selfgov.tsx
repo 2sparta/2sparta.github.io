@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, deleteActivity, runForElection, voteElection } from "@/lib/school/server";
+import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, deleteActivity, runForElection, voteElection, listRewards, listRosterNames, listStudents, addReward, awardReward, setOffice, fundOffice } from "@/lib/school/server";
+import { OFFICES, officeName } from "@/lib/school/ids";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
@@ -268,6 +269,111 @@ function Page() {
           )
         )}
       </Panel>
+      <RewardsBoard />
     </div>
+  );
+}
+
+function RewardsBoard() {
+  const { lang } = usePrefs();
+  const t = STRINGS[lang];
+  const me = useMeQuery();
+  const profile = me.data?.profile;
+  const isTeacher = profile?.role === "teacher";
+  const isHead = profile?.role === "student" && Boolean(profile.office);
+  const rewards = useQuery({ queryKey: ["rewards"], queryFn: () => listRewards() });
+  const students = useQuery({ queryKey: ["roster-names"], queryFn: () => listRosterNames(), enabled: Boolean(isTeacher || isHead) });
+  const roster = useQuery({ queryKey: ["students"], queryFn: () => listStudents(), enabled: isTeacher });
+  const qc = useQueryClient();
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [points, setPoints] = useState("10");
+  const [officeId, setOfficeId] = useState("public");
+  const [holder, setHolder] = useState("");
+  const [fund, setFund] = useState("50");
+  const [who, setWho] = useState<Record<string, string>>({});
+  const refresh = async () => {
+    await qc.invalidateQueries({ queryKey: ["rewards"] });
+    await qc.invalidateQueries({ queryKey: ["students"] });
+    await qc.invalidateQueries({ queryKey: ["me"] });
+  };
+  const post = useMutation({
+    mutationFn: () => addReward({ data: { title, body, points: Number(points) } }),
+    onSuccess: async () => {
+      setTitle("");
+      setBody("");
+      await refresh();
+    },
+  });
+  const give = useMutation({
+    mutationFn: (d: { rewardId: string; rosterId: string }) => awardReward({ data: d }),
+    onSuccess: refresh,
+  });
+  const assign = useMutation({
+    mutationFn: () => setOffice({ data: { rosterId: holder, office: officeId } }),
+    onSuccess: refresh,
+  });
+  const budget = useMutation({
+    mutationFn: () => fundOffice({ data: { rosterId: holder, delta: Number(fund) } }),
+    onSuccess: refresh,
+  });
+
+  return (
+    <Panel>
+      <PanelTitle>{t.rewardsTitle}</PanelTitle>
+      <Hint>{t.rewardsHint}</Hint>
+      {isTeacher && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <Select value={holder} onChange={(e) => setHolder(e.target.value)}>
+            <option value="">{t.pickStudent}</option>
+            {(roster.data ?? []).map((s) => (
+              <option key={s.id} value={s.id}>{s.name}{s.office ? ` · ${officeName(s.office)}` : ""}</option>
+            ))}
+          </Select>
+          <Select value={officeId} onChange={(e) => setOfficeId(e.target.value)}>
+            {OFFICES.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </Select>
+          <PillButton type="button" disabled={!holder || assign.isPending} onClick={() => assign.mutate()}>{t.save}</PillButton>
+          <TextInput className="w-24" value={fund} onChange={(e) => setFund(e.target.value)} />
+          <PillButton tone="ghost" type="button" disabled={!holder || budget.isPending} onClick={() => budget.mutate()}>{t.budgetLabel}</PillButton>
+        </div>
+      )}
+      {isHead && (
+        <div className="mb-4 grid gap-2">
+          <p className="text-sm font-bold text-forest">{officeName(profile?.office)} · {t.budgetLabel}: {profile?.budget ?? 0}</p>
+          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.annTitle} />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder={t.annBody} rows={3} className="rounded-2xl bg-surface-2 px-4 py-3 text-sm outline-none" />
+          <TextInput className="w-28" value={points} onChange={(e) => setPoints(e.target.value)} aria-label={t.rewardAmount} />
+          <PillButton type="button" disabled={!title.trim() || !body.trim() || post.isPending} onClick={() => post.mutate()}>{t.postReward}</PillButton>
+          {post.error instanceof Error && post.error.message === "BUDGET" && <p className="text-sm text-terracotta">{t.noBudget}</p>}
+        </div>
+      )}
+      <ul className="space-y-2">
+        {(rewards.data?.rewards ?? []).map((r) => (
+          <li key={r.id} className="rounded-2xl border border-hairline bg-cream/40 px-3 py-3">
+            <p className="text-xs font-bold text-forest">{r.officeName}</p>
+            <p className="font-display text-lg font-extrabold">{r.title}</p>
+            <p className="text-sm">{r.body}</p>
+            <p className="mt-1 text-sm font-bold">{t.rewardAmount}: {r.points}</p>
+            <p className="text-xs text-muted">{r.authorName}{r.awardedName ? ` · ${t.awarded}: ${r.awardedName}` : ""}</p>
+            {isHead && r.authorRosterId === profile?.rosterId && !r.awardedRosterId && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Select value={who[r.id] ?? ""} onChange={(e) => setWho((p) => ({ ...p, [r.id]: e.target.value }))}>
+                  <option value="">{t.awardTo}</option>
+                  {(students.data?.students ?? []).filter((s) => s.id !== profile?.rosterId).map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+                <PillButton type="button" disabled={!who[r.id] || give.isPending} onClick={() => give.mutate({ rewardId: r.id, rosterId: who[r.id] })}>
+                  {t.awardTo}
+                </PillButton>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }

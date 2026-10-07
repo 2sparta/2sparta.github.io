@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { History, Minus, Plus, Trash2 } from "lucide-react";
+import { History, Minus, Plus, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   addStudent,
@@ -11,8 +11,9 @@ import {
   listLeaderboard,
   listPointsHistory,
   listStudents,
-  setStarosta,
+  setStudentPerms,
 } from "@/lib/school/server";
+import { officeName } from "@/lib/school/ids";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
@@ -23,7 +24,23 @@ export const Route = createFileRoute("/app/students")({ component: StudentsPage 
 function StudentsPage() {
   const me = useMeQuery();
   if (me.data?.profile.role === "student") return <StudentPoints />;
+  if (me.data?.profile.role === "parent") return <ParentNote />;
   return <TeacherStudents />;
+}
+
+function ParentNote() {
+  const { lang } = usePrefs();
+  const t = STRINGS[lang];
+  const me = useMeQuery();
+  return (
+    <Panel>
+      <PanelTitle>{t.parentHome}</PanelTitle>
+      <p className="text-sm text-muted">
+        {me.data?.profile.childName}
+        {me.data?.profile.className ? ` · ${me.data.profile.className}` : ""}
+      </p>
+    </Panel>
+  );
 }
 
 function StudentPoints() {
@@ -304,6 +321,8 @@ function TeacherRow({
     inviteCode: string;
     linkedUserId: string | null;
     isStarosta: boolean;
+    canPostHw: boolean;
+    office: string | null;
     groupName: string | null;
   };
   lang: "uk" | "en";
@@ -330,8 +349,9 @@ function TeacherRow({
     },
   });
   const n = Number(amount);
-  const star = useMutation({
-    mutationFn: (on: boolean) => setStarosta({ data: { rosterId: student.id, on } }),
+  const [gear, setGear] = useState(false);
+  const perms = useMutation({
+    mutationFn: (d: { isStarosta?: boolean; canPostHw?: boolean }) => setStudentPerms({ data: { rosterId: student.id, ...d } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["students"] }),
   });
   const locale = lang === "uk" ? "uk-UA" : "en-GB";
@@ -342,6 +362,7 @@ function TeacherRow({
         <div className="min-w-[160px] flex-1">
           <p className="font-display font-extrabold">
             {student.name} {student.isStarosta && <span className="ml-1 text-xs font-bold text-terracotta">{t.starosta}</span>}
+            {student.office && <span className="ml-1 text-xs font-bold text-forest">{officeName(student.office)}</span>}
           </p>
           <p className="text-xs text-muted">
             {student.className}
@@ -382,8 +403,14 @@ function TeacherRow({
         <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${student.linkedUserId ? "bg-sage/20 text-forest" : "bg-surface-2 text-muted"}`}>
           {student.linkedUserId ? t.linked : t.pending}
         </span>
-        <button type="button" className="text-xs font-bold text-forest" onClick={() => star.mutate(!student.isStarosta)}>
-          {student.isStarosta ? t.unsetStarosta : t.makeStarosta}
+        <button
+          type="button"
+          className={`grid size-8 place-items-center rounded-full bg-surface text-forest ${gear ? "ring-2 ring-forest" : ""}`}
+          onClick={() => setGear((v) => !v)}
+          aria-label={t.studentRights}
+          title={t.studentRights}
+        >
+          <Settings className="size-4" />
         </button>
         <button
           type="button"
@@ -404,6 +431,18 @@ function TeacherRow({
           <Trash2 className="size-4" />
         </button>
       </div>
+      {gear && (
+        <div className="mt-3 flex flex-wrap gap-4 rounded-xl bg-surface px-3 py-2 text-sm">
+          <label className="flex items-center gap-2 font-bold">
+            <input type="checkbox" checked={student.isStarosta} onChange={(e) => perms.mutate({ isStarosta: e.target.checked })} />
+            {t.appointStarosta}
+          </label>
+          <label className="flex items-center gap-2 font-bold">
+            <input type="checkbox" checked={student.canPostHw} onChange={(e) => perms.mutate({ canPostHw: e.target.checked })} />
+            {t.canPostHw}
+          </label>
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <TextInput
           className="h-9 w-24"

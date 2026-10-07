@@ -14,6 +14,8 @@ import {
   Users,
   Megaphone,
   GraduationCap,
+  NotebookPen,
+  Palette,
   X,
 } from "lucide-react";
 import { hasGateSessionMarker } from "@/lib/auth/gate-session-marker";
@@ -31,8 +33,10 @@ const TEACHER_NAV = [
   { to: "/app/students", icon: Users, key: "tabStudents" as const },
   { to: "/app/schedule", icon: CalendarDays, key: "tabSchedule" as const },
   { to: "/app/tasks", icon: BookOpen, key: "tabTasks" as const },
+  { to: "/app/homework", icon: NotebookPen, key: "tabHomework" as const },
   { to: "/app/grades", icon: Star, key: "tabGrades" as const },
   { to: "/app/announcements", icon: Megaphone, key: "tabAnnouncements" as const },
+  { to: "/app/clubs", icon: Palette, key: "tabClubs" as const },
   { to: "/app/selfgov", icon: Users, key: "tabSelfGov" as const },
   { to: "/app/teachers", icon: GraduationCap, key: "tabTeachers" as const, admin: true },
   { to: "/app/chat", icon: MessageCircle, key: "tabChat" as const },
@@ -42,11 +46,22 @@ const STUDENT_NAV = [
   { to: "/app", icon: Home, key: "tabHome" as const },
   { to: "/app/schedule", icon: CalendarDays, key: "tabSchedule" as const },
   { to: "/app/tasks", icon: BookOpen, key: "tabTasks" as const },
+  { to: "/app/homework", icon: NotebookPen, key: "tabHomework" as const },
   { to: "/app/grades", icon: Star, key: "tabGrades" as const },
   { to: "/app/students", icon: Coins, key: "tabPoints" as const },
   { to: "/app/announcements", icon: Megaphone, key: "tabAnnouncements" as const },
+  { to: "/app/clubs", icon: Palette, key: "tabClubs" as const },
   { to: "/app/selfgov", icon: Users, key: "tabSelfGov" as const },
   { to: "/app/chat", icon: MessageCircle, key: "tabChat" as const },
+];
+
+const PARENT_NAV = [
+  { to: "/app", icon: Home, key: "tabHome" as const },
+  { to: "/app/schedule", icon: CalendarDays, key: "tabSchedule" as const },
+  { to: "/app/tasks", icon: BookOpen, key: "tabTasks" as const },
+  { to: "/app/homework", icon: NotebookPen, key: "tabHomework" as const },
+  { to: "/app/grades", icon: Star, key: "tabGrades" as const },
+  { to: "/app/announcements", icon: Megaphone, key: "tabAnnouncements" as const },
 ];
 
 export function AppShell({ profile }: { profile: Profile }) {
@@ -56,7 +71,7 @@ export function AppShell({ profile }: { profile: Profile }) {
   const [open, setOpen] = useState(false);
   const user = useCurrentUser();
   const gate = typeof window !== "undefined" && hasGateSessionMarker();
-  const nav = profile.role === "student" ? STUDENT_NAV : TEACHER_NAV.filter((n) => !n.admin || profile.isAdmin);
+  const nav = profile.role === "student" ? STUDENT_NAV : profile.role === "parent" ? PARENT_NAV : TEACHER_NAV.filter((n) => !n.admin || profile.isAdmin);
   const first = (profile.displayName || user?.displayName || "?").trim().charAt(0).toUpperCase();
 
   return (
