@@ -11,6 +11,7 @@ import {
   deleteClassHomework,
   deleteClub,
   fundOffice,
+  getDuty,
   joinClub,
   listClassHomework,
   listClassmates,
@@ -20,10 +21,20 @@ import {
   officeName,
   pickClub,
   setOffice as saveOffice,
+  setDuty,
   setStudentPerms,
+  updateClub,
 } from "../lib/community";
 
 const DAYS = { mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Нд" };
+const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function whenLabel(c) {
+  const sessions = c.sessions?.length ? c.sessions : [{ weekday: c.weekday, startTime: c.startTime, endTime: c.endTime }];
+  const same = sessions.every((s) => s.startTime === sessions[0].startTime && s.endTime === sessions[0].endTime);
+  if (same) return `${sessions.map((s) => DAYS[s.weekday] || s.weekday).join(", ")} · ${sessions[0].startTime}–${sessions[0].endTime}`;
+  return sessions.map((s) => `${DAYS[s.weekday] || s.weekday} ${s.startTime}–${s.endTime}`).join(" · ");
+}
 
 function useRows(profile, loader) {
   const [rows, setRows] = useState(null);
@@ -66,7 +77,7 @@ export function ScheduleClubs({ profile }) {
                 <View key={c.id} style={{ opacity: conflict && chosen && !on ? 0.45 : 1, marginBottom: 6 }}>
                   <Text style={{ fontWeight: "800", color: colors.ink }}>{c.name}</Text>
                   <Text style={{ color: colors.muted }}>
-                    {DAYS[c.weekday] || c.weekday} {c.startTime}–{c.endTime}
+                    {whenLabel(c)}
                     {c.room ? ` · ${c.room}` : ""}
                   </Text>
                   {conflict && profile.role === "student" ? (
@@ -85,14 +96,31 @@ export function ScheduleClubs({ profile }) {
 export function ClubsScreen({ profile }) {
   const q = useRows(profile, () => listClubs(profile));
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("club");
-  const [weekday, setWeekday] = useState("thu");
+  const [weekdays, setWeekdays] = useState(["thu"]);
   const [start, setStart] = useState("15:00");
   const [end, setEnd] = useState("16:00");
   const [about, setAbout] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const clubs = q.rows?.clubs || [];
+  const reset = () => {
+    setEditId(null);
+    setName("");
+    setKind("club");
+    setWeekdays(["thu"]);
+    setStart("15:00");
+    setEnd("16:00");
+    setAbout("");
+    setImageUrl("");
+    setOpen(false);
+  };
+  const save = () => {
+    const data = { name, kind, weekdays, startTime: start, endTime: end, about, imageUrl };
+    const run = editId ? updateClub(profile, { id: editId, ...data }) : addClub(profile, data);
+    run.then(reset).then(() => q.reload());
+  };
   return (
     <Screen>
       <H1>Клуби</H1>
@@ -113,20 +141,37 @@ export function ClubsScreen({ profile }) {
                 <Text style={{ position: "absolute", left: 12, right: 12, bottom: 10, color: "#fff", fontSize: 20, fontWeight: "800" }}>{c.name}</Text>
               </View>
               <View style={{ padding: 12 }}>
-                <Text style={{ fontWeight: "800", color: colors.ink }}>{DAYS[c.weekday] || c.weekday} · {c.startTime}–{c.endTime}</Text>
+                <Text style={{ fontWeight: "800", color: colors.ink }}>{whenLabel(c)}</Text>
                 {c.about ? <Text style={{ color: colors.inkSoft, marginTop: 4 }}>{c.about}</Text> : null}
                 <Text style={{ color: colors.forest, fontWeight: "700", marginTop: 4 }}>{c.memberCount} записаних</Text>
                 {profile.role === "student" ? (
                   <Btn ghost={c.joined} label={c.joined ? "Вийти" : "Записатися"} onPress={() => joinClub(profile, c.id, !c.joined).then(() => q.reload())} />
                 ) : null}
-                {profile.role === "teacher" ? <Btn ghost label="Видалити" onPress={() => deleteClub(profile, c.id).then(() => q.reload())} /> : null}
+                {profile.role === "teacher" ? (
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Btn ghost label="Змінити" onPress={() => {
+                        setEditId(c.id);
+                        setName(c.name);
+                        setKind(c.kind);
+                        setWeekdays(c.sessions?.length ? c.sessions.map((s) => s.weekday) : [c.weekday]);
+                        setStart(c.startTime || "15:00");
+                        setEnd(c.endTime || "16:00");
+                        setAbout(c.about || "");
+                        setImageUrl(c.imageUrl || "");
+                        setOpen(true);
+                      }} />
+                    </View>
+                    <View style={{ flex: 1 }}><Btn ghost label="Видалити" onPress={() => deleteClub(profile, c.id).then(() => q.reload())} /></View>
+                  </View>
+                ) : null}
               </View>
             </View>
           );
         })}
       </View>
       {profile.role === "teacher" ? (
-        <Pressable onPress={() => setOpen((v) => !v)} style={{ alignSelf: "center", marginTop: 16, width: 52, height: 52, borderRadius: 26, backgroundColor: colors.forest, alignItems: "center", justifyContent: "center" }}>
+        <Pressable onPress={() => (open && !editId ? setOpen(false) : (setEditId(null), setOpen(true)))} style={{ alignSelf: "center", marginTop: 16, width: 52, height: 52, borderRadius: 26, backgroundColor: colors.forest, alignItems: "center", justifyContent: "center" }}>
           <Text style={{ color: "#fff", fontSize: 32, lineHeight: 34 }}>+</Text>
         </Pressable>
       ) : null}
@@ -138,19 +183,69 @@ export function ClubsScreen({ profile }) {
             <View style={{ flex: 1 }}><Btn ghost={kind !== "club"} label="Клуб" onPress={() => setKind("club")} /></View>
             <View style={{ flex: 1 }}><Btn ghost={kind !== "elective"} label="Факультатив" onPress={() => setKind("elective")} /></View>
           </View>
-          <Field placeholder="День: mon tue wed thu fri sat sun" value={weekday} onChangeText={setWeekday} autoCapitalize="none" />
+          <Text style={{ color: colors.muted, fontWeight: "700", marginBottom: 6 }}>Дні занять</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+            {DAY_KEYS.map((d) => {
+              const on = weekdays.includes(d);
+              return (
+                <Pressable key={d} onPress={() => setWeekdays((cur) => (on ? cur.filter((x) => x !== d) : [...cur, d]))} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: on ? colors.forest : "#e7efe4" }}>
+                  <Text style={{ color: on ? "#fff" : colors.ink, fontWeight: "800", fontSize: 12 }}>{DAYS[d]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Field placeholder="Початок 15:00" value={start} onChangeText={setStart} />
           <Field placeholder="Кінець 16:00" value={end} onChangeText={setEnd} />
           <Field placeholder="Посилання на фото" value={imageUrl} onChangeText={setImageUrl} autoCapitalize="none" />
-          <Btn
-            label="Додати"
-            disabled={!name.trim()}
-            onPress={() => addClub(profile, { name, kind, weekday: weekday.trim(), startTime: start, endTime: end, about, imageUrl }).then(() => { setName(""); setAbout(""); setImageUrl(""); setOpen(false); q.reload(); })}
-          />
+          <Btn label={editId ? "Зберегти" : "Додати"} disabled={!name.trim() || weekdays.length === 0} onPress={save} />
         </Card>
       ) : null}
       {profile.role === "student" ? <ScheduleClubs profile={profile} /> : null}
     </Screen>
+  );
+}
+
+export function DutyDay({ profile, classId, weekday }) {
+  const [data, setData] = useState(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    if (!classId || weekday === "sun") {
+      setData(null);
+      return undefined;
+    }
+    getDuty(profile, classId)
+      .then((row) => {
+        if (live) setData(row);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [profile.userId, classId, tick, weekday]);
+  if (!data || !data.days[weekday]) return null;
+  const ids = data.days[weekday];
+  const names = new Map(data.students.map((s) => [s.id, s.name]));
+  const free = data.students.filter((s) => !ids.includes(s.id));
+  const change = (next) => setDuty(profile, classId, weekday, next).then(() => setTick((n) => n + 1));
+  return (
+    <Card>
+      <Text style={{ fontWeight: "800", color: colors.ink, marginBottom: 4 }}>Чергування</Text>
+      {ids.length === 0 ? <Muted>Нікого не призначено</Muted> : null}
+      {ids.map((id) => (
+        <View key={id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+          <Text style={{ color: colors.ink, fontWeight: "700" }}>{names.get(id) || id}</Text>
+          {data.canEdit ? <Pressable onPress={() => change(ids.filter((x) => x !== id))}><Text style={{ color: colors.terra || "#8a5228", fontWeight: "800" }}>×</Text></Pressable> : null}
+        </View>
+      ))}
+      {data.canEdit
+        ? free.map((s) => (
+            <Pressable key={s.id} onPress={() => change([...ids, s.id])} style={{ marginTop: 6 }}>
+              <Text style={{ color: colors.forest, fontWeight: "800" }}>+ {s.name}</Text>
+            </Pressable>
+          ))
+        : null}
+    </Card>
   );
 }
 

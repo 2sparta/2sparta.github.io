@@ -81,6 +81,7 @@ export {
   deleteClassHomework,
   deleteClub,
   fundOffice,
+  getDuty,
   joinClub,
   listClassHomework,
   listClassmates,
@@ -88,6 +89,8 @@ export {
   listRewards,
   listRosterNames,
   pickClub,
+  setDuty,
   setOffice,
   setStudentPerms,
+  updateClub,
 } from "./community";

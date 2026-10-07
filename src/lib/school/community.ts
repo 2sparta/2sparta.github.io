@@ -55,10 +55,28 @@ function minutes(hhmm: string) {
   return hh * 60 + mm;
 }
 
-export function clubsOverlap(
-  a: { weekday: string; startTime: string; endTime: string },
-  b: { weekday: string; startTime: string; endTime: string },
-) {
+const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DUTY_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+export type ClubSession = { weekday: string; startTime: string; endTime: string };
+
+function sessionsFrom(raw: Bag): ClubSession[] {
+  const list: ClubSession[] = [];
+  if (Array.isArray(raw.sessions)) {
+    for (const item of raw.sessions as Bag[]) {
+      const weekday = s(item?.weekday);
+      const startTime = s(item?.startTime);
+      const endTime = s(item?.endTime);
+      if (weekday && startTime && endTime) list.push({ weekday, startTime, endTime });
+    }
+  }
+  if (!list.length && raw.weekday) {
+    list.push({ weekday: s(raw.weekday), startTime: s(raw.startTime), endTime: s(raw.endTime) });
+  }
+  return list.sort((a, b) => DAY_ORDER.indexOf(a.weekday) - DAY_ORDER.indexOf(b.weekday) || a.startTime.localeCompare(b.startTime));
+}
+
+function timeOverlap(a: ClubSession, b: ClubSession) {
   if (a.weekday !== b.weekday) return false;
   const as = minutes(a.startTime);
   const ae = minutes(a.endTime);
@@ -68,30 +86,40 @@ export function clubsOverlap(
   return as < be && bs < ae;
 }
 
-export function clubClusters<T extends { id: string; weekday: string; startTime: string; endTime: string }>(clubs: T[]) {
-  const days = [...new Set(clubs.map((c) => c.weekday))];
+function clubSessions(c: { weekday: string; startTime: string; endTime: string; sessions?: ClubSession[] }) {
+  return c.sessions?.length ? c.sessions : [{ weekday: c.weekday, startTime: c.startTime, endTime: c.endTime }];
+}
+
+export function clubsOverlap(
+  a: { weekday: string; startTime: string; endTime: string; sessions?: ClubSession[] },
+  b: { weekday: string; startTime: string; endTime: string; sessions?: ClubSession[] },
+) {
+  const left = clubSessions(a);
+  const right = clubSessions(b);
+  return left.some((x) => right.some((y) => timeOverlap(x, y)));
+}
+
+export function clubClusters<T extends { id: string; weekday: string; startTime: string; endTime: string; sessions?: ClubSession[] }>(clubs: T[]) {
+  const used = new Set<string>();
   const groups: T[][] = [];
-  for (const day of days) {
-    const list = clubs.filter((c) => c.weekday === day).sort((a, b) => a.startTime.localeCompare(b.startTime));
-    const used = new Set<string>();
-    for (const club of list) {
-      if (used.has(club.id)) continue;
-      const group = [club];
-      used.add(club.id);
-      let grew = true;
-      while (grew) {
-        grew = false;
-        for (const other of list) {
-          if (used.has(other.id)) continue;
-          if (group.some((item) => clubsOverlap(item, other))) {
-            group.push(other);
-            used.add(other.id);
-            grew = true;
-          }
+  const list = [...clubs].sort((a, b) => a.weekday.localeCompare(b.weekday) || a.startTime.localeCompare(b.startTime));
+  for (const club of list) {
+    if (used.has(club.id)) continue;
+    const group = [club];
+    used.add(club.id);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const other of list) {
+        if (used.has(other.id)) continue;
+        if (group.some((item) => clubsOverlap(item, other))) {
+          group.push(other);
+          used.add(other.id);
+          grew = true;
         }
       }
-      groups.push(group);
     }
+    groups.push(group);
   }
   return groups;
 }
@@ -274,13 +302,16 @@ export async function awardReward(input?: { data?: { rewardId: string; rosterId:
 
 function mapClub(r: Bag, rosterId: string | null) {
   const memberIds = Array.isArray(r.memberIds) ? (r.memberIds as string[]).map((id) => s(id)) : [];
+  const sessions = sessionsFrom(r);
+  const first = sessions[0];
   return {
     id: s(r.id),
     name: s(r.name),
     kind: (s(r.kind) === "elective" ? "elective" : "club") as "club" | "elective",
-    weekday: s(r.weekday),
-    startTime: s(r.startTime),
-    endTime: s(r.endTime),
+    weekday: first?.weekday ?? "",
+    startTime: first?.startTime ?? "",
+    endTime: first?.endTime ?? "",
+    sessions,
     room: s(r.room),
     about: s(r.about),
     imageUrl: s(r.imageUrl),
@@ -305,11 +336,18 @@ export async function listClubs() {
   };
 }
 
+function buildSessions(weekdays: string[] | undefined, weekday: string | undefined, startTime: string, endTime: string) {
+  const picked = (weekdays?.length ? weekdays : weekday ? [weekday] : []).filter((d) => DAY_ORDER.includes(d));
+  const unique = [...new Set(picked)].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+  return unique.map((day) => ({ weekday: day, startTime, endTime }));
+}
+
 export async function addClub(input?: {
   data?: {
     name: string;
     kind: "club" | "elective";
-    weekday: string;
+    weekday?: string;
+    weekdays?: string[];
     startTime: string;
     endTime: string;
     room?: string;
@@ -321,15 +359,18 @@ export async function addClub(input?: {
   if (p.role !== "teacher") throw new Error("Forbidden");
   const data = dataOf(input);
   const name = (data?.name ?? "").trim();
-  if (!name || !data?.weekday || !data.startTime || !data.endTime) throw new Error("Required");
+  const sessions = data ? buildSessions(data.weekdays, data.weekday, data.startTime, data.endTime) : [];
+  if (!name || !sessions.length || !data?.startTime || !data.endTime) throw new Error("Required");
   const id = newId();
+  const first = sessions[0];
   await setDoc(doc(db(), "clubs", id), {
     schoolId: p.schoolId,
     name,
     kind: data.kind === "elective" ? "elective" : "club",
-    weekday: data.weekday,
-    startTime: data.startTime,
-    endTime: data.endTime,
+    weekday: first.weekday,
+    startTime: first.startTime,
+    endTime: first.endTime,
+    sessions,
     room: (data.room ?? "").trim(),
     about: (data.about ?? "").trim(),
     imageUrl: (data.imageUrl ?? "").trim(),
@@ -337,6 +378,44 @@ export async function addClub(input?: {
     createdAt: Date.now(),
   });
   return { id };
+}
+
+export async function updateClub(input?: {
+  data?: {
+    id: string;
+    name: string;
+    kind: "club" | "elective";
+    weekday?: string;
+    weekdays?: string[];
+    startTime: string;
+    endTime: string;
+    room?: string;
+    about?: string;
+    imageUrl?: string;
+  };
+}) {
+  const p = await profile();
+  if (p.role !== "teacher") throw new Error("Forbidden");
+  const data = dataOf(input);
+  const name = (data?.name ?? "").trim();
+  const sessions = data ? buildSessions(data.weekdays, data.weekday, data.startTime, data.endTime) : [];
+  if (!data?.id || !name || !sessions.length) throw new Error("Required");
+  const ref = doc(db(), "clubs", data.id);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
+  const first = sessions[0];
+  await updateDoc(ref, {
+    name,
+    kind: data.kind === "elective" ? "elective" : "club",
+    weekday: first.weekday,
+    startTime: first.startTime,
+    endTime: first.endTime,
+    sessions,
+    room: (data.room ?? "").trim(),
+    about: (data.about ?? "").trim(),
+    imageUrl: (data.imageUrl ?? "").trim(),
+  });
+  return { ok: true };
 }
 
 export async function deleteClub(input?: { data?: { id: string } }) {
@@ -433,7 +512,53 @@ export async function deleteClassHomework(input?: { data?: { id: string } }) {
   return { ok: true };
 }
 
-export function attendingClubIds(joined: { id: string; weekday: string; startTime: string; endTime: string }[], picks: Record<string, string>) {
+function emptyDuty(): Record<(typeof DUTY_DAYS)[number], string[]> {
+  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] };
+}
+
+function parseDuty(raw: unknown) {
+  const days = emptyDuty();
+  if (!raw || typeof raw !== "object") return days;
+  for (const day of DUTY_DAYS) {
+    const value = (raw as Record<string, unknown>)[day];
+    days[day] = Array.isArray(value) ? value.map((id) => s(id)).filter(Boolean) : [];
+  }
+  return days;
+}
+
+export async function getDuty(input?: { data?: { classId?: string } }) {
+  const p = await profile();
+  const classId = dataOf(input)?.classId || p.classId || "";
+  if (!classId) return { classId: null as string | null, days: emptyDuty(), students: [] as { id: string; name: string }[], canEdit: false };
+  const klass = await getDoc(doc(db(), "classes", classId));
+  if (!klass.exists() || klass.data().schoolId !== p.schoolId) throw new Error("Not found");
+  const students = (await bySchool("students", p.schoolId!))
+    .filter((r) => s(r.classId) === classId)
+    .map((r) => ({ id: s(r.id), name: s(r.name) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "uk"));
+  const canEdit = p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === classId);
+  return { classId, days: parseDuty(klass.data().duty), students, canEdit };
+}
+
+export async function setDuty(input?: { data?: { classId: string; weekday: string; rosterIds: string[] } }) {
+  const p = await profile();
+  const data = dataOf(input);
+  if (!data?.classId || !DUTY_DAYS.includes(data.weekday as (typeof DUTY_DAYS)[number])) throw new Error("Missing");
+  const canEdit = p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === data.classId);
+  if (!canEdit) throw new Error("Forbidden");
+  const ref = doc(db(), "classes", data.classId);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
+  const allowed = new Set(
+    (await bySchool("students", p.schoolId!)).filter((r) => s(r.classId) === data.classId).map((r) => s(r.id)),
+  );
+  const days = parseDuty(snap.data().duty);
+  days[data.weekday as (typeof DUTY_DAYS)[number]] = [...new Set(data.rosterIds.filter((id) => allowed.has(id)))];
+  await updateDoc(ref, { duty: days });
+  return { ok: true };
+}
+
+export function attendingClubIds(joined: { id: string; weekday: string; startTime: string; endTime: string; sessions?: ClubSession[] }[], picks: Record<string, string>) {
   const ids = new Set<string>();
   for (const group of clubClusters(joined)) {
     if (group.length === 1) ids.add(group[0].id);

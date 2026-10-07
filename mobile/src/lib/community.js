@@ -49,7 +49,24 @@ function minutes(hhmm) {
   return hh * 60 + mm;
 }
 
-export function clubsOverlap(a, b) {
+const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DUTY_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat"];
+
+function sessionsFrom(raw) {
+  const list = [];
+  if (Array.isArray(raw.sessions)) {
+    for (const item of raw.sessions) {
+      const weekday = s(item?.weekday);
+      const startTime = s(item?.startTime);
+      const endTime = s(item?.endTime);
+      if (weekday && startTime && endTime) list.push({ weekday, startTime, endTime });
+    }
+  }
+  if (!list.length && raw.weekday) list.push({ weekday: s(raw.weekday), startTime: s(raw.startTime), endTime: s(raw.endTime) });
+  return list.sort((a, b) => DAY_ORDER.indexOf(a.weekday) - DAY_ORDER.indexOf(b.weekday) || a.startTime.localeCompare(b.startTime));
+}
+
+function timeOverlap(a, b) {
   if (a.weekday !== b.weekday) return false;
   const as = minutes(a.startTime);
   const ae = minutes(a.endTime);
@@ -59,30 +76,35 @@ export function clubsOverlap(a, b) {
   return as < be && bs < ae;
 }
 
+function clubSessions(c) {
+  return c.sessions?.length ? c.sessions : [{ weekday: c.weekday, startTime: c.startTime, endTime: c.endTime }];
+}
+
+export function clubsOverlap(a, b) {
+  return clubSessions(a).some((x) => clubSessions(b).some((y) => timeOverlap(x, y)));
+}
+
 export function clubClusters(clubs) {
-  const days = [...new Set(clubs.map((c) => c.weekday))];
+  const used = new Set();
   const groups = [];
-  for (const day of days) {
-    const list = clubs.filter((c) => c.weekday === day).sort((a, b) => a.startTime.localeCompare(b.startTime));
-    const used = new Set();
-    for (const club of list) {
-      if (used.has(club.id)) continue;
-      const group = [club];
-      used.add(club.id);
-      let grew = true;
-      while (grew) {
-        grew = false;
-        for (const other of list) {
-          if (used.has(other.id)) continue;
-          if (group.some((item) => clubsOverlap(item, other))) {
-            group.push(other);
-            used.add(other.id);
-            grew = true;
-          }
+  const list = [...clubs].sort((a, b) => a.weekday.localeCompare(b.weekday) || a.startTime.localeCompare(b.startTime));
+  for (const club of list) {
+    if (used.has(club.id)) continue;
+    const group = [club];
+    used.add(club.id);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const other of list) {
+        if (used.has(other.id)) continue;
+        if (group.some((item) => clubsOverlap(item, other))) {
+          group.push(other);
+          used.add(other.id);
+          grew = true;
         }
       }
-      groups.push(group);
     }
+    groups.push(group);
   }
   return groups;
 }
@@ -232,13 +254,16 @@ export async function awardReward(profile, rewardId, rosterId) {
 
 function mapClub(r, rosterId) {
   const memberIds = Array.isArray(r.memberIds) ? r.memberIds.map((id) => s(id)) : [];
+  const sessions = sessionsFrom(r);
+  const first = sessions[0] || { weekday: "", startTime: "", endTime: "" };
   return {
     id: s(r.id),
     name: s(r.name),
     kind: s(r.kind) === "elective" ? "elective" : "club",
-    weekday: s(r.weekday),
-    startTime: s(r.startTime),
-    endTime: s(r.endTime),
+    weekday: first.weekday,
+    startTime: first.startTime,
+    endTime: first.endTime,
+    sessions,
     room: s(r.room),
     about: s(r.about),
     imageUrl: s(r.imageUrl),
@@ -260,21 +285,51 @@ export async function listClubs(profile) {
   };
 }
 
+function buildSessions(weekdays, weekday, startTime, endTime) {
+  const picked = (weekdays?.length ? weekdays : weekday ? String(weekday).split(/[\s,]+/) : []).filter((d) => DAY_ORDER.includes(d));
+  return [...new Set(picked)]
+    .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+    .map((day) => ({ weekday: day, startTime, endTime }));
+}
+
 export async function addClub(profile, data) {
   await mustOnline();
   if (profile.role !== "teacher") throw new Error("Forbidden");
+  const sessions = buildSessions(data.weekdays, data.weekday, data.startTime, data.endTime);
+  if (!sessions.length) throw new Error("Required");
+  const first = sessions[0];
   await setDoc(doc(db, "clubs", newId()), {
     schoolId: profile.schoolId,
     name: data.name.trim(),
     kind: data.kind === "elective" ? "elective" : "club",
-    weekday: data.weekday,
-    startTime: data.startTime,
-    endTime: data.endTime,
+    weekday: first.weekday,
+    startTime: first.startTime,
+    endTime: first.endTime,
+    sessions,
     room: (data.room || "").trim(),
     about: (data.about || "").trim(),
     imageUrl: (data.imageUrl || "").trim(),
     memberIds: [],
     createdAt: Date.now(),
+  });
+}
+
+export async function updateClub(profile, data) {
+  await mustOnline();
+  if (profile.role !== "teacher") throw new Error("Forbidden");
+  const sessions = buildSessions(data.weekdays, data.weekday, data.startTime, data.endTime);
+  if (!data.id || !sessions.length) throw new Error("Required");
+  const first = sessions[0];
+  await updateDoc(doc(db, "clubs", data.id), {
+    name: data.name.trim(),
+    kind: data.kind === "elective" ? "elective" : "club",
+    weekday: first.weekday,
+    startTime: first.startTime,
+    endTime: first.endTime,
+    sessions,
+    room: (data.room || "").trim(),
+    about: (data.about || "").trim(),
+    imageUrl: (data.imageUrl || "").trim(),
   });
 }
 
@@ -298,6 +353,44 @@ export async function pickClub(profile, clubId) {
   const group = clubClusters(joined).find((items) => items.some((c) => c.id === clubId));
   if (!group || group.length < 2) throw new Error("Missing");
   await updateDoc(doc(db, "students", profile.rosterId), { [`clubPicks.${clusterKey(group)}`]: clubId });
+}
+
+function emptyDuty() {
+  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] };
+}
+
+function parseDuty(raw) {
+  const days = emptyDuty();
+  if (!raw || typeof raw !== "object") return days;
+  for (const day of DUTY_DAYS) days[day] = Array.isArray(raw[day]) ? raw[day].map((id) => s(id)).filter(Boolean) : [];
+  return days;
+}
+
+export async function getDuty(profile, classId) {
+  const id = classId || profile.classId;
+  if (!id) return { classId: null, days: emptyDuty(), students: [], canEdit: false };
+  const klass = await getDoc(doc(db, "classes", id));
+  if (!klass.exists() || s(klass.data().schoolId) !== profile.schoolId) throw new Error("Not found");
+  const students = (await rows("students", profile.schoolId))
+    .filter((r) => s(r.classId) === id)
+    .map((r) => ({ id: s(r.id), name: s(r.name) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "uk"));
+  const canEdit = profile.role === "teacher" || (profile.role === "student" && profile.isStarosta && profile.classId === id);
+  return { classId: id, days: parseDuty(klass.data().duty), students, canEdit };
+}
+
+export async function setDuty(profile, classId, weekday, rosterIds) {
+  await mustOnline();
+  if (!DUTY_DAYS.includes(weekday)) throw new Error("Missing");
+  const canEdit = profile.role === "teacher" || (profile.role === "student" && profile.isStarosta && profile.classId === classId);
+  if (!canEdit) throw new Error("Forbidden");
+  const ref = doc(db, "classes", classId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Not found");
+  const allowed = new Set((await rows("students", profile.schoolId)).filter((r) => s(r.classId) === classId).map((r) => s(r.id)));
+  const days = parseDuty(snap.data().duty);
+  days[weekday] = [...new Set(rosterIds.filter((id) => allowed.has(id)))];
+  await updateDoc(ref, { duty: days });
 }
 
 export async function listClassHomework(profile) {

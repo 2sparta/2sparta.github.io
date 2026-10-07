@@ -41,7 +41,9 @@ export function ClubPlan() {
                     <span>
                       <span className="font-semibold">{c.name}</span>
                       <span className="ml-2 text-sm text-muted">
-                        {t.weekdays[c.weekday as keyof typeof t.weekdays]} {c.startTime}–{c.endTime}
+                        {(c.sessions?.length ? c.sessions : [{ weekday: c.weekday, startTime: c.startTime, endTime: c.endTime }])
+                          .map((s) => `${t.weekdaysShort[s.weekday as keyof typeof t.weekdaysShort] || s.weekday} ${s.startTime}–${s.endTime}`)
+                          .join(" · ")}
                         {c.room ? ` · ${c.room}` : ""}
                       </span>
                     </span>

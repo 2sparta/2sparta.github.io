@@ -43,7 +43,7 @@ import {
   listPointsHistory,
 } from "../lib/extra";
 import { Btn, Card, Field, H1, Icon, Muted, OfflineNote, Screen, colors, errText } from "../ui";
-import { ScheduleClubs, RewardsBlock } from "./CommunityScreens";
+import { ScheduleClubs, RewardsBlock, DutyDay } from "./CommunityScreens";
 import { setStudentPerms } from "../lib/community";
 
 const DAY = { mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Нд" };
@@ -366,6 +366,7 @@ export function ScheduleScreen({ profile }) {
                 </Pressable>
               );
             })}
+            <DutyDay profile={profile} classId={classId || profile.classId} weekday={dayKey} />
           </ScrollView>
         </View>
         <View style={{ width: width || 1 }}>

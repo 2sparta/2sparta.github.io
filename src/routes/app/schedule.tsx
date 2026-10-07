@@ -30,6 +30,7 @@ import { useMeQuery } from "@/components/session-gate";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
 import { cn } from "@/lib/cn";
 import { ClubPlan } from "@/components/club-plan";
+import { DutyBoard } from "@/components/duty-board";
 
 export const Route = createFileRoute("/app/schedule")({ component: SchedulePage });
 
@@ -516,6 +517,8 @@ function SchedulePage() {
       </Panel>
 
       {me.data?.profile.role !== "teacher" && <ClubPlan />}
+
+      <DutyBoard classId={activeClass} />
 
       {me.data?.profile.role === "student" && (
         <Panel>
