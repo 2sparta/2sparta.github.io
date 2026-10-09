@@ -12,5 +12,5 @@ function Login() {
   const lang = usePrefs((s) => s.lang);
   if (isPending) return <Splash text={STRINGS[lang].loading} />;
   if (user) return <RouteByProfile />;
-  return <AuthForm role="teacher" />;
+  return <AuthForm />;
 }

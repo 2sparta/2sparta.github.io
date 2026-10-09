@@ -115,6 +115,8 @@ export function WideNotice({
   importantLabel,
   onDelete,
   deleteLabel,
+  onEdit,
+  editLabel,
 }: {
   title: string;
   body: string;
@@ -124,6 +126,8 @@ export function WideNotice({
   importantLabel?: string;
   onDelete?: () => void;
   deleteLabel?: string;
+  onEdit?: () => void;
+  editLabel?: string;
 }) {
   return (
     <li className="relative flex w-full overflow-hidden rounded-[22px] bg-surface shadow-[var(--shadow-soft)]">
@@ -151,10 +155,19 @@ export function WideNotice({
               <span className="ml-2 align-middle text-xs font-extrabold tracking-wide text-[#a8841a] uppercase">{importantLabel}</span>
             )}
           </h3>
-          {onDelete && (
-            <button type="button" className="shrink-0 text-xs text-terracotta" onClick={onDelete}>
-              {deleteLabel}
-            </button>
+          {(onEdit || onDelete) && (
+            <div className="flex shrink-0 gap-3">
+              {onEdit && (
+                <button type="button" className="text-xs font-bold text-forest" onClick={onEdit}>
+                  {editLabel}
+                </button>
+              )}
+              {onDelete && (
+                <button type="button" className="text-xs text-terracotta" onClick={onDelete}>
+                  {deleteLabel}
+                </button>
+              )}
+            </div>
           )}
         </div>
         <p className="mt-1 text-xs text-muted">{meta}</p>

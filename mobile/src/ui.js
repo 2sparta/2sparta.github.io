@@ -102,11 +102,16 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, fontSize: 14, marginBottom: 12, lineHeight: 20 },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.line,
+    shadowColor: "#1b4d3e",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   field: {
     backgroundColor: "#fff",

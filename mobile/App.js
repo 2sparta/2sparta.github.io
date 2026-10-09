@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./src/lib/firebase";
-import { flushQueue, loadProfileCached, nextStep } from "./src/lib/api";
+import { flushQueue, loadProfileCached, logout, nextStep } from "./src/lib/api";
 import { JoinSchoolScreen, LinkScreen, LoginScreen, RoleScreen, SetupScreen } from "./src/screens/AuthScreens";
 import {
   ChatScreen,
@@ -118,45 +118,61 @@ export default function App() {
   else if (profile) {
     const nav = profile.role === "student" ? STUDENT : profile.role === "parent" ? PARENT : TEACHER.filter((item) => item[0] !== "teachers");
     const items = profile.isAdmin ? [...nav.slice(0, 7), ["teachers", "Вчителі", "school-outline"], ...nav.slice(7)] : nav;
+    const roleLabel = profile.role === "teacher" ? "Учитель" : profile.role === "parent" ? "Батьки" : "Учень";
+    const letter = (profile.displayName || "?").trim().charAt(0).toUpperCase();
+    const dock = [
+      ["home", "Сьогодні", "home"],
+      ["schedule", "Розклад", "calendar"],
+      ["tasks", "Завдання", "book"],
+      profile.role === "parent" ? ["grades", "Оцінки", "star"] : ["chat", "Чат", "chatbubble"],
+    ];
     body = (
       <View style={{ flex: 1, backgroundColor: colors.canvas }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingBottom: 8 }}>
-          <Pressable onPress={() => setMenu(true)} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.forest, alignItems: "center", justifyContent: "center" }}>
-            <Icon name="menu" size={22} color={colors.paper} />
+        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingBottom: 8, paddingTop: 4 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.1, color: colors.forestMid }}>КЛАСНИЙ ПРОСТІР</Text>
+            <Text numberOfLines={1} style={{ fontSize: 20, fontWeight: "800", color: colors.ink, marginTop: 1 }}>{profile.displayName || "Профіль"}</Text>
+          </View>
+          <Pressable
+            onPress={() => setMenu(true)}
+            style={{ width: 42, height: 42, borderRadius: 16, backgroundColor: colors.forest, alignItems: "center", justifyContent: "center" }}
+          >
+            <Text style={{ color: colors.paper, fontWeight: "800", fontSize: 18 }}>{letter}</Text>
           </Pressable>
-          <Text style={{ fontSize: 18, fontWeight: "800", color: colors.ink }}>Класний простір</Text>
         </View>
         <View style={{ flex: 1 }}>{screenFor(tab, profile, setTab)}</View>
-        <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.paper, paddingTop: 6, paddingBottom: 10 }}>
-          {[
-            ["home", "Сьогодні", "home"],
-            ["schedule", "Розклад", "calendar"],
-            ["tasks", "Завдання", "book"],
-            ["chat", "Чат", "chatbubble"],
-          ].map(([id, label, icon]) => {
-            const on = tab === id;
-            return (
-              <Pressable key={id} onPress={() => setTab(id)} style={{ flex: 1, alignItems: "center", paddingVertical: 4 }}>
-                <Icon name={on ? icon : `${icon}-outline`} size={22} color={on ? colors.forest : colors.muted} />
-                <Text style={{ fontSize: 11, fontWeight: "800", color: on ? colors.forest : colors.muted, marginTop: 2 }}>{label}</Text>
-              </Pressable>
-            );
-          })}
-          <Pressable onPress={() => setMenu(true)} style={{ flex: 1, alignItems: "center", paddingVertical: 4 }}>
-            <Icon name="grid-outline" size={22} color={colors.muted} />
-            <Text style={{ fontSize: 11, fontWeight: "800", color: colors.muted, marginTop: 2 }}>Меню</Text>
-          </Pressable>
+        <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+          <View style={{ flexDirection: "row", backgroundColor: colors.paper, borderRadius: 22, borderWidth: 1, borderColor: colors.line, paddingVertical: 6, paddingHorizontal: 4 }}>
+            {dock.map(([id, label, icon]) => {
+              const on = tab === id;
+              return (
+                <Pressable key={id} onPress={() => setTab(id)} style={{ flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 16, backgroundColor: on ? "rgba(27,77,62,0.1)" : "transparent" }}>
+                  <Icon name={on ? icon : `${icon}-outline`} size={21} color={on ? colors.forest : colors.muted} />
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: on ? colors.forest : colors.muted, marginTop: 2 }}>{label}</Text>
+                </Pressable>
+              );
+            })}
+            <Pressable onPress={() => setMenu(true)} style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}>
+              <Icon name="grid-outline" size={21} color={menu ? colors.forest : colors.muted} />
+              <Text style={{ fontSize: 11, fontWeight: "800", color: menu ? colors.forest : colors.muted, marginTop: 2 }}>Меню</Text>
+            </Pressable>
+          </View>
         </View>
         {menu ? (
-          <View style={{ position: "absolute", inset: 0, flexDirection: "row" }}>
-            <View style={{ width: 280, backgroundColor: colors.forest, padding: 16, paddingTop: 8 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.paper, alignItems: "center", justifyContent: "center" }}>
-                  <Icon name="leaf-outline" size={18} color={colors.forest} />
+          <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, flexDirection: "row" }}>
+            <View style={{ width: 300, backgroundColor: colors.forest, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 16 }}>
+              <View style={{ backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 20, padding: 14, marginBottom: 14 }}>
+                <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.paper, alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                  <Text style={{ color: colors.forest, fontWeight: "800", fontSize: 20 }}>{letter}</Text>
                 </View>
-                <Text style={{ color: colors.paper, fontWeight: "800", fontSize: 16 }}>Класний простір</Text>
+                <Text style={{ color: colors.paper, fontWeight: "800", fontSize: 18 }} numberOfLines={1}>{profile.displayName || "Профіль"}</Text>
+                <Text style={{ color: "rgba(247,244,236,0.75)", marginTop: 2, fontWeight: "700" }}>
+                  {roleLabel}
+                  {profile.className ? ` · ${profile.className}` : ""}
+                  {profile.isAdmin ? " · адміністратор" : ""}
+                </Text>
               </View>
-              <ScrollView>
+              <ScrollView showsVerticalScrollIndicator={false}>
                 {items.map(([id, label, icon]) => {
                   const on = tab === id;
                   return (
@@ -170,25 +186,28 @@ export default function App() {
                         flexDirection: "row",
                         alignItems: "center",
                         gap: 12,
-                        borderRadius: 14,
-                        paddingVertical: 11,
+                        borderRadius: 16,
+                        paddingVertical: 12,
                         paddingHorizontal: 12,
-                        backgroundColor: on ? "rgba(255,255,255,0.15)" : "transparent",
-                        marginBottom: 4,
+                        backgroundColor: on ? "rgba(255,255,255,0.16)" : "transparent",
+                        marginBottom: 2,
                       }}
                     >
-                      <Icon name={icon} size={18} color={on ? "#fff" : "rgba(247,244,236,0.8)"} />
-                      <Text style={{ color: on ? "#fff" : "rgba(247,244,236,0.8)", fontWeight: "800" }}>{label}</Text>
+                      <Icon name={icon} size={18} color={on ? "#fff" : "rgba(247,244,236,0.82)"} />
+                      <Text style={{ color: on ? "#fff" : "rgba(247,244,236,0.82)", fontWeight: "800", fontSize: 15 }}>{label}</Text>
                     </Pressable>
                   );
                 })}
               </ScrollView>
-              <Text style={{ color: "rgba(247,244,236,0.7)", marginTop: 12 }}>
-                {profile.role === "teacher" ? "Учитель" : profile.role === "parent" ? "Батьки" : "Учень"}
-                {profile.isAdmin ? " · адміністратор" : ""}
-              </Text>
+              <Pressable
+                onPress={() => logout().catch(() => {})}
+                style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8, padding: 12 }}
+              >
+                <Icon name="log-out-outline" size={18} color="rgba(247,244,236,0.85)" />
+                <Text style={{ color: "rgba(247,244,236,0.85)", fontWeight: "800" }}>Вийти</Text>
+              </Pressable>
             </View>
-            <Pressable style={{ flex: 1, backgroundColor: "rgba(12,28,22,0.4)" }} onPress={() => setMenu(false)} />
+            <Pressable style={{ flex: 1, backgroundColor: "rgba(12,28,22,0.45)" }} onPress={() => setMenu(false)} />
           </View>
         ) : null}
       </View>
@@ -196,9 +215,9 @@ export default function App() {
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: 48, backgroundColor: colors.canvas }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }}>
       <StatusBar style="dark" />
       {body}
-    </View>
+    </SafeAreaView>
   );
 }

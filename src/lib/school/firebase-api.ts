@@ -1423,6 +1423,31 @@ export async function addActivity(input?: { data?: { classId?: string; classIds?
   return { id };
 }
 
+export async function updateActivity(input?: { data?: { id: string; classIds?: string[]; title: string; body: string; important?: boolean } }) {
+  const p = await requireProfile();
+  const data = dataOf(input);
+  const id = data?.id;
+  const title = (data?.title ?? "").trim();
+  const body = (data?.body ?? "").trim();
+  if (!id || !title || !body) throw new Error("Required");
+  const ref = doc(db(), "announcements", id);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().schoolId !== p.schoolId || snap.data().kind !== "activity") throw new Error("Not found");
+  const teacher = p.role === "teacher";
+  if (!teacher && snap.data().authorId !== p.userId) throw new Error("Forbidden");
+  let classIds = [...new Set((data?.classIds ?? []).map((x) => x.trim()).filter(Boolean))];
+  if (p.role === "student") classIds = p.classId ? [p.classId] : [];
+  if (!classIds.length) classIds = Array.isArray(snap.data().classIds) ? (snap.data().classIds as string[]) : [];
+  await updateDoc(ref, {
+    title,
+    body,
+    important: data?.important === true,
+    classIds,
+    classId: classIds[0] ?? snap.data().classId ?? null,
+  });
+  return { ok: true };
+}
+
 export async function deleteActivity(input?: { data?: { id: string } }) {
   const p = await requireProfile();
   const id = dataOf(input)?.id;

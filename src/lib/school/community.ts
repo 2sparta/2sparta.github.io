@@ -56,7 +56,6 @@ function minutes(hhmm: string) {
 }
 
 const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const DUTY_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 export type ClubSession = { weekday: string; startTime: string; endTime: string };
 
@@ -233,6 +232,7 @@ export async function listRewards() {
         title: s(r.title),
         body: s(r.body),
         points: clamp(Number(r.points) || 0),
+        awarded: awardedOf(r),
         awardedRosterId: r.awardedRosterId ? s(r.awardedRosterId) : null,
         awardedName: r.awardedName ? s(r.awardedName) : null,
         createdAt: Number(r.createdAt) || 0,
@@ -249,11 +249,6 @@ export async function addReward(input?: { data?: { title: string; body: string; 
   const body = (data?.body ?? "").trim();
   const points = clamp(Number(data?.points) || 0);
   if (!title || !body || points < 1) throw new Error("Required");
-  const ref = doc(db(), "students", p.rosterId);
-  const snap = await getDoc(ref);
-  const budget = clamp(Number(snap.data()?.budget) || 0);
-  if (points > budget) throw new Error("BUDGET");
-  await updateDoc(ref, { budget: budget - points });
   const id = newId();
   await setDoc(doc(db(), "rewards", id), {
     schoolId: p.schoolId,
@@ -263,6 +258,8 @@ export async function addReward(input?: { data?: { title: string; body: string; 
     title,
     body,
     points,
+    hold: 0,
+    awarded: [],
     awardedRosterId: null,
     awardedName: null,
     createdAt: Date.now(),
@@ -270,33 +267,106 @@ export async function addReward(input?: { data?: { title: string; body: string; 
   return { id };
 }
 
-export async function awardReward(input?: { data?: { rewardId: string; rosterId: string } }) {
+function awardedOf(raw: Bag) {
+  if (Array.isArray(raw.awarded)) {
+    return (raw.awarded as Bag[])
+      .map((item) => ({ rosterId: s(item?.rosterId), name: s(item?.name) }))
+      .filter((item) => item.rosterId);
+  }
+  if (raw.awardedRosterId) return [{ rosterId: s(raw.awardedRosterId), name: s(raw.awardedName) }];
+  return [] as { rosterId: string; name: string }[];
+}
+
+export async function updateReward(input?: { data?: { id: string; title: string; body: string; points: number } }) {
   const p = await profile();
   const data = dataOf(input);
-  if (!data?.rewardId || !data.rosterId || !p.rosterId) throw new Error("Missing");
-  if (data.rosterId === p.rosterId) throw new Error("SELF");
+  if (!data?.id) throw new Error("Missing");
+  const ref = doc(db(), "rewards", data.id);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
+  const own = s(snap.data().authorRosterId) === p.rosterId;
+  if (p.role !== "teacher" && !own) throw new Error("Forbidden");
+  const title = (data.title ?? "").trim();
+  const body = (data.body ?? "").trim();
+  const points = clamp(Number(data.points) || 0);
+  if (!title || !body || points < 1) throw new Error("Required");
+  const awarded = awardedOf(snap.data());
+  await updateDoc(ref, { title, body, ...(awarded.length ? {} : { points }) });
+  return { ok: true };
+}
+
+export async function deleteReward(input?: { data?: { id: string } }) {
+  const p = await profile();
+  const id = dataOf(input)?.id;
+  if (!id) throw new Error("Missing");
+  const ref = doc(db(), "rewards", id);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
+  const own = s(snap.data().authorRosterId) === p.rosterId;
+  if (p.role !== "teacher" && !own) throw new Error("Forbidden");
+  const raw = snap.data();
+  const awarded = awardedOf(raw);
+  const points = clamp(Number(raw.points) || 0);
+  const hold = typeof raw.hold === "number" ? clamp(Number(raw.hold)) : awarded.length ? 0 : points;
+  if (hold > 0) {
+    const author = doc(db(), "students", s(raw.authorRosterId));
+    const authorSnap = await getDoc(author);
+    if (authorSnap.exists()) {
+      await updateDoc(author, { budget: clamp(clamp(Number(authorSnap.data().budget) || 0) + hold) });
+    }
+  }
+  await deleteDoc(ref);
+  return { ok: true };
+}
+
+export async function awardReward(input?: { data?: { rewardId: string; rosterId?: string; rosterIds?: string[] } }) {
+  const p = await profile();
+  const data = dataOf(input);
+  const wanted = [...new Set([...(data?.rosterIds ?? []), data?.rosterId ?? ""].map((id) => s(id)).filter(Boolean))];
+  if (!data?.rewardId || !wanted.length || !p.rosterId) throw new Error("Missing");
   const rewardRef = doc(db(), "rewards", data.rewardId);
   const reward = await getDoc(rewardRef);
   if (!reward.exists() || reward.data().schoolId !== p.schoolId) throw new Error("Not found");
   if (s(reward.data().authorRosterId) !== p.rosterId) throw new Error("Forbidden");
-  if (reward.data().awardedRosterId) throw new Error("AWARDED");
-  const studentRef = doc(db(), "students", data.rosterId);
-  const student = await getDoc(studentRef);
-  if (!student.exists() || student.data().schoolId !== p.schoolId) throw new Error("Not found");
-  const points = clamp(Number(reward.data().points) || 0);
-  const next = clamp(clamp(Number(student.data().points) || 0) + points);
-  await updateDoc(studentRef, { points: next });
-  await setDoc(doc(db(), "pointsHistory", newId()), {
-    schoolId: p.schoolId,
-    rosterId: data.rosterId,
-    delta: points,
-    note: `Нагорода: ${s(reward.data().title)}`,
-    byUserId: p.userId,
-    byName: p.displayName || "",
-    pointsAfter: next,
-    createdAt: Date.now(),
+  const raw = reward.data();
+  const already = awardedOf(raw);
+  const fresh = wanted.filter((id) => id !== p.rosterId && !already.some((item) => item.rosterId === id));
+  if (!fresh.length) throw new Error("Missing");
+  const points = clamp(Number(raw.points) || 0);
+  const hold = typeof raw.hold === "number" ? clamp(Number(raw.hold)) : already.length ? 0 : points;
+  const authorRef = doc(db(), "students", p.rosterId);
+  const authorSnap = await getDoc(authorRef);
+  const budget = clamp(Number(authorSnap.data()?.budget) || 0);
+  const cost = Math.max(0, points * fresh.length - hold);
+  if (cost > budget) throw new Error("BUDGET");
+  if (cost) await updateDoc(authorRef, { budget: budget - cost });
+  const names: { rosterId: string; name: string }[] = [];
+  for (const rosterId of fresh) {
+    const studentRef = doc(db(), "students", rosterId);
+    const student = await getDoc(studentRef);
+    if (!student.exists() || student.data().schoolId !== p.schoolId) continue;
+    const next = clamp(clamp(Number(student.data().points) || 0) + points);
+    await updateDoc(studentRef, { points: next });
+    await setDoc(doc(db(), "pointsHistory", newId()), {
+      schoolId: p.schoolId,
+      rosterId,
+      delta: points,
+      note: `Нагорода: ${s(raw.title)}`,
+      byUserId: p.userId,
+      byName: p.displayName || "",
+      pointsAfter: next,
+      createdAt: Date.now(),
+    });
+    names.push({ rosterId, name: s(student.data().name) });
+  }
+  if (!names.length) throw new Error("Not found");
+  const awarded = [...already, ...names];
+  await updateDoc(rewardRef, {
+    awarded,
+    hold: 0,
+    awardedRosterId: awarded[0]?.rosterId ?? null,
+    awardedName: awarded.map((item) => item.name).join(", "),
   });
-  await updateDoc(rewardRef, { awardedRosterId: data.rosterId, awardedName: s(student.data().name) });
   return { ok: true };
 }
 
@@ -512,49 +582,48 @@ export async function deleteClassHomework(input?: { data?: { id: string } }) {
   return { ok: true };
 }
 
-function emptyDuty(): Record<(typeof DUTY_DAYS)[number], string[]> {
-  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] };
+function emptyGrid(): { cols: string[]; rows: string[][] } {
+  return { cols: ["", ""], rows: [["", ""]] };
 }
 
-function parseDuty(raw: unknown) {
-  const days = emptyDuty();
-  if (!raw || typeof raw !== "object") return days;
-  for (const day of DUTY_DAYS) {
-    const value = (raw as Record<string, unknown>)[day];
-    days[day] = Array.isArray(value) ? value.map((id) => s(id)).filter(Boolean) : [];
-  }
-  return days;
+function parseGrid(raw: unknown) {
+  if (!raw || typeof raw !== "object") return emptyGrid();
+  const bag = raw as Bag;
+  const cols = Array.isArray(bag.cols) ? bag.cols.map((cell) => s(cell)).slice(0, 12) : [];
+  const width = Math.max(cols.length, 1);
+  while (cols.length < width) cols.push("");
+  const rows = Array.isArray(bag.rows)
+    ? bag.rows.slice(0, 40).map((row) => {
+        const cells = Array.isArray(row) ? row.map((cell) => s(cell)) : [];
+        while (cells.length < width) cells.push("");
+        return cells.slice(0, width);
+      })
+    : [];
+  if (!rows.length) rows.push(Array.from({ length: width }, () => ""));
+  return { cols, rows };
 }
 
 export async function getDuty(input?: { data?: { classId?: string } }) {
   const p = await profile();
   const classId = dataOf(input)?.classId || p.classId || "";
-  if (!classId) return { classId: null as string | null, days: emptyDuty(), students: [] as { id: string; name: string }[], canEdit: false };
+  if (!classId) return { classId: null as string | null, grid: emptyGrid(), canEdit: false };
   const klass = await getDoc(doc(db(), "classes", classId));
   if (!klass.exists() || klass.data().schoolId !== p.schoolId) throw new Error("Not found");
-  const students = (await bySchool("students", p.schoolId!))
-    .filter((r) => s(r.classId) === classId)
-    .map((r) => ({ id: s(r.id), name: s(r.name) }))
-    .sort((a, b) => a.name.localeCompare(b.name, "uk"));
   const canEdit = p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === classId);
-  return { classId, days: parseDuty(klass.data().duty), students, canEdit };
+  return { classId, grid: parseGrid(klass.data().dutyGrid), canEdit };
 }
 
-export async function setDuty(input?: { data?: { classId: string; weekday: string; rosterIds: string[] } }) {
+export async function setDuty(input?: { data?: { classId: string; cols: string[]; rows: string[][] } }) {
   const p = await profile();
   const data = dataOf(input);
-  if (!data?.classId || !DUTY_DAYS.includes(data.weekday as (typeof DUTY_DAYS)[number])) throw new Error("Missing");
+  if (!data?.classId) throw new Error("Missing");
   const canEdit = p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === data.classId);
   if (!canEdit) throw new Error("Forbidden");
   const ref = doc(db(), "classes", data.classId);
   const snap = await getDoc(ref);
   if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
-  const allowed = new Set(
-    (await bySchool("students", p.schoolId!)).filter((r) => s(r.classId) === data.classId).map((r) => s(r.id)),
-  );
-  const days = parseDuty(snap.data().duty);
-  days[data.weekday as (typeof DUTY_DAYS)[number]] = [...new Set(data.rosterIds.filter((id) => allowed.has(id)))];
-  await updateDoc(ref, { duty: days });
+  const grid = parseGrid({ cols: data.cols, rows: data.rows });
+  await updateDoc(ref, { dutyGrid: grid });
   return { ok: true };
 }
 

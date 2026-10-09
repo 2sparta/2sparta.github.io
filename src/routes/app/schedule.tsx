@@ -31,6 +31,7 @@ import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/compon
 import { cn } from "@/lib/cn";
 import { ClubPlan } from "@/components/club-plan";
 import { DutyBoard } from "@/components/duty-board";
+import { attendingClubIds, listClubs } from "@/lib/school/server";
 
 export const Route = createFileRoute("/app/schedule")({ component: SchedulePage });
 
@@ -54,6 +55,8 @@ function SchedulePage() {
   });
   const subjects = useQuery({ queryKey: ["subjects"], queryFn: () => listSubjects() });
   const electives = useQuery({ queryKey: ["electives"], queryFn: () => listElectives(), enabled: !isTeacher });
+  const mine = me.data?.profile.role === "student" || me.data?.profile.role === "parent";
+  const clubs = useQuery({ queryKey: ["clubs"], queryFn: () => listClubs(), enabled: mine });
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [swap, setSwap] = useState(false);
@@ -150,8 +153,19 @@ function SchedulePage() {
 
   const entries = sched.data?.entries ?? [];
   const today = kyivWeekday();
-  const extraDays = (["sat", "sun"] as const).filter((day) =>
-    entries.some((e) => e.weekday === day && (e.subjectId || e.customTimes)),
+  const joined = (clubs.data?.clubs ?? []).filter((c) => c.joined);
+  const going = attendingClubIds(joined, clubs.data?.picks ?? {});
+  const clubSlots = joined
+    .filter((c) => going.has(c.id))
+    .flatMap((c) => {
+      const sessions = c.sessions?.length ? c.sessions : [{ weekday: c.weekday, startTime: c.startTime, endTime: c.endTime }];
+      return sessions.map((s) => ({ id: c.id, name: c.name, room: c.room, weekday: s.weekday, startTime: s.startTime, endTime: s.endTime }));
+    });
+  const clubBands = [...new Set(clubSlots.map((s) => `${s.startTime}–${s.endTime}`))].sort();
+  const extraDays = (["sat", "sun"] as const).filter(
+    (day) =>
+      entries.some((e) => e.weekday === day && (e.subjectId || e.customTimes)) ||
+      clubSlots.some((s) => s.weekday === day),
   );
   const days = [...BASE_DAYS, ...extraDays];
   const periods = [...new Set(entries.map((e) => e.period))].filter((p) => p > 0).sort((a, b) => a - b);
@@ -381,6 +395,32 @@ function SchedulePage() {
                   <td colSpan={days.length + 1} />
                 </tr>
               )}
+              {clubBands.map((band) => {
+                const [startTime, endTime] = band.split("–");
+                return (
+                  <tr key={band} className="border-t border-hairline bg-forest/[0.04]">
+                    <td className="px-2 py-2 font-display text-xs font-extrabold text-forest">+</td>
+                    <td className="px-2 py-2 font-mono text-xs text-forest">{startTime}–{endTime}</td>
+                    {days.map((day) => {
+                      const here = clubSlots.filter((s) => s.weekday === day && s.startTime === startTime && s.endTime === endTime);
+                      return (
+                        <td key={day} className={cn("px-2 py-2 align-top", day === today && "bg-forest/5")}>
+                          {here.length === 0 ? (
+                            <span className="text-muted">—</span>
+                          ) : (
+                            here.map((s) => (
+                              <p key={s.id} className="font-semibold text-forest">
+                                {s.name}
+                                {s.room ? <span className="mt-0.5 block text-[11px] font-medium text-muted">{s.room}</span> : null}
+                              </p>
+                            ))
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

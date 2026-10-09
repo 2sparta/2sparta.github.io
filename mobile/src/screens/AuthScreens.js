@@ -27,8 +27,11 @@ export function LoginScreen() {
 
   return (
     <Screen>
-      <H1>Класний простір</H1>
-      <Muted>Той самий акаунт, що й на сайті.</Muted>
+      <View style={{ backgroundColor: colors.forest, borderRadius: 28, padding: 20, marginBottom: 14 }}>
+        <Text style={{ color: "rgba(247,244,236,0.7)", fontWeight: "800", letterSpacing: 1 }}>ШКОЛА</Text>
+        <Text style={{ color: colors.paper, fontSize: 30, fontWeight: "800", marginTop: 4 }}>Класний простір</Text>
+        <Text style={{ color: "rgba(247,244,236,0.85)", marginTop: 6 }}>Той самий акаунт, що й на сайті.</Text>
+      </View>
       <Card>
         <Field autoCapitalize="none" keyboardType="email-address" placeholder="Пошта" value={email} onChangeText={setEmail} />
         <Field secureTextEntry placeholder="Пароль" value={password} onChangeText={setPassword} />

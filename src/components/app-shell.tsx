@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -69,6 +69,16 @@ export function AppShell({ profile }: { profile: Profile }) {
   const t = STRINGS[lang];
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!accountOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false);
+    };
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [accountOpen]);
   const user = useCurrentUser();
   const gate = typeof window !== "undefined" && hasGateSessionMarker();
   const nav = profile.role === "student" ? STUDENT_NAV : profile.role === "parent" ? PARENT_NAV : TEACHER_NAV.filter((n) => !n.admin || profile.isAdmin);
@@ -151,18 +161,52 @@ export function AppShell({ profile }: { profile: Profile }) {
           </button>
           <div className="ml-auto flex items-center gap-2.5">
             <ThemeLangPill />
-            <div className="flex items-center gap-2 rounded-full border border-hairline bg-surface/90 py-1 pr-2.5 pl-1">
-              {user?.profileImageUrl ? (
-                <img src={user.profileImageUrl} alt="" className="size-8 rounded-full object-cover" />
-              ) : (
-                <span className="grid size-8 place-items-center rounded-full bg-avatar font-display text-sm font-extrabold text-forest">
-                  {first}
+            <div className="relative" ref={accountRef}>
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-full border border-hairline bg-surface/90 py-1 pr-2.5 pl-1"
+                onClick={() => setAccountOpen((v) => !v)}
+                aria-expanded={accountOpen}
+              >
+                {user?.profileImageUrl ? (
+                  <img src={user.profileImageUrl} alt="" className="size-8 rounded-full object-cover" />
+                ) : (
+                  <span className="grid size-8 place-items-center rounded-full bg-avatar font-display text-sm font-extrabold text-forest">
+                    {first}
+                  </span>
+                )}
+                <span className="max-w-[140px] truncate font-display text-[13px] font-extrabold text-ink max-sm:hidden">
+                  {profile.displayName || user?.displayName || ""}
                 </span>
+                <ChevronDown className={cn("size-3.5 text-muted transition max-sm:hidden", accountOpen && "rotate-180")} />
+              </button>
+              {accountOpen && (
+                <div className="absolute top-[calc(100%+8px)] right-0 z-20 w-56 rounded-2xl border border-hairline bg-surface p-2 shadow-[var(--shadow-soft)]">
+                  <p className="px-2 py-1.5 text-xs leading-snug text-muted">
+                    {profile.displayName}
+                    {profile.schoolName ? ` · ${profile.schoolName}` : ""}
+                    {profile.className ? ` · ${profile.className}` : ""}
+                  </p>
+                  <Link
+                    to="/app/settings"
+                    onClick={() => setAccountOpen(false)}
+                    className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-bold text-ink hover:bg-cream"
+                  >
+                    <Settings className="size-4" />
+                    {t.settings}
+                  </Link>
+                  {!gate && (
+                    <button
+                      type="button"
+                      onClick={() => void signOutApp()}
+                      className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-bold text-ink hover:bg-cream"
+                    >
+                      <LogOut className="size-4" />
+                      {t.logout}
+                    </button>
+                  )}
+                </div>
               )}
-              <span className="max-w-[140px] truncate font-display text-[13px] font-extrabold text-ink max-sm:hidden">
-                {profile.displayName || user?.displayName || ""}
-              </span>
-              <ChevronDown className="size-3.5 text-muted max-sm:hidden" />
             </div>
           </div>
         </header>

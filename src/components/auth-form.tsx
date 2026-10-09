@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { STRINGS, type Lang } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { AuthCard, AuthLayout, Field, PrimaryButton, SecondaryButton } from "./auth-layout";
 
-export function AuthForm({ role }: { role: "teacher" | "student" }) {
+export function AuthForm() {
   const { lang } = usePrefs();
   const t = STRINGS[lang];
   const navigate = useNavigate();
@@ -16,11 +16,6 @@ export function AuthForm({ role }: { role: "teacher" | "student" }) {
   const [busy, setBusy] = useState(false);
 
   async function afterAuth() {
-    try {
-      sessionStorage.setItem("kp-intended-role", role);
-    } catch {
-      /* ignore */
-    }
     await navigate({ to: "/onboarding/role" });
   }
 
@@ -55,10 +50,10 @@ export function AuthForm({ role }: { role: "teacher" | "student" }) {
   }
 
   return (
-    <AuthLayout variant={role === "student" ? "forest" : "cream"}>
+    <AuthLayout variant="cream">
       <AuthCard>
         <h1 className="mb-5 text-center font-display text-[clamp(22px,3vw,28px)] font-extrabold tracking-tight text-ink">
-          {role === "teacher" ? t.teacherAuthTitle : t.studentAuthTitle}
+          {t.brand}
         </h1>
         <Field
           icon={
@@ -92,21 +87,8 @@ export function AuthForm({ role }: { role: "teacher" | "student" }) {
         <SecondaryButton type="button" disabled={busy} onClick={onRegister}>
           {t.registerBtn}
         </SecondaryButton>
-        {role === "teacher" && (
-          <p className="mt-3 text-center text-[12.5px] leading-relaxed text-muted">{t.teacherHint}</p>
-        )}
         {error && <p className="mt-2 text-center text-sm text-terracotta">{error}</p>}
-        <p className="mt-3 text-center text-sm text-muted">
-          {role === "teacher" ? (
-            <Link to="/student" className="font-extrabold text-forest-mid no-underline hover:underline">
-              {t.studentLink}
-            </Link>
-          ) : (
-            <Link to="/login" className="font-extrabold text-forest-mid no-underline hover:underline">
-              {t.teacherLink}
-            </Link>
-          )}
-        </p>
+        <p className="mt-3 text-center text-[12.5px] leading-relaxed text-muted">{t.roleHint}</p>
       </AuthCard>
     </AuthLayout>
   );

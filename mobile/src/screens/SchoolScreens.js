@@ -170,44 +170,42 @@ export function HomeScreen({ profile, onTab }) {
   const shown = profile.role === "parent" ? tiles.filter(([id]) => ["schedule", "tasks", "homework", "grades", "news"].includes(id)) : tiles;
   return (
     <Screen>
-      <Text style={{ fontSize: 15, fontWeight: "700", color: colors.forestMid, marginBottom: 4 }}>{greet}</Text>
-      <H1>{first || profile.displayName}</H1>
-      <View style={{ alignSelf: "flex-start", backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 16 }}>
-        <Text style={{ color: colors.inkSoft, fontWeight: "800", fontSize: 13 }}>
+      <View style={{ backgroundColor: colors.forest, borderRadius: 28, padding: 18, marginBottom: 14 }}>
+        <Text style={{ color: "rgba(247,244,236,0.75)", fontWeight: "700" }}>{greet}</Text>
+        <Text style={{ color: colors.paper, fontSize: 30, fontWeight: "800", marginTop: 2 }}>{first || profile.displayName}</Text>
+        <Text style={{ color: "rgba(247,244,236,0.85)", fontWeight: "700", marginTop: 8 }}>
           {profile.role === "teacher" ? "Учитель" : profile.role === "parent" ? "Батьки" : "Учень"}
           {profile.role === "parent" && profile.childName ? ` · ${profile.childName}` : ""}
           {profile.className ? ` · ${profile.className}` : ""}
           {profile.schoolName ? ` · ${profile.schoolName}` : ""}
         </Text>
+        {profile.role === "student" ? (
+          <Pressable onPress={() => onTab?.("points")} style={{ marginTop: 14, alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8 }}>
+            <Text style={{ color: "rgba(247,244,236,0.75)", fontSize: 12, fontWeight: "700" }}>Ваші бали</Text>
+            <Text style={{ color: colors.paper, fontSize: 28, fontWeight: "800" }}>{profile.points}</Text>
+          </Pressable>
+        ) : null}
       </View>
-      {profile.role === "student" ? (
-        <Pressable onPress={() => onTab?.("points")}>
-          <Card>
-            <Text style={{ color: colors.muted, fontWeight: "700" }}>Ваші бали</Text>
-            <Text style={{ fontSize: 40, fontWeight: "800", color: colors.forest, marginTop: 2 }}>{profile.points}</Text>
-          </Card>
-        </Pressable>
-      ) : null}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {shown.map(([id, label, icon, tint]) => (
           <Pressable
             key={id}
             onPress={() => onTab?.(id)}
             style={{
-              width: "48%",
-              backgroundColor: "#fff",
+              width: "47.5%",
+              backgroundColor: colors.card,
               borderRadius: 22,
               padding: 14,
-              minHeight: 108,
+              minHeight: 112,
               justifyContent: "space-between",
               borderWidth: 1,
               borderColor: colors.line,
             }}
           >
-            <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: tint, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: tint, alignItems: "center", justifyContent: "center" }}>
               <Icon name={icon} size={20} color="#f7f4ec" />
             </View>
-            <Text style={{ fontWeight: "800", color: colors.ink, fontSize: 16, marginTop: 16 }}>{label}</Text>
+            <Text style={{ fontWeight: "800", color: colors.ink, fontSize: 16, marginTop: 14 }}>{label}</Text>
           </Pressable>
         ))}
       </View>

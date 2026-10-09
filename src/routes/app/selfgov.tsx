@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, deleteActivity, runForElection, voteElection, listRewards, listRosterNames, listStudents, addReward, awardReward, setOffice, fundOffice } from "@/lib/school/server";
+import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, updateActivity, deleteActivity, runForElection, voteElection, listRewards, listRosterNames, listStudents, addReward, updateReward, deleteReward, awardReward, setOffice, fundOffice } from "@/lib/school/server";
 import { OFFICES, officeName } from "@/lib/school/ids";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
@@ -33,6 +33,7 @@ function Page() {
   const [actBody, setActBody] = useState("");
   const [actClasses, setActClasses] = useState<string[]>([]);
   const [actImportant, setActImportant] = useState(false);
+  const [editAct, setEditAct] = useState<string | null>(null);
   const isStarosta = me.data?.profile.role === "student" && me.data.profile.isStarosta;
   const canPost = isTeacher || isStarosta;
   const postIds = isTeacher ? actClasses : me.data?.profile.classId ? [me.data.profile.classId] : [];
@@ -59,11 +60,15 @@ function Page() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["election"] }),
   });
   const publish = useMutation({
-    mutationFn: () => addActivity({ data: { classIds: postIds, title: actTitle, body: actBody, important: actImportant } }),
+    mutationFn: async () => {
+      if (editAct) await updateActivity({ data: { id: editAct, classIds: postIds, title: actTitle, body: actBody, important: actImportant } });
+      else await addActivity({ data: { classIds: postIds, title: actTitle, body: actBody, important: actImportant } });
+    },
     onSuccess: async () => {
       setActTitle("");
       setActBody("");
       setActImportant(false);
+      setEditAct(null);
       await qc.invalidateQueries({ queryKey: ["activities", active] });
     },
   });
@@ -213,9 +218,25 @@ function Page() {
               <input type="checkbox" checked={actImportant} onChange={(e) => setActImportant(e.target.checked)} />
               {t.annImportant}
             </label>
-            <PillButton type="button" disabled={postIds.length === 0 || !actTitle.trim() || !actBody.trim() || publish.isPending} onClick={() => publish.mutate()}>
-              {t.activityPublish}
-            </PillButton>
+            <div className="flex gap-2">
+              <PillButton type="button" disabled={postIds.length === 0 || !actTitle.trim() || !actBody.trim() || publish.isPending} onClick={() => publish.mutate()}>
+                {editAct ? t.save : t.activityPublish}
+              </PillButton>
+              {editAct && (
+                <PillButton
+                  type="button"
+                  tone="ghost"
+                  onClick={() => {
+                    setEditAct(null);
+                    setActTitle("");
+                    setActBody("");
+                    setActImportant(false);
+                  }}
+                >
+                  {t.cancel}
+                </PillButton>
+              )}
+            </div>
           </div>
         )}
         {!canPost && <p className="mb-3 text-xs text-muted">{t.activityCanPost}</p>}
@@ -243,6 +264,18 @@ function Page() {
                   }`}
                   onDelete={isTeacher || a.authorId === me.data?.profile.userId ? () => dropAct.mutate(a.id) : undefined}
                   deleteLabel={t.delete}
+                  onEdit={
+                    isTeacher || a.authorId === me.data?.profile.userId
+                      ? () => {
+                          setEditAct(a.id);
+                          setActTitle(a.title);
+                          setActBody(a.body);
+                          setActImportant(a.important);
+                          setActClasses(a.classIds ?? []);
+                        }
+                      : undefined
+                  }
+                  editLabel={t.edit}
                 />
               );
             })}
@@ -288,33 +321,48 @@ function RewardsBoard() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [points, setPoints] = useState("10");
-  const [officeId, setOfficeId] = useState("public");
-  const [holder, setHolder] = useState("");
-  const [fund, setFund] = useState("50");
-  const [who, setWho] = useState<Record<string, string>>({});
+  const [editId, setEditId] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [budgets, setBudgets] = useState<Record<string, string>>({});
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ["rewards"] });
     await qc.invalidateQueries({ queryKey: ["students"] });
     await qc.invalidateQueries({ queryKey: ["me"] });
   };
   const post = useMutation({
-    mutationFn: () => addReward({ data: { title, body, points: Number(points) } }),
+    mutationFn: async () => {
+      if (editId) await updateReward({ data: { id: editId, title, body, points: Number(points) } });
+      else await addReward({ data: { title, body, points: Number(points) } });
+    },
     onSuccess: async () => {
       setTitle("");
       setBody("");
+      setPoints("10");
+      setEditId(null);
       await refresh();
     },
   });
   const give = useMutation({
-    mutationFn: (d: { rewardId: string; rosterId: string }) => awardReward({ data: d }),
+    mutationFn: (d: { rewardId: string; rosterIds: string[] }) => awardReward({ data: d }),
+    onSuccess: refresh,
+  });
+  const drop = useMutation({
+    mutationFn: (id: string) => deleteReward({ data: { id } }),
     onSuccess: refresh,
   });
   const assign = useMutation({
-    mutationFn: () => setOffice({ data: { rosterId: holder, office: officeId } }),
-    onSuccess: refresh,
-  });
-  const budget = useMutation({
-    mutationFn: () => fundOffice({ data: { rosterId: holder, delta: Number(fund) } }),
+    mutationFn: async (officeId: string) => {
+      const people = roster.data ?? [];
+      const holder = people.find((s) => s.office === officeId);
+      const selected = draft[officeId] ?? holder?.id ?? "";
+      if (!selected && holder) await setOffice({ data: { rosterId: holder.id, office: null } });
+      else if (selected && selected !== holder?.id) await setOffice({ data: { rosterId: selected, office: officeId } });
+      if (!selected) return;
+      const current = people.find((s) => s.id === selected)?.budget ?? holder?.budget ?? 0;
+      const next = Math.max(0, Math.trunc(Number(budgets[officeId] ?? current) || 0));
+      if (next !== current) await fundOffice({ data: { rosterId: selected, delta: next - current } });
+    },
     onSuccess: refresh,
   });
 
@@ -323,56 +371,144 @@ function RewardsBoard() {
       <PanelTitle>{t.rewardsTitle}</PanelTitle>
       <Hint>{t.rewardsHint}</Hint>
       {isTeacher && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Select value={holder} onChange={(e) => setHolder(e.target.value)}>
-            <option value="">{t.pickStudent}</option>
-            {(roster.data ?? []).map((s) => (
-              <option key={s.id} value={s.id}>{s.name}{s.office ? ` · ${officeName(s.office)}` : ""}</option>
-            ))}
-          </Select>
-          <Select value={officeId} onChange={(e) => setOfficeId(e.target.value)}>
-            {OFFICES.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </Select>
-          <PillButton type="button" disabled={!holder || assign.isPending} onClick={() => assign.mutate()}>{t.save}</PillButton>
-          <TextInput className="w-24" value={fund} onChange={(e) => setFund(e.target.value)} />
-          <PillButton tone="ghost" type="button" disabled={!holder || budget.isPending} onClick={() => budget.mutate()}>{t.budgetLabel}</PillButton>
+        <div className="mb-4 space-y-2">
+          {OFFICES.map((o) => {
+            const holder = (roster.data ?? []).find((s) => s.office === o.id);
+            const selected = draft[o.id] ?? holder?.id ?? "";
+            return (
+              <div key={o.id} className="grid items-center gap-2 rounded-2xl bg-cream/40 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_auto]">
+                <div className="min-w-0">
+                  <p className="font-display text-sm font-extrabold">{o.name}</p>
+                  <p className="text-xs text-muted">
+                    {holder ? `${holder.name} · ${t.budgetLabel}: ${holder.budget}` : t.officeEmpty}
+                  </p>
+                </div>
+                <Select value={selected} onChange={(e) => setDraft((cur) => ({ ...cur, [o.id]: e.target.value }))}>
+                  <option value="">{t.officeEmpty}</option>
+                  {(roster.data ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+                <TextInput
+                  value={budgets[o.id] ?? String(holder?.budget ?? 0)}
+                  onChange={(e) => setBudgets((cur) => ({ ...cur, [o.id]: e.target.value }))}
+                  aria-label={t.budgetLabel}
+                />
+                <div className="flex gap-2">
+                  <PillButton type="button" disabled={assign.isPending} onClick={() => assign.mutate(o.id)}>{t.save}</PillButton>
+                  {holder && (
+                    <PillButton
+                      type="button"
+                      tone="ghost"
+                      onClick={() => {
+                        setDraft((cur) => ({ ...cur, [o.id]: "" }));
+                        void setOffice({ data: { rosterId: holder.id, office: null } }).then(refresh);
+                      }}
+                    >
+                      {t.officeClear}
+                    </PillButton>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-      {isHead && (
+      {(isHead || Boolean(editId)) && (
         <div className="mb-4 grid gap-2">
-          <p className="text-sm font-bold text-forest">{officeName(profile?.office)} · {t.budgetLabel}: {profile?.budget ?? 0}</p>
+          {isHead ? <p className="text-sm font-bold text-forest">{officeName(profile?.office)} · {t.budgetLabel}: {profile?.budget ?? 0}</p> : null}
           <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.annTitle} />
           <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder={t.annBody} rows={3} className="rounded-2xl bg-surface-2 px-4 py-3 text-sm outline-none" />
           <TextInput className="w-28" value={points} onChange={(e) => setPoints(e.target.value)} aria-label={t.rewardAmount} />
-          <PillButton type="button" disabled={!title.trim() || !body.trim() || post.isPending} onClick={() => post.mutate()}>{t.postReward}</PillButton>
+          <div className="flex gap-2">
+            <PillButton type="button" disabled={!title.trim() || !body.trim() || post.isPending} onClick={() => post.mutate()}>
+              {editId ? t.save : t.postReward}
+            </PillButton>
+            {editId && (
+              <PillButton type="button" tone="ghost" onClick={() => { setEditId(null); setTitle(""); setBody(""); setPoints("10"); }}>
+                {t.cancel}
+              </PillButton>
+            )}
+          </div>
           {post.error instanceof Error && post.error.message === "BUDGET" && <p className="text-sm text-terracotta">{t.noBudget}</p>}
         </div>
       )}
       <ul className="space-y-2">
-        {(rewards.data?.rewards ?? []).map((r) => (
-          <li key={r.id} className="rounded-2xl border border-hairline bg-cream/40 px-3 py-3">
-            <p className="text-xs font-bold text-forest">{r.officeName}</p>
-            <p className="font-display text-lg font-extrabold">{r.title}</p>
-            <p className="text-sm">{r.body}</p>
-            <p className="mt-1 text-sm font-bold">{t.rewardAmount}: {r.points}</p>
-            <p className="text-xs text-muted">{r.authorName}{r.awardedName ? ` · ${t.awarded}: ${r.awardedName}` : ""}</p>
-            {isHead && r.authorRosterId === profile?.rosterId && !r.awardedRosterId && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Select value={who[r.id] ?? ""} onChange={(e) => setWho((p) => ({ ...p, [r.id]: e.target.value }))}>
-                  <option value="">{t.awardTo}</option>
-                  {(students.data?.students ?? []).filter((s) => s.id !== profile?.rosterId).map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </Select>
-                <PillButton type="button" disabled={!who[r.id] || give.isPending} onClick={() => give.mutate({ rewardId: r.id, rosterId: who[r.id] })}>
-                  {t.awardTo}
-                </PillButton>
+        {(rewards.data?.rewards ?? []).map((r) => {
+          const awarded = r.awarded ?? [];
+          const mine = isHead && r.authorRosterId === profile?.rosterId;
+          const canManage = mine || isTeacher;
+          const chosen = picked[r.id] ?? [];
+          return (
+            <li key={r.id} className="rounded-2xl border border-hairline bg-cream/40 px-3 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-forest">{r.officeName}</p>
+                  <p className="font-display text-lg font-extrabold">{r.title}</p>
+                </div>
+                {canManage && (
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      className="text-xs font-bold text-forest"
+                      onClick={() => {
+                        setEditId(r.id);
+                        setTitle(r.title);
+                        setBody(r.body);
+                        setPoints(String(r.points));
+                      }}
+                    >
+                      {t.edit}
+                    </button>
+                    <button type="button" className="text-xs text-terracotta" onClick={() => drop.mutate(r.id)}>{t.delete}</button>
+                  </div>
+                )}
               </div>
-            )}
-          </li>
-        ))}
+              <p className="text-sm">{r.body}</p>
+              <p className="mt-1 text-sm font-bold">{t.rewardAmount}: {r.points}</p>
+              <p className="text-xs text-muted">
+                {r.authorName}
+                {awarded.length ? ` · ${t.awarded}: ${awarded.map((a) => a.name).join(", ")}` : ""}
+              </p>
+              {mine && (
+                <div className="mt-2">
+                  <p className="mb-1 text-xs font-bold text-muted">{t.awardMany}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(students.data?.students ?? [])
+                      .filter((s) => s.id !== profile?.rosterId && !awarded.some((a) => a.rosterId === s.id))
+                      .map((s) => {
+                        const on = chosen.includes(s.id);
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() =>
+                              setPicked((cur) => ({
+                                ...cur,
+                                [r.id]: on ? chosen.filter((id) => id !== s.id) : [...chosen, s.id],
+                              }))
+                            }
+                            className={cn("rounded-full px-3 py-1 text-xs font-bold", on ? "bg-forest text-paper" : "bg-surface text-ink")}
+                          >
+                            {s.name}
+                          </button>
+                        );
+                      })}
+                  </div>
+                  <PillButton
+                    className="mt-2"
+                    type="button"
+                    disabled={!chosen.length || give.isPending}
+                    onClick={() => give.mutate({ rewardId: r.id, rosterIds: chosen })}
+                  >
+                    {t.awardMany}
+                  </PillButton>
+                  {give.error instanceof Error && give.error.message === "BUDGET" && <p className="mt-1 text-sm text-terracotta">{t.noBudget}</p>}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </Panel>
   );
