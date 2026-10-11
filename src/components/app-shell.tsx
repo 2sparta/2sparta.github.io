@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   BookOpen,
+  Library,
+  FileText,
+  Play,
+  Link2,
   CalendarDays,
   ChevronDown,
   Coins,
@@ -81,7 +85,53 @@ export function AppShell({ profile }: { profile: Profile }) {
   }, [accountOpen]);
   const user = useCurrentUser();
   const gate = typeof window !== "undefined" && hasGateSessionMarker();
-  const nav = profile.role === "student" ? STUDENT_NAV : profile.role === "parent" ? PARENT_NAV : TEACHER_NAV.filter((n) => !n.admin || profile.isAdmin);
+  const nav =
+    profile.role === "student"
+      ? STUDENT_NAV
+      : profile.role === "parent"
+        ? PARENT_NAV
+        : TEACHER_NAV.filter((n) => !n.admin || profile.isAdmin);
+  const materialsMode = pathname.replace(/\/+$/, "") === "/app/materials";
+  const materialSection = useRouterState({
+    select: (s) => (s.location.search as { section?: string }).section ?? "overview",
+  });
+  const links = materialsMode
+    ? [
+        { to: "/app", icon: Home, label: t.tabHome, section: undefined },
+        {
+          to: "/app/materials",
+          icon: Library,
+          label: lang === "uk" ? "Огляд матеріалів" : "Resources overview",
+          section: "overview" as const,
+        },
+        {
+          to: "/app/materials",
+          icon: Play,
+          label: lang === "uk" ? "Відео" : "Videos",
+          section: "videos" as const,
+        },
+        {
+          to: "/app/materials",
+          icon: FileText,
+          label: lang === "uk" ? "Статті" : "Articles",
+          section: "articles" as const,
+        },
+        {
+          to: "/app/materials",
+          icon: Link2,
+          label: lang === "uk" ? "Корисні посилання" : "Useful links",
+          section: "links" as const,
+        },
+      ]
+    : [
+        ...nav.map((item) => ({ ...item, label: t[item.key], section: undefined })),
+        {
+          to: "/app/materials",
+          icon: Library,
+          label: lang === "uk" ? "Додаткові матеріали" : "Learning resources",
+          section: "overview" as const,
+        },
+      ];
   const first = (profile.displayName || user?.displayName || "?").trim().charAt(0).toUpperCase();
 
   return (
@@ -102,40 +152,59 @@ export function AppShell({ profile }: { profile: Profile }) {
       >
         <div className="flex items-center justify-between px-1 pb-5">
           <BrandMark light />
-          <button type="button" className="grid size-9 place-items-center rounded-xl md:hidden" onClick={() => setOpen(false)}>
+          <button
+            type="button"
+            className="grid size-9 place-items-center rounded-xl md:hidden"
+            onClick={() => setOpen(false)}
+          >
             <X className="size-5" />
           </button>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {nav.map((item) => {
-            const active = item.to === "/app" ? pathname === "/app" : pathname.startsWith(item.to);
+          {materialsMode && (
+            <p className="px-3.5 py-2 text-xs font-bold text-paper/60">
+              {lang === "uk" ? "Додаткові матеріали" : "Learning resources"}
+            </p>
+          )}
+          {links.map((item) => {
+            const active = item.section
+              ? materialsMode && materialSection === item.section
+              : item.to === "/app"
+                ? pathname === "/app"
+                : pathname.startsWith(item.to);
             const Icon = item.icon;
             return (
               <Link
-                key={item.to}
+                key={`${item.to}:${item.section ?? ""}`}
                 to={item.to}
+                search={item.section ? { section: item.section } : undefined}
+                aria-current={active ? "page" : undefined}
                 onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-[14px] px-3.5 py-2.5 font-display text-sm font-bold transition-colors",
-                  active ? "bg-white/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]" : "text-paper/80 hover:bg-white/10 hover:text-white",
+                  active
+                    ? "bg-white/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+                    : "text-paper/80 hover:bg-white/10 hover:text-white",
                 )}
               >
                 <Icon className="size-[18px]" strokeWidth={2} />
-                {t[item.key]}
+                {item.label}
               </Link>
             );
           })}
         </nav>
-        <NotificationsNav />
+        {!materialsMode && <NotificationsNav />}
         <div className="mt-auto flex flex-col gap-1 border-t border-white/10 pt-3">
-          <Link
-            to="/app/settings"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-[14px] px-3.5 py-2.5 font-display text-sm font-bold text-paper/80 hover:bg-white/10 hover:text-white"
-          >
-            <Settings className="size-[18px]" />
-            {t.settings}
-          </Link>
+          {!materialsMode && (
+            <Link
+              to="/app/settings"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-[14px] px-3.5 py-2.5 font-display text-sm font-bold text-paper/80 hover:bg-white/10 hover:text-white"
+            >
+              <Settings className="size-[18px]" />
+              {t.settings}
+            </Link>
+          )}
           {!gate && (
             <button
               type="button"
@@ -149,7 +218,11 @@ export function AppShell({ profile }: { profile: Profile }) {
         </div>
       </aside>
       <div className="relative flex min-w-0 flex-col overflow-hidden">
-        <img src={theme === "dark" ? "/img/leaves-forest.jpg" : "/img/leaves-cream.jpg"} alt="" className="app-leaf" />
+        <img
+          src={theme === "dark" ? "/img/leaves-forest.jpg" : "/img/leaves-cream.jpg"}
+          alt=""
+          className="app-leaf"
+        />
         <header className="relative z-10 flex items-center gap-3 px-7 pt-[18px] pb-2 max-md:px-4">
           <button
             type="button"
@@ -169,7 +242,11 @@ export function AppShell({ profile }: { profile: Profile }) {
                 aria-expanded={accountOpen}
               >
                 {user?.profileImageUrl ? (
-                  <img src={user.profileImageUrl} alt="" className="size-8 rounded-full object-cover" />
+                  <img
+                    src={user.profileImageUrl}
+                    alt=""
+                    className="size-8 rounded-full object-cover"
+                  />
                 ) : (
                   <span className="grid size-8 place-items-center rounded-full bg-avatar font-display text-sm font-extrabold text-forest">
                     {first}
@@ -178,7 +255,12 @@ export function AppShell({ profile }: { profile: Profile }) {
                 <span className="max-w-[140px] truncate font-display text-[13px] font-extrabold text-ink max-sm:hidden">
                   {profile.displayName || user?.displayName || ""}
                 </span>
-                <ChevronDown className={cn("size-3.5 text-muted transition max-sm:hidden", accountOpen && "rotate-180")} />
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 text-muted transition max-sm:hidden",
+                    accountOpen && "rotate-180",
+                  )}
+                />
               </button>
               {accountOpen && (
                 <div className="absolute top-[calc(100%+8px)] right-0 z-20 w-56 rounded-2xl border border-hairline bg-surface p-2 shadow-[var(--shadow-soft)]">

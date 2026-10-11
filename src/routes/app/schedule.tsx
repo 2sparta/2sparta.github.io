@@ -44,6 +44,7 @@ function SchedulePage() {
   const isTeacher = me.data?.profile.role === "teacher";
   const classes = useQuery({ queryKey: ["classes"], queryFn: () => listClasses() });
   const [classId, setClassId] = useState<string>("");
+  const [dutyDirty, setDutyDirty] = useState(false);
   const [groupId, setGroupId] = useState("");
   const activeClass = classId || me.data?.profile.classId || classes.data?.[0]?.id || "";
   const groups = classes.data?.find((c) => c.id === activeClass)?.groups ?? [];
@@ -193,6 +194,7 @@ function SchedulePage() {
                     key={c.id}
                     type="button"
                     onClick={() => {
+                      if (c.id !== activeClass && dutyDirty && !window.confirm(lang === "uk" ? "Змінити клас і відкинути незбережені зміни чергувань?" : "Switch class and discard unsaved duty changes?")) return;
                       setClassId(c.id);
                       setGroupId("");
                     }}
@@ -558,7 +560,7 @@ function SchedulePage() {
 
       {me.data?.profile.role !== "teacher" && <ClubPlan />}
 
-      <DutyBoard classId={activeClass} />
+      <DutyBoard classId={activeClass} onDirtyChange={setDutyDirty} />
 
       {me.data?.profile.role === "student" && (
         <Panel>

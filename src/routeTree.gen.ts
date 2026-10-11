@@ -19,6 +19,7 @@ import { Route as AppChatRouteImport } from './routes/app/chat'
 import { Route as AppClubsRouteImport } from './routes/app/clubs'
 import { Route as AppGradesRouteImport } from './routes/app/grades'
 import { Route as AppHomeworkRouteImport } from './routes/app/homework'
+import { Route as AppMaterialsRouteImport } from './routes/app/materials'
 import { Route as AppScheduleRouteImport } from './routes/app/schedule'
 import { Route as AppSelfgovRouteImport } from './routes/app/selfgov'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
@@ -79,6 +80,11 @@ const AppGradesRoute = AppGradesRouteImport.update({
 const AppHomeworkRoute = AppHomeworkRouteImport.update({
   id: '/homework',
   path: '/homework',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMaterialsRoute = AppMaterialsRouteImport.update({
+  id: '/materials',
+  path: '/materials',
   getParentRoute: () => AppRoute,
 } as any)
 const AppScheduleRoute = AppScheduleRouteImport.update({
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/app/clubs': typeof AppClubsRoute
   '/app/grades': typeof AppGradesRoute
   '/app/homework': typeof AppHomeworkRoute
+  '/app/materials': typeof AppMaterialsRoute
   '/app/schedule': typeof AppScheduleRoute
   '/app/selfgov': typeof AppSelfgovRoute
   '/app/settings': typeof AppSettingsRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/app/clubs': typeof AppClubsRoute
   '/app/grades': typeof AppGradesRoute
   '/app/homework': typeof AppHomeworkRoute
+  '/app/materials': typeof AppMaterialsRoute
   '/app/schedule': typeof AppScheduleRoute
   '/app/selfgov': typeof AppSelfgovRoute
   '/app/settings': typeof AppSettingsRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/app/clubs': typeof AppClubsRoute
   '/app/grades': typeof AppGradesRoute
   '/app/homework': typeof AppHomeworkRoute
+  '/app/materials': typeof AppMaterialsRoute
   '/app/schedule': typeof AppScheduleRoute
   '/app/selfgov': typeof AppSelfgovRoute
   '/app/settings': typeof AppSettingsRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/app/clubs'
     | '/app/grades'
     | '/app/homework'
+    | '/app/materials'
     | '/app/schedule'
     | '/app/selfgov'
     | '/app/settings'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/app/clubs'
     | '/app/grades'
     | '/app/homework'
+    | '/app/materials'
     | '/app/schedule'
     | '/app/selfgov'
     | '/app/settings'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/app/clubs'
     | '/app/grades'
     | '/app/homework'
+    | '/app/materials'
     | '/app/schedule'
     | '/app/selfgov'
     | '/app/settings'
@@ -361,6 +373,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHomeworkRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/materials': {
+      id: '/app/materials'
+      path: '/materials'
+      fullPath: '/app/materials'
+      preLoaderRoute: typeof AppMaterialsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/schedule': {
       id: '/app/schedule'
       path: '/schedule'
@@ -447,6 +466,7 @@ interface AppRouteChildren {
   AppClubsRoute: typeof AppClubsRoute
   AppGradesRoute: typeof AppGradesRoute
   AppHomeworkRoute: typeof AppHomeworkRoute
+  AppMaterialsRoute: typeof AppMaterialsRoute
   AppScheduleRoute: typeof AppScheduleRoute
   AppSelfgovRoute: typeof AppSelfgovRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -462,6 +482,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClubsRoute: AppClubsRoute,
   AppGradesRoute: AppGradesRoute,
   AppHomeworkRoute: AppHomeworkRoute,
+  AppMaterialsRoute: AppMaterialsRoute,
   AppScheduleRoute: AppScheduleRoute,
   AppSelfgovRoute: AppSelfgovRoute,
   AppSettingsRoute: AppSettingsRoute,

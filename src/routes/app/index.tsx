@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BookOpen, CalendarDays, Link2, MessageCircle, Star, Users } from "lucide-react";
@@ -172,6 +172,23 @@ function HomePage() {
         })}
       </section>
 
+      <Link
+        to="/app/materials"
+        search={{ section: "overview" }}
+        className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-hairline bg-surface p-5 text-ink transition hover:border-forest-mid/40"
+      >
+        <span>
+          <span className="block font-display text-lg font-extrabold">
+            {lang === "uk" ? "Додаткові матеріали" : "Learning resources"}
+          </span>
+          <span className="mt-1 block text-sm text-muted">
+            {lang === "uk"
+              ? "Відео, статті та корисні посилання для навчання"
+              : "Videos, articles and useful learning links"}
+          </span>
+        </span>
+        <BookOpen className="size-6 shrink-0 text-forest-mid" />
+      </Link>
       <figure className="relative isolate mb-6 min-h-[88px] overflow-hidden rounded-[18px]">
         <img src="/img/mountains.jpg" alt="" className="absolute inset-0 size-full object-cover" />
         <figcaption className="relative z-[1] flex min-h-[88px] items-center justify-center gap-2 bg-[linear-gradient(90deg,rgba(12,28,22,0.28),rgba(12,28,22,0.18))] px-5 py-4 text-center font-display text-sm font-extrabold text-paper [text-shadow:0_1px_8px_rgba(0,0,0,0.45)]">
