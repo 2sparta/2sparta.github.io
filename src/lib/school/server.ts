@@ -84,6 +84,8 @@ export {
   deleteClub,
   deleteReward,
   fundOffice,
+  assignOffice,
+  listOfficeHolders,
   getDuty,
   joinClub,
   listClassHomework,

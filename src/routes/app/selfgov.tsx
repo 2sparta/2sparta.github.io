@@ -1,8 +1,9 @@
+import { OfficeBoard } from "@/components/office-board";
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, updateActivity, deleteActivity, runForElection, voteElection, listRewards, listRosterNames, listStudents, addReward, updateReward, deleteReward, awardReward, setOffice, fundOffice } from "@/lib/school/server";
-import { OFFICES, officeName } from "@/lib/school/ids";
+import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, updateActivity, deleteActivity, runForElection, voteElection, listRewards, listRosterNames, addReward, updateReward, deleteReward, awardReward } from "@/lib/school/server";
+import { officeName } from "@/lib/school/ids";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
@@ -302,6 +303,7 @@ function Page() {
           )
         )}
       </Panel>
+      <OfficeBoard />
       <RewardsBoard />
     </div>
   );
@@ -316,15 +318,12 @@ function RewardsBoard() {
   const isHead = profile?.role === "student" && Boolean(profile.office);
   const rewards = useQuery({ queryKey: ["rewards"], queryFn: () => listRewards() });
   const students = useQuery({ queryKey: ["roster-names"], queryFn: () => listRosterNames(), enabled: Boolean(isTeacher || isHead) });
-  const roster = useQuery({ queryKey: ["students"], queryFn: () => listStudents(), enabled: isTeacher });
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [points, setPoints] = useState("10");
   const [editId, setEditId] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
-  const [draft, setDraft] = useState<Record<string, string>>({});
-  const [budgets, setBudgets] = useState<Record<string, string>>({});
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ["rewards"] });
     await qc.invalidateQueries({ queryKey: ["students"] });
@@ -351,69 +350,11 @@ function RewardsBoard() {
     mutationFn: (id: string) => deleteReward({ data: { id } }),
     onSuccess: refresh,
   });
-  const assign = useMutation({
-    mutationFn: async (officeId: string) => {
-      const people = roster.data ?? [];
-      const holder = people.find((s) => s.office === officeId);
-      const selected = draft[officeId] ?? holder?.id ?? "";
-      if (!selected && holder) await setOffice({ data: { rosterId: holder.id, office: null } });
-      else if (selected && selected !== holder?.id) await setOffice({ data: { rosterId: selected, office: officeId } });
-      if (!selected) return;
-      const current = people.find((s) => s.id === selected)?.budget ?? holder?.budget ?? 0;
-      const next = Math.max(0, Math.trunc(Number(budgets[officeId] ?? current) || 0));
-      if (next !== current) await fundOffice({ data: { rosterId: selected, delta: next - current } });
-    },
-    onSuccess: refresh,
-  });
 
   return (
     <Panel>
       <PanelTitle>{t.rewardsTitle}</PanelTitle>
       <Hint>{t.rewardsHint}</Hint>
-      {isTeacher && (
-        <div className="mb-4 space-y-2">
-          {OFFICES.map((o) => {
-            const holder = (roster.data ?? []).find((s) => s.office === o.id);
-            const selected = draft[o.id] ?? holder?.id ?? "";
-            return (
-              <div key={o.id} className="grid items-center gap-2 rounded-2xl bg-cream/40 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_auto]">
-                <div className="min-w-0">
-                  <p className="font-display text-sm font-extrabold">{o.name}</p>
-                  <p className="text-xs text-muted">
-                    {holder ? `${holder.name} · ${t.budgetLabel}: ${holder.budget}` : t.officeEmpty}
-                  </p>
-                </div>
-                <Select value={selected} onChange={(e) => setDraft((cur) => ({ ...cur, [o.id]: e.target.value }))}>
-                  <option value="">{t.officeEmpty}</option>
-                  {(roster.data ?? []).map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </Select>
-                <TextInput
-                  value={budgets[o.id] ?? String(holder?.budget ?? 0)}
-                  onChange={(e) => setBudgets((cur) => ({ ...cur, [o.id]: e.target.value }))}
-                  aria-label={t.budgetLabel}
-                />
-                <div className="flex gap-2">
-                  <PillButton type="button" disabled={assign.isPending} onClick={() => assign.mutate(o.id)}>{t.save}</PillButton>
-                  {holder && (
-                    <PillButton
-                      type="button"
-                      tone="ghost"
-                      onClick={() => {
-                        setDraft((cur) => ({ ...cur, [o.id]: "" }));
-                        void setOffice({ data: { rosterId: holder.id, office: null } }).then(refresh);
-                      }}
-                    >
-                      {t.officeClear}
-                    </PillButton>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
       {(isHead || Boolean(editId)) && (
         <div className="mb-4 grid gap-2">
           {isHead ? <p className="text-sm font-bold text-forest">{officeName(profile?.office)} · {t.budgetLabel}: {profile?.budget ?? 0}</p> : null}

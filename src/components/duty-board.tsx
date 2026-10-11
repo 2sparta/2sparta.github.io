@@ -1,137 +1,497 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
+import { useBlocker } from "@tanstack/react-router";
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  Download,
+  MoreHorizontal,
+  Plus,
+  Redo2,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { getDuty, setDuty } from "@/lib/school/server";
+import {
+  insertDutyColumn,
+  insertDutyRow,
+  MAX_DUTY_COLS,
+  MAX_DUTY_ROWS,
+  pasteDutyCells,
+  type DutyGrid,
+} from "@/lib/school/duty-grid";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { Hint, Panel, PanelTitle, PillButton } from "@/components/ui/panel";
 
-type Grid = { cols: string[]; rows: string[][] };
-
-function blank(width: number) {
-  return Array.from({ length: Math.max(width, 1) }, () => "");
+export function DutyBoard({
+  classId,
+  onDirtyChange,
+}: {
+  classId: string;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
+  return <DutyBoardSession key={classId} classId={classId} onDirtyChange={onDirtyChange} />;
 }
-
-export function DutyBoard({ classId }: { classId: string }) {
-  const { lang } = usePrefs();
+function DutyBoardSession({
+  classId,
+  onDirtyChange,
+}: {
+  classId: string;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
+  const lang = usePrefs((s) => s.lang);
+  const uk = lang === "uk";
   const t = STRINGS[lang];
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["duty", classId], queryFn: () => getDuty({ data: { classId } }), enabled: Boolean(classId) });
-  const [grid, setGrid] = useState<Grid>({ cols: ["", ""], rows: [["", ""]] });
-  useEffect(() => {
-    if (q.data?.grid) setGrid(q.data.grid);
-  }, [q.data]);
-  const save = useMutation({
-    mutationFn: (next: Grid) => setDuty({ data: { classId, cols: next.cols, rows: next.rows } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["duty", classId] }),
+  const q = useQuery({
+    queryKey: ["duty", classId],
+    queryFn: () => getDuty({ data: { classId } }),
+    enabled: Boolean(classId),
   });
-  if (!classId || !q.data) return null;
-  const canEdit = q.data.canEdit;
-  const width = Math.max(grid.cols.length, 1);
-
-  const setCell = (row: number, col: number, value: string) => {
-    setGrid((cur) => ({
-      ...cur,
-      rows: cur.rows.map((cells, i) => (i === row ? cells.map((cell, j) => (j === col ? value : cell)) : cells)),
-    }));
+  const [draft, setDraft] = useState<DutyGrid | null>(null);
+  const [base, setBase] = useState<{ grid: DutyGrid; revision: number } | null>(null);
+  const [past, setPast] = useState<DutyGrid[]>([]);
+  const [future, setFuture] = useState<DutyGrid[]>([]);
+  const [notice, setNotice] = useState("");
+  const table = useRef<HTMLTableElement>(null);
+  const grid = draft ?? q.data?.grid;
+  const dirty = Boolean(draft && base && JSON.stringify(draft) !== JSON.stringify(base.grid));
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
+  useBlocker({
+    shouldBlockFn: () =>
+      dirty &&
+      !window.confirm(
+        uk
+          ? "Залишити сторінку й відкинути незбережені зміни таблиці?"
+          : "Leave and discard unsaved table changes?",
+      ),
+    enableBeforeUnload: dirty,
+  });
+  useEffect(() => {
+    if (!dirty) return;
+    const stop = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", stop);
+    return () => window.removeEventListener("beforeunload", stop);
+  }, [dirty]);
+  const save = useMutation({
+    mutationFn: () => setDuty({ data: { classId, ...draft!, revision: base!.revision } }),
+    onSuccess: async (result) => {
+      qc.setQueryData(["duty", classId], { ...q.data, grid: draft, revision: result.revision });
+      setDraft(null);
+      setBase(null);
+      setPast([]);
+      setFuture([]);
+      setNotice(uk ? "Таблицю збережено" : "Table saved");
+      await qc.invalidateQueries({ queryKey: ["duty", classId] });
+    },
+  });
+  if (!classId) return null;
+  if (q.isPending)
+    return (
+      <Panel>
+        <p role="status">{uk ? "Завантаження чергувань…" : "Loading duty table…"}</p>
+      </Panel>
+    );
+  if (q.isError || !grid)
+    return (
+      <Panel>
+        <p role="alert">{uk ? "Не вдалося завантажити таблицю." : "Could not load table."}</p>
+        <PillButton type="button" tone="ghost" onClick={() => void q.refetch()}>
+          {uk ? "Повторити" : "Retry"}
+        </PillButton>
+      </Panel>
+    );
+  const editing = draft !== null;
+  const change = (next: DutyGrid) => {
+    if (next === grid) return;
+    setPast((p) => [...p.slice(-49), grid]);
+    setFuture([]);
+    setDraft(next);
+    setNotice("");
+    save.reset();
   };
-
+  const undo = () => {
+    const prev = past.at(-1);
+    if (!prev) return;
+    setFuture((f) => [grid, ...f]);
+    setPast((p) => p.slice(0, -1));
+    setDraft(prev);
+  };
+  const redo = () => {
+    const next = future[0];
+    if (!next) return;
+    setPast((p) => [...p, grid]);
+    setFuture((f) => f.slice(1));
+    setDraft(next);
+  };
+  const discard = () => {
+    if (dirty && !window.confirm(uk ? "Відкинути незбережені зміни?" : "Discard unsaved changes?"))
+      return;
+    setDraft(null);
+    setBase(null);
+    setPast([]);
+    setFuture([]);
+    save.reset();
+    void q.refetch();
+  };
+  const delRow = (r: number) => {
+    if (
+      grid.rows[r].some(Boolean) &&
+      !window.confirm(uk ? "Видалити рядок із даними?" : "Delete populated row?")
+    )
+      return;
+    change({ ...grid, rows: grid.rows.filter((_, i) => i !== r) });
+  };
+  const delCol = (c: number) => {
+    if (
+      (grid.cols[c] || grid.rows.some((r) => r[c])) &&
+      !window.confirm(uk ? "Видалити колонку та її дані?" : "Delete column and its data?")
+    )
+      return;
+    change({
+      cols: grid.cols.filter((_, i) => i !== c),
+      rows: grid.rows.map((r) => r.filter((_, i) => i !== c)),
+    });
+  };
+  const moveRow = (r: number, delta: number) => {
+    const rows = [...grid.rows];
+    [rows[r], rows[r + delta]] = [rows[r + delta], rows[r]];
+    change({ ...grid, rows });
+  };
+  const focusCell = (r: number, c: number) =>
+    table.current?.querySelector<HTMLTextAreaElement>(`[data-cell="${r}:${c}"]`)?.focus();
+  const keys = (e: KeyboardEvent<HTMLTextAreaElement>, r: number, c: number) => {
+    if (e.key === "Tab") {
+      const index = r * grid.cols.length + c + (e.shiftKey ? -1 : 1);
+      if (index >= 0 && index < grid.rows.length * grid.cols.length) {
+        e.preventDefault();
+        focusCell(Math.floor(index / grid.cols.length), index % grid.cols.length);
+      }
+    }
+    if (e.key === "Enter" && !e.shiftKey && r < grid.rows.length - 1) {
+      e.preventDefault();
+      focusCell(r + 1, c);
+    }
+  };
+  const edgeButton =
+    "absolute z-10 grid size-6 place-items-center rounded-full border border-forest/30 bg-surface text-forest-mid shadow-sm hover:bg-forest-mid hover:text-paper disabled:opacity-30";
+  const exportCsv = () => {
+    const csv =
+      "\uFEFF" +
+      [grid.cols, ...grid.rows]
+        .map((r) =>
+          r.map((v) => `"${(/^[=+@-]/.test(v) ? "'" + v : v).replaceAll('"', '""')}"`).join(","),
+        )
+        .join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "duty-table.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <Panel>
-      <PanelTitle>{t.dutyTitle}</PanelTitle>
-      <Hint>{t.dutyHint}</Hint>
-      <div className="overflow-x-auto rounded-2xl border border-hairline">
-        <table className="w-full min-w-[520px] border-collapse text-sm">
-          <thead>
-            <tr className="bg-cream/70">
-              {grid.cols.map((col, i) => (
-                <th key={i} className="border-b border-hairline px-2 py-2 text-left">
-                  {canEdit ? (
-                    <input
-                      value={col}
-                      onChange={(e) => setGrid((cur) => ({ ...cur, cols: cur.cols.map((item, j) => (j === i ? e.target.value : item)) }))}
-                      placeholder={t.dutyCol}
-                      className="w-full bg-transparent font-display text-xs font-extrabold outline-none"
-                    />
-                  ) : (
-                    <span className="font-display text-xs font-extrabold">{col || "—"}</span>
-                  )}
-                </th>
-              ))}
-              {canEdit && <th className="w-10 border-b border-hairline" />}
-            </tr>
-          </thead>
-          <tbody>
-            {grid.rows.map((row, r) => (
-              <tr key={r} className="border-t border-hairline">
-                {row.map((cell, c) => (
-                  <td key={c} className="px-2 py-1.5 align-top">
-                    {canEdit ? (
-                      <input
-                        value={cell}
-                        onChange={(e) => setCell(r, c, e.target.value)}
-                        className="w-full rounded-lg bg-surface-2 px-2 py-1.5 outline-none"
-                      />
-                    ) : (
-                      <span className="whitespace-pre-wrap">{cell || "—"}</span>
-                    )}
-                  </td>
-                ))}
-                {canEdit && (
-                  <td className="px-1 py-1.5">
-                    <button
-                      type="button"
-                      className="grid size-8 place-items-center text-muted"
-                      aria-label={t.delete}
-                      onClick={() => setGrid((cur) => ({ ...cur, rows: cur.rows.filter((_, i) => i !== r).length ? cur.rows.filter((_, i) => i !== r) : [blank(width)] }))}
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {canEdit && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <PillButton
-            type="button"
-            tone="ghost"
-            onClick={() => setGrid((cur) => ({ ...cur, rows: [...cur.rows, blank(cur.cols.length)] }))}
-          >
-            <Plus className="size-4" /> {t.dutyAddRow}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <PanelTitle>{t.dutyTitle}</PanelTitle>
+          <Hint>
+            {editing
+              ? uk
+                ? "Натискайте + на межі рядка або колонки. Tab — наступна клітинка, Enter — нижня, Shift+Enter — новий рядок у клітинці. Можна вставляти дані з Excel."
+                : "Use + at row and column edges. Tab moves to the next cell, Enter moves down, Shift+Enter adds a line. Paste cells from Excel."
+              : t.dutyHint}
+          </Hint>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <PillButton type="button" tone="ghost" onClick={exportCsv}>
+            <Download className="mr-2 size-4" />
+            CSV
           </PillButton>
-          <PillButton
-            type="button"
-            tone="ghost"
-            onClick={() =>
-              setGrid((cur) => ({
-                cols: [...cur.cols, ""],
-                rows: cur.rows.map((row) => [...row, ""]),
-              }))
-            }
-          >
-            <Plus className="size-4" /> {t.dutyAddCol}
-          </PillButton>
-          {grid.cols.length > 1 && (
+          {q.data?.canEdit && !editing && (
             <PillButton
               type="button"
-              tone="ghost"
-              onClick={() =>
-                setGrid((cur) => ({
-                  cols: cur.cols.slice(0, -1),
-                  rows: cur.rows.map((row) => row.slice(0, -1)),
-                }))
-              }
+              onClick={() => {
+                setDraft(grid);
+                setBase({ grid, revision: q.data!.revision });
+                setNotice("");
+              }}
             >
-              {t.dutyDropCol}
+              {uk ? "Редагувати таблицю" : "Edit table"}
             </PillButton>
           )}
-          <PillButton type="button" disabled={save.isPending} onClick={() => save.mutate(grid)}>
-            {t.save}
-          </PillButton>
+        </div>
+      </div>
+      <fieldset disabled={save.isPending} className="min-w-0">
+        {editing && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="grid size-10 place-items-center rounded-xl bg-surface-2 disabled:opacity-40"
+              aria-label={uk ? "Скасувати останню зміну" : "Undo"}
+              disabled={!past.length}
+              onClick={undo}
+            >
+              <Undo2 className="size-4" />
+            </button>
+            <button
+              type="button"
+              className="grid size-10 place-items-center rounded-xl bg-surface-2 disabled:opacity-40"
+              aria-label={uk ? "Повторити зміну" : "Redo"}
+              disabled={!future.length}
+              onClick={redo}
+            >
+              <Redo2 className="size-4" />
+            </button>
+            <span className="text-xs text-muted">
+              {grid.rows.length}/{MAX_DUTY_ROWS} {uk ? "рядків" : "rows"} · {grid.cols.length}/
+              {MAX_DUTY_COLS} {uk ? "колонок" : "columns"}
+            </span>
+          </div>
+        )}
+        <div className="overflow-x-auto rounded-2xl border border-hairline bg-surface-2/20 p-4">
+          <table
+            ref={table}
+            className="w-full min-w-[480px] table-fixed border-collapse text-sm"
+            aria-label={t.dutyTitle}
+          >
+            <thead>
+              <tr>
+                {grid.cols.map((col, c) => (
+                  <th
+                    key={c}
+                    scope="col"
+                    className="relative border border-hairline bg-surface-2 p-3 text-left align-top"
+                  >
+                    {editing ? (
+                      <>
+                        <input
+                          aria-label={`${uk ? "Назва колонки" : "Column name"} ${c + 1}`}
+                          maxLength={2000}
+                          value={col}
+                          onChange={(e) =>
+                            change({
+                              ...grid,
+                              cols: grid.cols.map((v, i) => (i === c ? e.target.value : v)),
+                            })
+                          }
+                          placeholder={`${t.dutyCol} ${c + 1}`}
+                          className="min-h-10 w-full bg-transparent font-bold outline-none focus:ring-2 focus:ring-forest-mid/30"
+                        />
+                        <button
+                          type="button"
+                          disabled={grid.cols.length >= MAX_DUTY_COLS}
+                          className={`${edgeButton} -top-3 -right-3`}
+                          aria-label={`${uk ? "Додати колонку після" : "Insert column after"} ${c + 1}`}
+                          onClick={() => change(insertDutyColumn(grid, c + 1))}
+                        >
+                          <Plus className="size-3.5" />
+                        </button>
+                        {c === 0 && (
+                          <button
+                            type="button"
+                            disabled={grid.cols.length >= MAX_DUTY_COLS}
+                            className={`${edgeButton} -top-3 -left-3`}
+                            aria-label={uk ? "Додати першу колонку" : "Insert first column"}
+                            onClick={() => change(insertDutyColumn(grid, 0))}
+                          >
+                            <Plus className="size-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={grid.cols.length <= 1}
+                          className="mt-1 flex min-h-8 items-center gap-1 text-xs font-normal text-muted disabled:opacity-30"
+                          aria-label={`${uk ? "Видалити колонку" : "Delete column"} ${c + 1}`}
+                          onClick={() => delCol(c)}
+                        >
+                          <Trash2 className="size-3" />
+                          {t.delete}
+                        </button>
+                      </>
+                    ) : (
+                      col || "—"
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {grid.rows.map((row, r) => (
+                <tr key={r} className="even:bg-surface-2/40">
+                  {row.map((cell, c) => (
+                    <td key={c} className="relative border border-hairline p-3 align-top">
+                      {editing ? (
+                        <textarea
+                          data-cell={`${r}:${c}`}
+                          rows={2}
+                          maxLength={2000}
+                          aria-label={`${uk ? "Рядок" : "Row"} ${r + 1}, ${grid.cols[c] || c + 1}`}
+                          value={cell}
+                          onKeyDown={(e) => keys(e, r, c)}
+                          onChange={(e) =>
+                            change({
+                              ...grid,
+                              rows: grid.rows.map((rr, i) =>
+                                i === r ? rr.map((v, j) => (j === c ? e.target.value : v)) : rr,
+                              ),
+                            })
+                          }
+                          onPaste={(e) => {
+                            const text = e.clipboardData.getData("text/plain");
+                            if (text.includes("\t") || text.includes("\n")) {
+                              e.preventDefault();
+                              try {
+                                change(pasteDutyCells(grid, r, c, text));
+                              } catch {
+                                setNotice(
+                                  uk
+                                    ? "Вставка перевищує ліміт 40 рядків або 12 колонок."
+                                    : "Paste exceeds 40 rows or 12 columns.",
+                                );
+                              }
+                            }
+                          }}
+                          className={`min-h-12 w-full resize-y rounded-md bg-transparent outline-none focus:bg-surface focus:ring-2 focus:ring-forest-mid/40 ${c === 0 ? "pl-5" : ""}`}
+                        />
+                      ) : (
+                        <span className="block min-h-6 whitespace-pre-wrap break-words">
+                          {cell || "—"}
+                        </span>
+                      )}
+                      {editing && c === 0 && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={grid.rows.length >= MAX_DUTY_ROWS}
+                            className={`${edgeButton} -bottom-3 -left-3`}
+                            aria-label={`${uk ? "Додати рядок після" : "Insert row after"} ${r + 1}`}
+                            onClick={() => change(insertDutyRow(grid, r + 1))}
+                          >
+                            <Plus className="size-3.5" />
+                          </button>
+                          {r === 0 && (
+                            <button
+                              type="button"
+                              disabled={grid.rows.length >= MAX_DUTY_ROWS}
+                              className={`${edgeButton} -top-3 -left-3`}
+                              aria-label={uk ? "Додати перший рядок" : "Insert first row"}
+                              onClick={() => change(insertDutyRow(grid, 0))}
+                            >
+                              <Plus className="size-3.5" />
+                            </button>
+                          )}
+                          <details className="absolute top-3 left-0 z-20">
+                            <summary
+                              aria-label={`${uk ? "Дії з рядком" : "Row actions"} ${r + 1}`}
+                              className="grid h-8 w-7 cursor-pointer list-none place-items-center rounded-lg text-muted hover:bg-surface"
+                            >
+                              <MoreHorizontal className="size-4" />
+                            </summary>
+                            <div className="absolute top-8 left-0 w-48 rounded-xl border border-hairline bg-surface p-2 shadow-xl">
+                              {[
+                                {
+                                  label: uk ? "Дублювати" : "Duplicate",
+                                  icon: Copy,
+                                  disabled: grid.rows.length >= MAX_DUTY_ROWS,
+                                  action: () =>
+                                    change({
+                                      ...grid,
+                                      rows: [
+                                        ...grid.rows.slice(0, r + 1),
+                                        [...row],
+                                        ...grid.rows.slice(r + 1),
+                                      ],
+                                    }),
+                                },
+                                {
+                                  label: uk ? "Перемістити вище" : "Move up",
+                                  icon: ArrowUp,
+                                  disabled: r === 0,
+                                  action: () => moveRow(r, -1),
+                                },
+                                {
+                                  label: uk ? "Перемістити нижче" : "Move down",
+                                  icon: ArrowDown,
+                                  disabled: r === grid.rows.length - 1,
+                                  action: () => moveRow(r, 1),
+                                },
+                                {
+                                  label: t.delete,
+                                  icon: Trash2,
+                                  disabled: grid.rows.length <= 1,
+                                  action: () => delRow(r),
+                                },
+                              ].map((item) => (
+                                <button
+                                  key={item.label}
+                                  type="button"
+                                  disabled={item.disabled}
+                                  className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-xs hover:bg-surface-2 disabled:opacity-30"
+                                  onClick={(e) => {
+                                    (
+                                      e.currentTarget.closest("details") as HTMLDetailsElement
+                                    ).open = false;
+                                    item.action();
+                                  }}
+                                >
+                                  <item.icon className="size-4" />
+                                  {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          </details>
+                        </>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {editing && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <PillButton type="button" disabled={!dirty} onClick={() => save.mutate()}>
+              {save.isPending ? (uk ? "Збереження…" : "Saving…") : t.save}
+            </PillButton>
+            <PillButton type="button" tone="ghost" onClick={discard}>
+              {t.cancel}
+            </PillButton>
+            <span className="text-xs text-muted">
+              {dirty
+                ? uk
+                  ? "Є незбережені зміни"
+                  : "Unsaved changes"
+                : uk
+                  ? "Без змін"
+                  : "No changes"}
+            </span>
+          </div>
+        )}
+      </fieldset>
+      {notice && (
+        <p role="status" className="mt-3 text-sm">
+          {notice}
+        </p>
+      )}
+      {save.isError && (
+        <div role="alert" className="mt-3 text-sm text-terracotta">
+          {save.error.message === "CONFLICT"
+            ? uk
+              ? "Хтось уже змінив таблицю. Ваші зміни залишились у редакторі. Експортуйте CSV для збереження копії або скасуйте редагування та завантажте актуальну таблицю."
+              : "Someone changed the table. Your draft is preserved. Export a CSV copy or cancel editing and reload the table."
+            : uk
+              ? "Не вдалося зберегти таблицю. Ваші зміни збережено в редакторі — спробуйте ще раз."
+              : "Could not save. Your draft is preserved; please retry."}
         </div>
       )}
     </Panel>

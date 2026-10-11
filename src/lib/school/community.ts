@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   where,
@@ -17,6 +18,7 @@ import { db } from "@/lib/firebase";
 import { OFFICES, newId, officeName } from "./ids";
 import { loadProfile } from "./firebase-api";
 import type { Profile } from "./types";
+import { emptyDutyGrid, parseDutyGrid, serializeDutyGrid } from "./duty-grid";
 
 type Bag = DocumentData;
 
@@ -180,6 +182,67 @@ export async function listRosterNames() {
       .map((r) => ({ id: s(r.id), name: s(r.name), className: s(r.className) }))
       .sort((a, b) => a.name.localeCompare(b.name, "uk")),
   };
+}
+
+export async function listOfficeHolders() {
+  const p = await profile();
+  return (await bySchool("students", p.schoolId!))
+    .filter((r) => r.office)
+    .map((r) => ({
+      id: s(r.id),
+      name: s(r.name),
+      className: s(r.className),
+      office: s(r.office),
+      budget: clamp(Number(r.budget) || 0),
+    }));
+}
+
+/** Serialize assignments per school and update both holder and budget together. */
+export async function assignOffice(input: {
+  data: {
+    office: string;
+    rosterId: string | null;
+    budget: number;
+    expectedHolderId: string | null;
+    expectedHolderBudget: number;
+    expectedSelectedOffice: string | null;
+    expectedSelectedBudget: number;
+  };
+}) {
+  const p = await profile();
+  if (p.role !== "teacher") throw new Error("Forbidden");
+  const data = input.data;
+  if (
+    !OFFICES.some((o) => o.id === data.office) ||
+    !Number.isInteger(data.budget) ||
+    data.budget < 0 ||
+    data.budget > 1_000_000
+  )
+    throw new Error("Required");
+  const people = await bySchool("students", p.schoolId!);
+  const lock = doc(db(), "officeAssignments", p.schoolId!);
+  return runTransaction(db(), async (tx) => {
+    const lockSnap = await tx.get(lock);
+    const snaps = await Promise.all(people.map((r) => tx.get(doc(db(), "students", s(r.id)))));
+    const live = snaps.filter((r) => r.exists() && r.data().schoolId === p.schoolId);
+    const holders = live.filter((r) => r.data()?.office === data.office);
+    const holder = holders[0];
+    const selected = live.find((r) => r.id === data.rosterId);
+    if ((holder?.id ?? null) !== data.expectedHolderId) throw new Error("CONFLICT");
+    if (holder && clamp(Number(holder.data()?.budget) || 0) !== data.expectedHolderBudget) throw new Error("CONFLICT");
+    if (data.rosterId && !selected) throw new Error("Not found");
+    if (selected && (selected.data()?.office || null) !== data.expectedSelectedOffice)
+      throw new Error("CONFLICT");
+    if (selected && clamp(Number(selected.data()?.budget) || 0) !== data.expectedSelectedBudget) throw new Error("CONFLICT");
+    for (const old of holders) if (old.id !== data.rosterId) tx.update(old.ref, { office: null });
+    if (selected) tx.update(selected.ref, { office: data.office, budget: data.budget });
+    tx.set(lock, {
+      schoolId: p.schoolId,
+      revision: (Number(lockSnap.data()?.revision) || 0) + 1,
+      updatedBy: p.userId,
+    });
+    return { ok: true };
+  });
 }
 
 export async function setOffice(input?: { data?: { rosterId: string; office: string | null } }) {
@@ -582,49 +645,42 @@ export async function deleteClassHomework(input?: { data?: { id: string } }) {
   return { ok: true };
 }
 
-function emptyGrid(): { cols: string[]; rows: string[][] } {
-  return { cols: ["", ""], rows: [["", ""]] };
-}
-
-function parseGrid(raw: unknown) {
-  if (!raw || typeof raw !== "object") return emptyGrid();
-  const bag = raw as Bag;
-  const cols = Array.isArray(bag.cols) ? bag.cols.map((cell) => s(cell)).slice(0, 12) : [];
-  const width = Math.max(cols.length, 1);
-  while (cols.length < width) cols.push("");
-  const rows = Array.isArray(bag.rows)
-    ? bag.rows.slice(0, 40).map((row) => {
-        const cells = Array.isArray(row) ? row.map((cell) => s(cell)) : [];
-        while (cells.length < width) cells.push("");
-        return cells.slice(0, width);
-      })
-    : [];
-  if (!rows.length) rows.push(Array.from({ length: width }, () => ""));
-  return { cols, rows };
-}
-
 export async function getDuty(input?: { data?: { classId?: string } }) {
   const p = await profile();
   const classId = dataOf(input)?.classId || p.classId || "";
-  if (!classId) return { classId: null as string | null, grid: emptyGrid(), canEdit: false };
+  if (!classId)
+    return { classId: null as string | null, grid: emptyDutyGrid(), canEdit: false, revision: 0 };
   const klass = await getDoc(doc(db(), "classes", classId));
   if (!klass.exists() || klass.data().schoolId !== p.schoolId) throw new Error("Not found");
-  const canEdit = p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === classId);
-  return { classId, grid: parseGrid(klass.data().dutyGrid), canEdit };
+  const canEdit =
+    p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === classId);
+  return {
+    classId,
+    grid: parseDutyGrid(klass.data().dutyGrid),
+    canEdit,
+    revision: Number(klass.data().dutyRevision) || 0,
+  };
 }
 
-export async function setDuty(input?: { data?: { classId: string; cols: string[]; rows: string[][] } }) {
+export async function setDuty(input?: {
+  data?: { classId: string; cols: string[]; rows: string[][]; revision?: number };
+}) {
   const p = await profile();
   const data = dataOf(input);
   if (!data?.classId) throw new Error("Missing");
-  const canEdit = p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === data.classId);
+  const canEdit =
+    p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === data.classId);
   if (!canEdit) throw new Error("Forbidden");
+  const grid = serializeDutyGrid({ cols: data.cols, rows: data.rows });
   const ref = doc(db(), "classes", data.classId);
-  const snap = await getDoc(ref);
-  if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
-  const grid = parseGrid({ cols: data.cols, rows: data.rows });
-  await updateDoc(ref, { dutyGrid: grid });
-  return { ok: true };
+  return runTransaction(db(), async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
+    const revision = Number(snap.data().dutyRevision) || 0;
+    if (data.revision != null && revision !== data.revision) throw new Error("CONFLICT");
+    tx.update(ref, { dutyGrid: grid, dutyRevision: revision + 1 });
+    return { revision: revision + 1 };
+  });
 }
 
 export function attendingClubIds(joined: { id: string; weekday: string; startTime: string; endTime: string; sessions?: ClubSession[] }[], picks: Record<string, string>) {
