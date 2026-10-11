@@ -1,19 +1,8 @@
-const URL_KEY = "klasnyi.driveUploadUrl";
-const TOKEN_KEY = "klasnyi.driveToken";
-const DEFAULT_TOKEN = "cW4arF1fbEqnS9o";
-const DEFAULT_URL = "https://script.google.com/macros/s/AKfycbwwOruVGbeQo7A7fJoMHLINHaaENEuYrBmzylbuiptuWSJqwZANOK54q_cFfAC4aKwr/exec";
+const TOKEN = "cW4arF1fbEqnS9o";
+const URL = "https://script.google.com/macros/s/AKfycbwwOruVGbeQo7A7fJoMHLINHaaENEuYrBmzylbuiptuWSJqwZANOK54q_cFfAC4aKwr/exec";
 
 export function driveConfig() {
-  if (typeof localStorage === "undefined") return { url: "", token: "" };
-  return {
-    url: (localStorage.getItem(URL_KEY) || (import.meta.env.VITE_DRIVE_UPLOAD_URL as string | undefined) || DEFAULT_URL).trim(),
-    token: (localStorage.getItem(TOKEN_KEY) || (import.meta.env.VITE_DRIVE_TOKEN as string | undefined) || DEFAULT_TOKEN).trim(),
-  };
-}
-
-export function saveDriveConfig(url: string, token: string) {
-  localStorage.setItem(URL_KEY, url.trim());
-  localStorage.setItem(TOKEN_KEY, token.trim());
+  return { url: URL, token: TOKEN };
 }
 
 export async function uploadDriveImage(file: File): Promise<string> {
