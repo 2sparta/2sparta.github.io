@@ -9,6 +9,7 @@ import {
   ListOrdered,
   Quote,
   Link2,
+  ImagePlus,
   Eye,
   Pencil,
   Save,
@@ -19,6 +20,10 @@ import type { Material, MaterialInput, MaterialKind } from "@/lib/materials/mode
 import { useMeQuery } from "@/components/session-gate";
 import { usePrefs } from "@/lib/prefs";
 import { ArticleContent } from "./article-content";
+import { useImageUpload } from "./use-image-upload";
+import { STRINGS } from "@/lib/i18n";
+import { safeWebUrl } from "@/lib/materials/model";
+import { toast } from "sonner";
 import { Panel, PanelTitle, PillButton, TextInput } from "./ui/panel";
 
 const initial = (kind: MaterialKind, existing?: Material): MaterialInput => ({
@@ -53,6 +58,10 @@ export function MaterialEditor({
   const [backup, setBackup] = useState("");
   const [saved, setSaved] = useState(false);
   const body = useRef<HTMLTextAreaElement>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const imagePosition = useRef({ start: 0, end: 0 });
+  const latestForm = useRef(form);
+  latestForm.current = form;
   const dirty = !saved && JSON.stringify(form) !== JSON.stringify(initial(kind, existing));
   useBlocker({
     shouldBlockFn: () =>
@@ -127,6 +136,46 @@ export function MaterialEditor({
       el.setSelectionRange(a + before.length, a + before.length + text.length);
     });
   };
+  const images = useImageUpload({
+    max: 20,
+    getCount: () => (latestForm.current.body.match(/^!\[/gm) ?? []).length,
+    disabled: mutation.isPending || Boolean(recovered),
+    onUploaded: (url, file) => {
+      const safe = safeWebUrl(url);
+      if (!safe) throw new Error("INVALID_IMAGE_URL");
+      const alt = file.name
+        .replace(/\.[^.]+$/, "")
+        .replace(/[\[\]\\\r\n]/g, "")
+        .slice(0, 160);
+      const markdown = `\n\n![${alt}](${safe.replace(/\(/g, "%28").replace(/\)/g, "%29")})\n\n`;
+      const { start, end } = imagePosition.current;
+      const nextBody =
+        latestForm.current.body.slice(0, start) + markdown + latestForm.current.body.slice(end);
+      if (nextBody.length > 50_000) {
+        toast.error(
+          uk
+            ? "Фото не додано: стаття перевищує 50 000 символів."
+            : "Photo not inserted: article exceeds 50,000 characters.",
+        );
+        return;
+      }
+      imagePosition.current = { start: start + markdown.length, end: start + markdown.length };
+      latestForm.current = { ...latestForm.current, body: nextBody };
+      setForm(latestForm.current);
+      mutation.reset();
+      requestAnimationFrame(() => {
+        const caret = imagePosition.current.start;
+        body.current?.setSelectionRange(caret, caret);
+      });
+    },
+  });
+  const rememberImagePosition = () => {
+    if (!images.isBusy())
+      imagePosition.current = {
+        start: body.current?.selectionStart ?? form.body.length,
+        end: body.current?.selectionEnd ?? form.body.length,
+      };
+  };
   const close = () => {
     if (dirty) {
       try {
@@ -166,7 +215,12 @@ export function MaterialEditor({
                   ? "Нове посилання"
                   : "New link"}
         </PanelTitle>
-        <PillButton type="button" tone="ghost" disabled={mutation.isPending} onClick={close}>
+        <PillButton
+          type="button"
+          tone="ghost"
+          disabled={mutation.isPending || images.busy}
+          onClick={close}
+        >
           {uk ? "Закрити" : "Close"}
         </PillButton>
       </div>
@@ -293,14 +347,45 @@ export function MaterialEditor({
                     title={tool.label}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insert(tool.before, tool.after)}
+                    disabled={images.busy}
                     className="grid size-10 place-items-center rounded-lg text-ink hover:bg-surface"
                   >
                     <tool.icon className="size-4" />
                   </button>
                 ))}
+              {!preview && (
+                <button
+                  type="button"
+                  aria-label={uk ? "Додати фото" : "Add photo"}
+                  title={
+                    uk ? "Додати фото або вставити з буфера" : "Add photo or paste from clipboard"
+                  }
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    rememberImagePosition();
+                    photoInput.current?.click();
+                  }}
+                  disabled={images.busy}
+                  className="grid size-10 place-items-center rounded-lg text-ink hover:bg-surface disabled:opacity-40"
+                >
+                  <ImagePlus className="size-4" />
+                </button>
+              )}
+              <input
+                ref={photoInput}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) => {
+                  images.add(Array.from(e.target.files ?? []));
+                  e.target.value = "";
+                }}
+              />
               <button
                 type="button"
                 aria-pressed={preview}
+                disabled={images.busy}
                 onClick={() => setPreview((v) => !v)}
                 className="ml-auto flex min-h-10 items-center gap-2 rounded-lg bg-surface px-3 text-sm font-bold"
               >
@@ -325,6 +410,12 @@ export function MaterialEditor({
                 rows={16}
                 maxLength={50_000}
                 value={form.body}
+                readOnly={images.busy}
+                aria-busy={images.busy}
+                onPaste={(e) => {
+                  rememberImagePosition();
+                  images.onPaste(e);
+                }}
                 onChange={(e) => update("body", e.target.value)}
                 placeholder={
                   uk
@@ -334,13 +425,18 @@ export function MaterialEditor({
                 className="block w-full resize-y bg-surface p-5 text-base leading-7 outline-none"
               />
             )}
+            <p role="status" className="border-t border-hairline px-5 py-2 text-xs text-muted">
+              {images.busy
+                ? STRINGS[uk ? "uk" : "en"].driveUploading
+                : STRINGS[uk ? "uk" : "en"].drivePasteHint}
+            </p>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
           <PillButton
             type="button"
             tone="ghost"
-            disabled={!form.title.trim() || !form.topic.trim()}
+            disabled={images.busy || !form.title.trim() || !form.topic.trim()}
             onClick={() => {
               if (
                 existing?.status !== "published" ||
@@ -359,7 +455,10 @@ export function MaterialEditor({
           <PillButton
             type="button"
             disabled={
-              !form.title.trim() || !form.topic.trim() || (kind === "article" && !form.body.trim())
+              images.busy ||
+              !form.title.trim() ||
+              !form.topic.trim() ||
+              (kind === "article" && !form.body.trim())
             }
             onClick={() => mutation.mutate("published")}
           >

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pin } from "lucide-react";
@@ -35,6 +35,8 @@ function Page() {
   const [members, setMembers] = useState<string[]>([]);
   const [subjectTag, setSubjectTag] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const composer = useRef<HTMLFormElement>(null);
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string; mine: boolean; body: string; pinned: boolean } | null>(null);
@@ -102,6 +104,8 @@ function Page() {
   useEffect(() => {
     if (!chatId && chats.data?.chats[0]) setChatId(chats.data.chats[0].id);
   }, [chats.data, chatId]);
+
+  useEffect(() => { setPhotos([]); }, [chatId]);
 
   useEffect(() => {
     if (!subjectChat && subjectTag) setSubjectTag("");
@@ -263,10 +267,11 @@ function Page() {
               })}
             </div>
             <form
+              ref={composer}
               className="flex flex-wrap gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (text.trim() || (!editingId && photos.length)) send.mutate();
+                if (!send.isPending && !uploadingPhotos && (text.trim() || (!editingId && photos.length))) send.mutate();
               }}
             >
               {subjectChat && (
@@ -286,6 +291,7 @@ function Page() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder={editingId ? t.edit : t.chatPh}
+                disabled={send.isPending}
               />
               {editingId && (
                 <PillButton
@@ -299,11 +305,11 @@ function Page() {
                   {t.cancel}
                 </PillButton>
               )}
-              <PillButton type="submit" disabled={(!text.trim() && (Boolean(editingId) || photos.length === 0)) || send.isPending}>
+              <PillButton type="submit" disabled={(!text.trim() && (Boolean(editingId) || photos.length === 0)) || send.isPending || uploadingPhotos}>
                 {editingId ? t.save : t.send}
               </PillButton>
             </form>
-            {!editingId && <div className="mt-2"><PhotoAttach urls={photos} onChange={setPhotos} disabled={send.isPending} /></div>}
+            {!editingId && <div className="mt-2"><PhotoAttach key={chatId} urls={photos} onChange={setPhotos} disabled={send.isPending} pasteScopeRef={composer} onBusyChange={setUploadingPhotos} /></div>}
           </>
         )}
       </Panel>

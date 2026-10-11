@@ -46,6 +46,29 @@ export function ArticleContent({ body }: { body: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
+    const image = line.trim().match(/^!\[([^\]\n]*)\]\(([^\s)]+)\)$/);
+    if (image) {
+      const url = safeWebUrl(image[2]);
+      nodes.push(
+        url ? (
+          <figure key={i} className="my-6">
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              <img
+                src={url}
+                alt={image[1]}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="max-h-[36rem] max-w-full rounded-xl object-contain"
+              />
+            </a>
+            {image[1] && <figcaption className="mt-2 text-sm text-muted">{image[1]}</figcaption>}
+          </figure>
+        ) : (
+          <p key={i}>{image[1]}</p>
+        ),
+      );
+      continue;
+    }
     const heading = line.match(/^(#{1,3})\s+(.+)/);
     if (heading) {
       const Tag = heading[1].length === 1 ? "h2" : "h3";
@@ -97,7 +120,7 @@ export function ArticleContent({ body }: { body: string }) {
     while (
       i + 1 < lines.length &&
       lines[i + 1].trim() &&
-      !/^(#{1,3}\s|>\s?|[-*]\s|\d+\.\s|---+$)/.test(lines[i + 1])
+      !/^(#{1,3}\s|>\s?|[-*]\s|\d+\.\s|---+$|!\[)/.test(lines[i + 1])
     )
       paragraph.push(lines[++i]);
     nodes.push(
