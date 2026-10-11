@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -55,6 +55,8 @@ function ClubsPage() {
   const [room, setRoom] = useState("");
   const [about, setAbout] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const clubComposer = useRef<HTMLDivElement>(null);
   const payload = { name, kind, weekdays, startTime, endTime, room, about, imageUrl: photos[0] || "" };
   const reset = () => {
     setEditId(null);
@@ -203,7 +205,7 @@ function ClubsPage() {
           </button>
         )}
         {isTeacher && open && (
-          <div className="mx-auto mt-4 grid max-w-xl gap-2 rounded-[22px] border border-hairline bg-cream/40 p-4">
+          <div ref={clubComposer} className="mx-auto mt-4 grid max-w-xl gap-2 rounded-[22px] border border-hairline bg-cream/40 p-4">
             <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t.electiveName} />
             <textarea
               value={about}
@@ -238,9 +240,9 @@ function ClubsPage() {
               })}
             </div>
             <p className="text-xs font-bold text-muted">{t.clubCover}</p>
-            <PhotoAttach urls={photos} onChange={(urls) => setPhotos(urls.slice(0, 1))} max={1} disabled={save.isPending} />
+            <PhotoAttach key={editId ?? "new"} urls={photos} onChange={setPhotos} max={1} disabled={save.isPending} pasteScopeRef={clubComposer} onBusyChange={setUploadingPhotos} />
             <div className="flex gap-2">
-              <PillButton type="button" disabled={!name.trim() || weekdays.length === 0 || save.isPending} onClick={() => save.mutate()}>
+              <PillButton type="button" disabled={!name.trim() || weekdays.length === 0 || save.isPending || uploadingPhotos} onClick={() => save.mutate()}>
                 {editId ? t.save : t.addClub}
               </PillButton>
               {editId ? (

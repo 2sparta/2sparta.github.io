@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
@@ -64,6 +64,8 @@ function TasksPage() {
   const [subjectFilter, setSubjectFilter] = useState("");
   const [openJournal, setOpenJournal] = useState<string | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const lessonComposer = useRef<HTMLDivElement>(null);
 
   const addLes = useMutation({
     mutationFn: () =>
@@ -139,7 +141,7 @@ function TasksPage() {
         <>
           <Panel>
             <PanelTitle>{t.addLesson}</PanelTitle>
-            <div className="grid gap-2">
+            <div ref={lessonComposer} className="grid gap-2">
               <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
                 <option value="">{t.subjectName}</option>
                 {(teachable.length ? teachable : subjectsQ.data?.subjects ?? []).map((s) => (
@@ -172,7 +174,7 @@ function TasksPage() {
                 <input type="checkbox" checked={hasHw} onChange={(e) => setHasHw(e.target.checked)} />
                 {t.hasHw}
               </label>
-              <PhotoAttach urls={photos} onChange={setPhotos} disabled={addLes.isPending} />
+              <PhotoAttach urls={photos} onChange={setPhotos} disabled={addLes.isPending} pasteScopeRef={lessonComposer} onBusyChange={setUploadingPhotos} />
               <p className="text-xs font-bold text-muted">{t.assignClasses}</p>
               <div className="flex flex-wrap gap-2">
                 {(classesQ.data ?? []).map((c) => {
@@ -189,7 +191,7 @@ function TasksPage() {
                   );
                 })}
               </div>
-              <PillButton type="button" disabled={!title.trim() || addLes.isPending} onClick={() => addLes.mutate()}>
+              <PillButton type="button" disabled={!title.trim() || addLes.isPending || uploadingPhotos} onClick={() => addLes.mutate()}>
                 {t.add}
               </PillButton>
             </div>

@@ -1,7 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { ImagePlus, X } from "lucide-react";
-import { toast } from "sonner";
-import { uploadDriveImage } from "@/lib/school/drive";
+import { useImageUpload } from "./use-image-upload";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 
@@ -10,40 +9,44 @@ export function PhotoAttach({
   onChange,
   disabled,
   max = 4,
+  pasteScopeRef,
+  onBusyChange,
 }: {
   urls: string[];
   onChange: (urls: string[]) => void;
   disabled?: boolean;
   max?: number;
+  pasteScopeRef?: RefObject<HTMLElement | null>;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { lang } = usePrefs();
   const t = STRINGS[lang];
   const input = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function pick(list: FileList | null) {
-    if (!list?.length) return;
-    const room = max - urls.length;
-    if (room <= 0) return;
-    setBusy(true);
-    try {
-      const next = [...urls];
-      for (const file of [...list].slice(0, room)) {
-        if (!file.type.startsWith("image/")) continue;
-        next.push(await uploadDriveImage(file));
-      }
-      onChange(next);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      toast.error(message === "NO_URL" ? t.driveNeedUrl : t.driveFail);
-    } finally {
-      setBusy(false);
-      if (input.current) input.current.value = "";
-    }
-  }
+  const currentUrls = useRef(urls);
+  currentUrls.current = urls;
+  const change = (next: string[]) => {
+    currentUrls.current = next;
+    onChange(next);
+  };
+  const { busy, add, onPaste } = useImageUpload({
+    getCount: () => currentUrls.current.length,
+    max,
+    disabled,
+    onBusyChange,
+    onUploaded: (url) => change([...currentUrls.current, url]),
+  });
+  const paste = useRef(onPaste);
+  paste.current = onPaste;
+  useEffect(() => {
+    const scope = pasteScopeRef?.current;
+    if (!scope) return;
+    const handler = (event: ClipboardEvent) => paste.current(event);
+    scope.addEventListener("paste", handler);
+    return () => scope.removeEventListener("paste", handler);
+  }, [pasteScopeRef]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2" aria-busy={busy}>
       <button
         type="button"
         disabled={disabled || busy || urls.length >= max}
@@ -53,20 +56,35 @@ export function PhotoAttach({
         <ImagePlus className="size-4" />
         {busy ? t.driveUploading : t.driveAddPhoto}
       </button>
-      <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => void pick(e.target.files)} />
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        multiple={max > 1}
+        hidden
+        disabled={disabled}
+        onChange={(e) => {
+          add(Array.from(e.target.files ?? []));
+          e.target.value = "";
+        }}
+      />
       {urls.map((url) => (
         <span key={url} className="relative">
           <img src={url} alt="" className="size-14 rounded-xl object-cover" />
           <button
             type="button"
             className="absolute -top-1 -right-1 grid size-5 place-items-center rounded-full bg-ink text-paper"
-            onClick={() => onChange(urls.filter((u) => u !== url))}
+            disabled={disabled}
+            onClick={() => change(currentUrls.current.filter((u) => u !== url))}
             aria-label={t.delete}
           >
             <X className="size-3" />
           </button>
         </span>
       ))}
+      <span role="status" className="w-full text-xs text-muted">
+        {busy ? t.driveUploading : t.drivePasteHint}
+      </span>
     </div>
   );
 }
