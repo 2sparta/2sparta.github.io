@@ -1,5 +1,7 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useId, type ReactNode } from "react";
 import { safeWebUrl } from "@/lib/materials/model";
+import { articleHeadings, articleWidgets } from "@/lib/materials/article-widgets";
+import { ArticleWidgetView } from "./article-widget-view";
 
 function inline(text: string): ReactNode[] {
   const tokens = /(\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|`([^`\n]+)`|\[([^\]\n]+)\]\(([^\s)]+)\))/g;
@@ -40,12 +42,24 @@ function inline(text: string): ReactNode[] {
   return result;
 }
 /** Markdown subset rendered as React text. Raw HTML is never evaluated. */
-export function ArticleContent({ body }: { body: string }) {
+export function ArticleContent({ body, idPrefix }: { body: string; idPrefix?: string }) {
+  const unique = useId();
+  const prefix = idPrefix ?? `article-${unique.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const lines = body.replace(/\r/g, "").split("\n");
+  const headings = articleHeadings(body);
+  const widgets = articleWidgets(body);
   const nodes: ReactNode[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
+    const widget = widgets.find((w) => w.startLine === i);
+    if (widget) {
+      nodes.push(
+        <ArticleWidgetView key={i} widget={widget.widget} headings={headings} prefix={prefix} />,
+      );
+      i = widget.endLine;
+      continue;
+    }
     const image = line.trim().match(/^!\[([^\]\n]*)\]\(([^\s)]+)\)$/);
     if (image) {
       const url = safeWebUrl(image[2]);
@@ -69,12 +83,23 @@ export function ArticleContent({ body }: { body: string }) {
       );
       continue;
     }
-    const heading = line.match(/^(#{1,3})\s+(.+)/);
+    const heading = headings.find((h) => h.line === i);
     if (heading) {
-      const Tag = heading[1].length === 1 ? "h2" : "h3";
+      const Tag = (["h2", "h3", "h4", "h5", "h6"] as const)[heading.level - 1];
+      const sizes = [
+        "text-2xl border-b border-hairline pb-2",
+        "text-xl",
+        "text-lg",
+        "text-base",
+        "text-base text-ink-soft",
+      ];
       nodes.push(
-        <Tag key={i} className="mt-7 mb-3 font-display text-xl font-extrabold">
-          {inline(heading[2])}
+        <Tag
+          key={i}
+          id={`${prefix}-${heading.id}`}
+          className={`mt-7 mb-3 scroll-mt-24 font-display font-extrabold ${sizes[heading.level - 1]}`}
+        >
+          {inline(line.replace(/^#{1,5}\s+/, ""))}
         </Tag>,
       );
       continue;
@@ -120,7 +145,7 @@ export function ArticleContent({ body }: { body: string }) {
     while (
       i + 1 < lines.length &&
       lines[i + 1].trim() &&
-      !/^(#{1,3}\s|>\s?|[-*]\s|\d+\.\s|---+$|!\[)/.test(lines[i + 1])
+      !/^(#{1,5}\s|>\s?|[-*]\s|\d+\.\s|---+$|!\[|:::widget\s*$)/.test(lines[i + 1])
     )
       paragraph.push(lines[++i]);
     nodes.push(

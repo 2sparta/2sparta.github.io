@@ -193,7 +193,7 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                     {current.summary}
                   </p>
                 )}
-                <ArticleContent body={current.body} />
+                <ArticleContent body={current.body} idPrefix={`article-${current.id}`} />
               </article>
             </Panel>
           ) : (

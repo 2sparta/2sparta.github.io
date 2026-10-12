@@ -4,6 +4,8 @@ import { useBlocker } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowUp,
+  ArrowLeft,
+  ArrowRight,
   Copy,
   Download,
   MoreHorizontal,
@@ -16,6 +18,8 @@ import { getDuty, setDuty } from "@/lib/school/server";
 import {
   insertDutyColumn,
   insertDutyRow,
+  duplicateDutyColumn,
+  moveDutyColumn,
   MAX_DUTY_COLS,
   MAX_DUTY_ROWS,
   pasteDutyCells,
@@ -284,7 +288,7 @@ function DutyBoardSession({
                             })
                           }
                           placeholder={`${t.dutyCol} ${c + 1}`}
-                          className="min-h-10 w-full bg-transparent font-bold outline-none focus:ring-2 focus:ring-forest-mid/30"
+                          className="min-h-10 w-full bg-transparent pl-5 font-bold outline-none focus:ring-2 focus:ring-forest-mid/30"
                         />
                         <button
                           type="button"
@@ -306,16 +310,57 @@ function DutyBoardSession({
                             <Plus className="size-3.5" />
                           </button>
                         )}
-                        <button
-                          type="button"
-                          disabled={grid.cols.length <= 1}
-                          className="mt-1 flex min-h-8 items-center gap-1 text-xs font-normal text-muted disabled:opacity-30"
-                          aria-label={`${uk ? "Видалити колонку" : "Delete column"} ${c + 1}`}
-                          onClick={() => delCol(c)}
-                        >
-                          <Trash2 className="size-3" />
-                          {t.delete}
-                        </button>
+                        <details className="absolute top-3 left-0 z-20">
+                          <summary
+                            aria-label={`${uk ? "Дії з колонкою" : "Column actions"} ${c + 1}`}
+                            className="grid h-8 w-7 cursor-pointer list-none place-items-center rounded-lg text-muted hover:bg-surface"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </summary>
+                          <div className="absolute top-8 left-0 w-48 rounded-xl border border-hairline bg-surface p-2 shadow-xl">
+                            {[
+                              {
+                                label: uk ? "Дублювати" : "Duplicate",
+                                icon: Copy,
+                                disabled: grid.cols.length >= MAX_DUTY_COLS,
+                                action: () => change(duplicateDutyColumn(grid, c)),
+                              },
+                              {
+                                label: uk ? "Перемістити ліворуч" : "Move left",
+                                icon: ArrowLeft,
+                                disabled: c === 0,
+                                action: () => change(moveDutyColumn(grid, c, -1)),
+                              },
+                              {
+                                label: uk ? "Перемістити праворуч" : "Move right",
+                                icon: ArrowRight,
+                                disabled: c === grid.cols.length - 1,
+                                action: () => change(moveDutyColumn(grid, c, 1)),
+                              },
+                              {
+                                label: t.delete,
+                                icon: Trash2,
+                                disabled: grid.cols.length <= 1,
+                                action: () => delCol(c),
+                              },
+                            ].map((item) => (
+                              <button
+                                key={item.label}
+                                type="button"
+                                disabled={item.disabled}
+                                className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-xs hover:bg-surface-2 disabled:opacity-30"
+                                onClick={(e) => {
+                                  (e.currentTarget.closest("details") as HTMLDetailsElement).open =
+                                    false;
+                                  item.action();
+                                }}
+                              >
+                                <item.icon className="size-4" />
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        </details>
                       </>
                     ) : (
                       col || "—"

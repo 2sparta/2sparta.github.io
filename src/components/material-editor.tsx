@@ -4,7 +4,6 @@ import { useMutation } from "@tanstack/react-query";
 import {
   Bold,
   Italic,
-  Heading2,
   List,
   ListOrdered,
   Quote,
@@ -14,12 +13,23 @@ import {
   Pencil,
   Save,
   Send,
+  PanelsTopLeft,
 } from "lucide-react";
 import { saveMaterial } from "@/lib/materials/api";
 import type { Material, MaterialInput, MaterialKind } from "@/lib/materials/model";
 import { useMeQuery } from "@/components/session-gate";
 import { usePrefs } from "@/lib/prefs";
 import { ArticleContent } from "./article-content";
+import { ArticleWidgetEditor } from "./article-widget-editor";
+import {
+  applyArticleHeading,
+  articleEditorProjection,
+  articleWidgets,
+  newArticleWidget,
+  serializeArticleWidget,
+  WIDGET_LABELS,
+  type ArticleWidget,
+} from "@/lib/materials/article-widgets";
 import { useImageUpload } from "./use-image-upload";
 import { STRINGS } from "@/lib/i18n";
 import { safeWebUrl } from "@/lib/materials/model";
@@ -57,12 +67,21 @@ export function MaterialEditor({
   const [preview, setPreview] = useState(false);
   const [backup, setBackup] = useState("");
   const [saved, setSaved] = useState(false);
+  const [widgetTarget, setWidgetTarget] = useState<{
+    start: number;
+    end: number;
+    initial: ArticleWidget;
+    editing: boolean;
+  } | null>(null);
   const body = useRef<HTMLTextAreaElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const imagePosition = useRef({ start: 0, end: 0 });
   const latestForm = useRef(form);
   latestForm.current = form;
-  const dirty = !saved && JSON.stringify(form) !== JSON.stringify(initial(kind, existing));
+  const projection = articleEditorProjection(form.body, uk);
+  const dirty =
+    !saved &&
+    (JSON.stringify(form) !== JSON.stringify(initial(kind, existing)) || Boolean(widgetTarget));
   useBlocker({
     shouldBlockFn: () =>
       dirty &&
@@ -92,7 +111,7 @@ export function MaterialEditor({
     }
   }, [storageKey, kind]);
   useEffect(() => {
-    if (!dirty || recovered || saved) return;
+    if (!dirty || recovered || saved || widgetTarget) return;
     const id = window.setTimeout(() => {
       try {
         localStorage.setItem(storageKey, JSON.stringify({ form, revision }));
@@ -106,7 +125,7 @@ export function MaterialEditor({
       }
     }, 600);
     return () => clearTimeout(id);
-  }, [form, dirty, recovered, revision, saved, storageKey, uk]);
+  }, [form, dirty, recovered, revision, saved, storageKey, uk, widgetTarget]);
   const mutation = useMutation({
     mutationFn: (status: "draft" | "published") =>
       saveMaterial({ id: existing?.id, revision, material: { ...form, status } }),
@@ -127,19 +146,36 @@ export function MaterialEditor({
   const insert = (before: string, after = "", fallback = uk ? "текст" : "text") => {
     const el = body.current;
     if (!el) return;
-    const a = el.selectionStart;
-    const b = el.selectionEnd;
+    if (projection.intersectsWidget(el.selectionStart, el.selectionEnd)) {
+      toast.info(
+        uk
+          ? "Редагуйте віджет у списку під текстом."
+          : "Edit the widget in the list below the text.",
+      );
+      return;
+    }
+    const a = projection.toSource(el.selectionStart);
+    const b = projection.toSource(el.selectionEnd, true);
     const text = form.body.slice(a, b) || fallback;
-    update("body", form.body.slice(0, a) + before + text + after + form.body.slice(b));
+    const nextBody = form.body.slice(0, a) + before + text + after + form.body.slice(b);
+    if (nextBody.length > 50_000) {
+      toast.error(uk ? "Стаття перевищує 50 000 символів." : "Article exceeds 50,000 characters.");
+      return;
+    }
+    update("body", nextBody);
     requestAnimationFrame(() => {
       el.focus();
-      el.setSelectionRange(a + before.length, a + before.length + text.length);
+      const next = articleEditorProjection(nextBody, uk);
+      el.setSelectionRange(
+        next.toVisible(a + before.length),
+        next.toVisible(a + before.length + text.length),
+      );
     });
   };
   const images = useImageUpload({
     max: 20,
     getCount: () => (latestForm.current.body.match(/^!\[/gm) ?? []).length,
-    disabled: mutation.isPending || Boolean(recovered),
+    disabled: mutation.isPending || Boolean(recovered) || Boolean(widgetTarget),
     onUploaded: (url, file) => {
       const safe = safeWebUrl(url);
       if (!safe) throw new Error("INVALID_IMAGE_URL");
@@ -164,7 +200,9 @@ export function MaterialEditor({
       setForm(latestForm.current);
       mutation.reset();
       requestAnimationFrame(() => {
-        const caret = imagePosition.current.start;
+        const caret = articleEditorProjection(latestForm.current.body, uk).toVisible(
+          imagePosition.current.start,
+        );
         body.current?.setSelectionRange(caret, caret);
       });
     },
@@ -172,10 +210,72 @@ export function MaterialEditor({
   const rememberImagePosition = () => {
     if (!images.isBusy())
       imagePosition.current = {
-        start: body.current?.selectionStart ?? form.body.length,
-        end: body.current?.selectionEnd ?? form.body.length,
+        start: body.current
+          ? projection.toSource(body.current.selectionStart, true)
+          : form.body.length,
+        end: body.current ? projection.toSource(body.current.selectionEnd, true) : form.body.length,
       };
   };
+  const heading = (level: number) => {
+    const el = body.current;
+    if (!el) return;
+    const name = uk
+      ? level === 1
+        ? "Заголовок"
+        : `Підзаголовок ${level - 1}`
+      : level === 1
+        ? "Heading"
+        : `Subheading ${level - 1}`;
+    if (projection.intersectsWidget(el.selectionStart, el.selectionEnd)) {
+      toast.info(
+        uk
+          ? "Редагуйте віджет у списку під текстом."
+          : "Edit the widget in the list below the text.",
+      );
+      return;
+    }
+    const next = applyArticleHeading(
+      form.body,
+      projection.toSource(el.selectionStart),
+      projection.toSource(el.selectionEnd, true),
+      level,
+      name,
+    );
+    if (next.body.length > 50_000) {
+      toast.error(uk ? "Стаття перевищує 50 000 символів." : "Article exceeds 50,000 characters.");
+      return;
+    }
+    update("body", next.body);
+    requestAnimationFrame(() => {
+      el.focus();
+      const display = articleEditorProjection(next.body, uk);
+      el.setSelectionRange(display.toVisible(next.start), display.toVisible(next.end));
+    });
+  };
+  const applyWidget = (widget: ArticleWidget) => {
+    if (!widgetTarget) return;
+    const block = serializeArticleWidget(widget);
+    const inserted = widgetTarget.editing ? block : `\n\n${block}\n\n`;
+    const next =
+      form.body.slice(0, widgetTarget.start) + inserted + form.body.slice(widgetTarget.end);
+    if (next.length > 50_000) {
+      toast.error(
+        uk
+          ? "Віджет не додано: стаття перевищує 50 000 символів."
+          : "Widget not inserted: article exceeds 50,000 characters.",
+      );
+      return;
+    }
+    update("body", next);
+    const caret = widgetTarget.start + inserted.length;
+    setWidgetTarget(null);
+    requestAnimationFrame(() => {
+      body.current?.focus();
+      const visibleCaret = articleEditorProjection(next, uk).toVisible(caret);
+      body.current?.setSelectionRange(visibleCaret, visibleCaret);
+    });
+  };
+  const currentWidgets = articleWidgets(form.body);
   const close = () => {
     if (dirty) {
       try {
@@ -218,7 +318,7 @@ export function MaterialEditor({
         <PillButton
           type="button"
           tone="ghost"
-          disabled={mutation.isPending || images.busy}
+          disabled={mutation.isPending || images.busy || Boolean(widgetTarget)}
           onClick={close}
         >
           {uk ? "Закрити" : "Close"}
@@ -315,16 +415,33 @@ export function MaterialEditor({
         {kind === "article" && (
           <div className="overflow-hidden rounded-2xl border border-hairline">
             <div className="flex flex-wrap items-center gap-1 border-b border-hairline bg-surface-2 p-2">
+              {!preview && (
+                <select
+                  aria-label={uk ? "Рівень заголовка" : "Heading level"}
+                  value=""
+                  disabled={images.busy || Boolean(widgetTarget)}
+                  onChange={(e) => heading(Number(e.target.value))}
+                  className="min-h-10 max-w-full rounded-lg bg-surface px-2 text-sm font-bold"
+                >
+                  <option value="" disabled>
+                    {uk ? "Стиль тексту" : "Text style"}
+                  </option>
+                  <option value="0">{uk ? "Звичайний текст" : "Paragraph"}</option>
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <option key={level} value={level}>
+                      {level === 1
+                        ? uk
+                          ? "Заголовок"
+                          : "Heading"
+                        : `${uk ? "Підзаголовок" : "Subheading"} ${level - 1}`}
+                    </option>
+                  ))}
+                </select>
+              )}
               {!preview &&
                 [
                   { icon: Bold, label: uk ? "Жирний" : "Bold", before: "**", after: "**" },
                   { icon: Italic, label: uk ? "Курсив" : "Italic", before: "*", after: "*" },
-                  {
-                    icon: Heading2,
-                    label: uk ? "Підзаголовок" : "Heading",
-                    before: "\n## ",
-                    after: "\n",
-                  },
                   { icon: List, label: uk ? "Список" : "List", before: "\n- ", after: "\n" },
                   {
                     icon: ListOrdered,
@@ -347,7 +464,7 @@ export function MaterialEditor({
                     title={tool.label}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insert(tool.before, tool.after)}
-                    disabled={images.busy}
+                    disabled={images.busy || Boolean(widgetTarget)}
                     className="grid size-10 place-items-center rounded-lg text-ink hover:bg-surface"
                   >
                     <tool.icon className="size-4" />
@@ -365,7 +482,7 @@ export function MaterialEditor({
                     rememberImagePosition();
                     photoInput.current?.click();
                   }}
-                  disabled={images.busy}
+                  disabled={images.busy || Boolean(widgetTarget)}
                   className="grid size-10 place-items-center rounded-lg text-ink hover:bg-surface disabled:opacity-40"
                 >
                   <ImagePlus className="size-4" />
@@ -382,10 +499,43 @@ export function MaterialEditor({
                   e.target.value = "";
                 }}
               />
+              {!preview && (
+                <button
+                  type="button"
+                  disabled={images.busy || Boolean(widgetTarget)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const el = body.current;
+                    const cursor = el
+                      ? projection.toSource(el.selectionEnd, true)
+                      : form.body.length;
+                    const lineEnd = form.body.indexOf("\n", cursor);
+                    const position = lineEnd < 0 ? form.body.length : lineEnd;
+                    if (currentWidgets.some((w) => position >= w.start && position <= w.end)) {
+                      toast.info(
+                        uk
+                          ? "Редагуйте цей віджет у списку нижче."
+                          : "Edit this widget in the list below.",
+                      );
+                      return;
+                    }
+                    setWidgetTarget({
+                      start: position,
+                      end: position,
+                      initial: newArticleWidget("toc", uk),
+                      editing: false,
+                    });
+                  }}
+                  className="flex min-h-10 items-center gap-2 rounded-lg bg-surface px-3 text-sm font-bold disabled:opacity-40"
+                >
+                  <PanelsTopLeft className="size-4" />
+                  {uk ? "Вставити віджет" : "Insert widget"}
+                </button>
+              )}
               <button
                 type="button"
                 aria-pressed={preview}
-                disabled={images.busy}
+                disabled={images.busy || Boolean(widgetTarget)}
                 onClick={() => setPreview((v) => !v)}
                 className="ml-auto flex min-h-10 items-center gap-2 rounded-lg bg-surface px-3 text-sm font-bold"
               >
@@ -393,6 +543,15 @@ export function MaterialEditor({
                 {preview ? (uk ? "Редактор" : "Editor") : uk ? "Перегляд" : "Preview"}
               </button>
             </div>
+            {widgetTarget && (
+              <ArticleWidgetEditor
+                key={`${widgetTarget.start}:${widgetTarget.editing}`}
+                initial={widgetTarget.initial}
+                editing={widgetTarget.editing}
+                onApply={applyWidget}
+                onCancel={() => setWidgetTarget(null)}
+              />
+            )}
             {preview ? (
               <div className="min-h-80 p-5">
                 <h2 className="font-display text-2xl font-extrabold">{form.title}</h2>
@@ -409,14 +568,33 @@ export function MaterialEditor({
                 aria-label={uk ? "Текст статті" : "Article body"}
                 rows={16}
                 maxLength={50_000}
-                value={form.body}
-                readOnly={images.busy}
+                value={projection.text}
+                readOnly={images.busy || Boolean(widgetTarget)}
                 aria-busy={images.busy}
                 onPaste={(e) => {
                   rememberImagePosition();
                   images.onPaste(e);
                 }}
-                onChange={(e) => update("body", e.target.value)}
+                onChange={(e) => {
+                  try {
+                    const expanded = projection.expand(e.target.value);
+                    if (expanded.length > 50_000) {
+                      toast.error(
+                        uk
+                          ? "Стаття перевищує 50 000 символів."
+                          : "Article exceeds 50,000 characters.",
+                      );
+                      return;
+                    }
+                    update("body", expanded);
+                  } catch {
+                    toast.info(
+                      uk
+                        ? "Змінюйте або видаляйте віджети через список під текстом."
+                        : "Change or remove widgets using the list below the text.",
+                    );
+                  }
+                }}
                 placeholder={
                   uk
                     ? "Напишіть статтю. Використовуйте панель для форматування."
@@ -424,6 +602,68 @@ export function MaterialEditor({
                 }
                 className="block w-full resize-y bg-surface p-5 text-base leading-7 outline-none"
               />
+            )}
+            {!preview && currentWidgets.length > 0 && (
+              <div className="space-y-2 border-t border-hairline p-3">
+                <p className="text-xs font-bold text-muted">
+                  {uk ? "Віджети статті" : "Article widgets"}
+                </p>
+                <p className="text-xs text-muted">
+                  {uk
+                    ? "У тексті віджети позначені блоками ⟦…⟧. Налаштуйте або видаліть їх кнопками нижче."
+                    : "Widgets appear as ⟦…⟧ blocks in the text. Configure or remove them below."}
+                </p>
+                {currentWidgets.map((block) => (
+                  <div
+                    key={block.start}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-2 px-3 py-2"
+                  >
+                    <span className="text-xs">
+                      <strong>{block.widget.title}</strong> ·{" "}
+                      {WIDGET_LABELS[uk ? "uk" : "en"][block.widget.type]}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={images.busy || Boolean(widgetTarget)}
+                        aria-label={`${uk ? "Редагувати віджет" : "Edit widget"}: ${block.widget.title}`}
+                        onClick={() =>
+                          setWidgetTarget({
+                            start: block.start,
+                            end: block.end,
+                            initial: block.widget,
+                            editing: true,
+                          })
+                        }
+                        className="min-h-10 rounded-lg px-2 text-xs font-bold text-forest-mid disabled:opacity-40"
+                      >
+                        {uk ? "Редагувати" : "Edit"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={images.busy || Boolean(widgetTarget)}
+                        aria-label={`${uk ? "Видалити віджет" : "Delete widget"}: ${block.widget.title}`}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              uk
+                                ? "Видалити цей віджет зі статті?"
+                                : "Remove this widget from the article?",
+                            )
+                          )
+                            update(
+                              "body",
+                              form.body.slice(0, block.start) + form.body.slice(block.end),
+                            );
+                        }}
+                        className="min-h-10 rounded-lg px-2 text-xs font-bold text-terracotta disabled:opacity-40"
+                      >
+                        {uk ? "Видалити" : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
             <p role="status" className="border-t border-hairline px-5 py-2 text-xs text-muted">
               {images.busy
@@ -436,7 +676,9 @@ export function MaterialEditor({
           <PillButton
             type="button"
             tone="ghost"
-            disabled={images.busy || !form.title.trim() || !form.topic.trim()}
+            disabled={
+              images.busy || Boolean(widgetTarget) || !form.title.trim() || !form.topic.trim()
+            }
             onClick={() => {
               if (
                 existing?.status !== "published" ||
@@ -456,6 +698,7 @@ export function MaterialEditor({
             type="button"
             disabled={
               images.busy ||
+              Boolean(widgetTarget) ||
               !form.title.trim() ||
               !form.topic.trim() ||
               (kind === "article" && !form.body.trim())
