@@ -6,6 +6,7 @@ import {
   FileText,
   Play,
   Link2,
+  Compass,
   CalendarDays,
   ChevronDown,
   Coins,
@@ -121,6 +122,12 @@ export function AppShell({ profile }: { profile: Profile }) {
           icon: Link2,
           label: lang === "uk" ? "Корисні посилання" : "Useful links",
           section: "links" as const,
+        },
+        {
+          to: "/app/materials",
+          icon: Compass,
+          label: lang === "uk" ? "Корисне" : "Tools",
+          section: "useful" as const,
         },
       ]
     : [

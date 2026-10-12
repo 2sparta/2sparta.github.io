@@ -1,0 +1,579 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { FeatureCollection } from "geojson";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Globe2,
+  MapPin,
+  Search,
+  Share2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { usePrefs } from "@/lib/prefs";
+import { ATLAS_EVENTS, ATLAS_PERIODS, ATLAS_PLACES, ATLAS_SOURCES } from "@/lib/atlas/content";
+import {
+  activePlaces,
+  ATLAS_YEARS,
+  clampAtlasYear,
+  featureNote,
+  historicalName,
+  nearestSnapshot,
+  placeEpoch,
+  validateHistoricalCollection,
+  type AtlasPlace,
+  type AtlasView,
+  type HistoricalFeature,
+} from "@/lib/atlas/model";
+import { HistoricalMapCanvas } from "./historical-map-canvas";
+import { Panel, PillButton, TextInput } from "./ui/panel";
+
+async function jsonFile(path: string, signal: AbortSignal) {
+  const r = await fetch(path, { signal });
+  if (!r.ok) throw new Error("ATLAS_DOWNLOAD");
+  return r.json();
+}
+function Sources({ ids }: { ids: string[] }) {
+  return (
+    <ul className="mt-3 space-y-2 text-xs">
+      {[...new Set(ids)]
+        .map((id) => ATLAS_SOURCES.find((s) => s.id === id))
+        .filter((s) => Boolean(s))
+        .map((s) => (
+          <li key={s!.id}>
+            <a
+              href={s!.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-forest-mid underline underline-offset-4"
+            >
+              {s!.title}
+              <ExternalLink className="size-3 shrink-0" />
+            </a>
+          </li>
+        ))}
+    </ul>
+  );
+}
+export function HistoricalAtlas({
+  year,
+  view,
+  onChange,
+}: {
+  year: number;
+  view: AtlasView;
+  onChange: (year: number, view: AtlasView) => void;
+}) {
+  const uk = usePrefs((s) => s.lang) === "uk";
+  const snapshot = nearestSnapshot(year);
+  const [yearText, setYearText] = useState(String(year));
+  const [search, setSearch] = useState("");
+  const [cities, setCities] = useState(true);
+  const [areas, setAreas] = useState(true);
+  const [borders, setBorders] = useState(true);
+  const [rivers, setRivers] = useState(true);
+  const [selection, setSelection] = useState<
+    { kind: "place"; id: string } | { kind: "polity"; feature: HistoricalFeature } | null
+  >(null);
+  useEffect(() => setYearText(String(year)), [year]);
+  useEffect(() => setSelection(null), [snapshot]);
+  const data = useQuery({
+    queryKey: ["historical-atlas", snapshot],
+    queryFn: async ({ signal }) =>
+      validateHistoricalCollection(await jsonFile(`/atlas/world-${snapshot}.geojson`, signal)),
+    staleTime: Infinity,
+    enabled: typeof window !== "undefined",
+    retry: 1,
+  });
+  const physical = useQuery({
+    queryKey: ["historical-atlas-physical"],
+    queryFn: async ({ signal }) => {
+      const [land, rivers] = await Promise.all([
+        jsonFile("/atlas/land.geojson", signal),
+        jsonFile("/atlas/rivers.geojson", signal),
+      ]);
+      return { land: land as FeatureCollection, rivers: rivers as FeatureCollection };
+    },
+    staleTime: Infinity,
+    enabled: typeof window !== "undefined",
+    retry: 1,
+  });
+  const markerEpoch = placeEpoch(ATLAS_PLACES, year);
+  const available = useMemo(
+    () => activePlaces(ATLAS_PLACES, markerEpoch).filter((p) => view !== "rus" || !p.europe),
+    [markerEpoch, view],
+  );
+  const drawn = useMemo(
+    () => available.filter((p) => (p.type === "city" ? cities : areas)),
+    [available, cities, areas],
+  );
+  const choosePlace = useCallback((place: AtlasPlace) => {
+    if (place.type === "city") setCities(true);
+    else setAreas(true);
+    setSelection({ kind: "place", id: place.id });
+  }, []);
+  const choosePolity = useCallback(
+    (feature: HistoricalFeature) => setSelection({ kind: "polity", feature }),
+    [],
+  );
+  const selectedPlace =
+    selection?.kind === "place" ? available.find((p) => p.id === selection.id) : undefined;
+  const selectedPolity =
+    selection?.kind === "polity" && data.data?.features.some((f) => f.id === selection.feature.id)
+      ? selection.feature
+      : undefined;
+  const period = ATLAS_PERIODS.find((p) => year >= p.from && year <= p.to)!;
+  const matches = available.filter((p) =>
+    `${p.name} ${p.description}`.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+  const nearby = ATLAS_EVENTS.filter((e) => view !== "rus" || !e.europe)
+    .filter((e) => Math.abs(e.year - year) <= 150)
+    .sort((a, b) => Math.abs(a.year - year) - Math.abs(b.year - year) || a.year - b.year)
+    .slice(0, 6)
+    .sort((a, b) => a.year - b.year);
+  const commitYear = () => {
+    const next = clampAtlasYear(yearText.trim() ? Number(yearText) : year);
+    setYearText(String(next));
+    onChange(next, view);
+  };
+  const warnings: string[] = [];
+  if (snapshot === 800)
+    warnings.push(
+      "«Руський каганат» у цьому зрізі — гіпотетична реконструкція, не встановлена територія держави.",
+    );
+  if (snapshot === 1200)
+    warnings.push(
+      "Частину руських князівств джерело об’єднує в одну геометрію. Регіональні картки розрізняють основні осередки.",
+    );
+  if (snapshot === 1279 || snapshot === 1300)
+    warnings.push(
+      "Галицько-Волинська держава не названа окремо у геометрії джерела. Це прогалина мапи, а не свідчення її зникнення.",
+    );
+  if (snapshot === 1400)
+    warnings.push(
+      "Полігон Poland-Lithuania узагальнює дві держави під династичною унією. Це не Річ Посполита, що постала 1569 р.",
+    );
+  const share = async () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("section", "useful");
+    url.searchParams.set("year", String(year));
+    url.searchParams.set("view", view);
+    try {
+      await navigator.clipboard.writeText(url.href);
+      toast.success(uk ? "Посилання скопійовано" : "Link copied");
+    } catch {
+      toast.info(
+        uk
+          ? "Копіювання недоступне. Рік і масштаб збережені в адресному рядку."
+          : "Copy unavailable. The address bar retains your year and view.",
+      );
+    }
+  };
+  return (
+    <>
+      <Panel>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-forest-mid">
+              500–1400 · {uk ? "навчальний атлас" : "learning atlas"}
+            </p>
+            <h2 className="mt-1 font-display text-2xl font-extrabold">
+              {uk ? "Світ і Русь-Україна крізь час" : "World and Rus’-Ukraine through time"}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-muted">
+              {uk
+                ? "Українські землі, міста, князівські осередки та їхній європейський контекст. До IX ст. показані попередні спільноти, а не держава Русь."
+                : "Ukrainian lands, towns and regional centers in European context. Before the ninth century, the atlas shows earlier communities, not a Rus’ state."}
+            </p>
+          </div>
+          <PillButton type="button" tone="ghost" onClick={() => void share()}>
+            <Share2 className="mr-2 size-4" />
+            {uk ? "Поділитися" : "Share"}
+          </PillButton>
+        </div>
+        <div className="mt-5 flex flex-wrap items-end gap-3">
+          <label className="block text-xs font-bold">
+            {uk ? "Рік подій" : "Event year"}
+            <TextInput
+              type="number"
+              min={500}
+              max={1400}
+              step={1}
+              value={yearText}
+              onChange={(e) => setYearText(e.target.value)}
+              onBlur={commitYear}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitYear();
+              }}
+              className="mt-1 block w-28"
+            />
+          </label>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <button
+              type="button"
+              aria-label={uk ? "На 10 років назад" : "Back 10 years"}
+              disabled={year <= 500}
+              onClick={() => onChange(clampAtlasYear(year - 10), view)}
+              className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <input
+              type="range"
+              aria-label={uk ? "Часова шкала 500–1400" : "Timeline 500–1400"}
+              min={500}
+              max={1400}
+              step={1}
+              value={year}
+              onChange={(e) => onChange(Number(e.target.value), view)}
+              className="min-w-20 flex-1 accent-forest-mid"
+            />
+            <button
+              type="button"
+              aria-label={uk ? "На 10 років уперед" : "Forward 10 years"}
+              disabled={year >= 1400}
+              onClick={() => onChange(clampAtlasYear(year + 10), view)}
+              className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        </div>
+        <div
+          className="mt-3 flex flex-wrap gap-1.5"
+          aria-label={uk ? "Картографічні зрізи" : "Map snapshots"}
+        >
+          {ATLAS_YEARS.map((y) => (
+            <button
+              key={y}
+              type="button"
+              onClick={() => onChange(y, view)}
+              aria-pressed={year === y}
+              className={`min-h-9 rounded-full px-3 text-xs font-bold ${year === y ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 rounded-xl border border-forest-mid/25 bg-forest-mid/5 p-3 text-sm">
+          <strong>
+            {uk ? "Рік подій" : "Events"}: {year} · {uk ? "Мапа" : "Map"}: {snapshot}
+          </strong>
+          <p className="mt-1 text-xs text-muted">
+            {year === snapshot
+              ? uk
+                ? "Оглядовий картографічний зріз цього року; межі приблизні."
+                : "Overview snapshot for this year; boundaries are approximate."
+              : uk
+                ? `Показано найближчий доступний зріз (${snapshot}). Між зрізами кордони не інтерполюються. Міста, картки й події відфільтровані за обраним ${year} роком.`
+                : `Nearest available snapshot (${snapshot}). Borders are not interpolated; regional notes use event year ${year}.`}
+          </p>
+          {warnings.map((note) => (
+            <p key={note} className="mt-2 text-xs text-terracotta">
+              {note}
+            </p>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {(
+            [
+              ["rus", uk ? "Русь-Україна" : "Rus’-Ukraine"],
+              ["europe", uk ? "Європа" : "Europe"],
+              ["world", uk ? "Світ" : "World"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={view === key}
+              onClick={() => onChange(year, key)}
+              className={`flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold ${view === key ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
+            >
+              <Globe2 className="size-4" />
+              {label}
+            </button>
+          ))}
+          <span className="ml-auto text-xs text-muted">
+            {uk
+              ? "Перетягуйте мапу; + / − або два пальці — масштаб"
+              : "Drag to pan; + / − or pinch to zoom"}
+          </span>
+        </div>
+        <div className="my-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+          {[
+            [uk ? "Держави й ареали" : "Polities and areas", borders, setBorders],
+            [uk ? "Міста" : "Towns", cities, setCities],
+            [uk ? "Регіональні осередки" : "Regional references", areas, setAreas],
+            [uk ? "Річки" : "Rivers", rivers, setRivers],
+          ].map(([label, value, set]) => (
+            <label key={String(label)} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={value as boolean}
+                onChange={(e) => (set as (value: boolean) => void)(e.target.checked)}
+              />
+              {label as string}
+            </label>
+          ))}
+        </div>
+        {(data.isError || physical.isError) && (
+          <div
+            role="alert"
+            className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-terracotta/10 p-3 text-sm"
+          >
+            {uk
+              ? "Частину картографічних даних не завантажено."
+              : "Some map data could not be loaded."}
+            <PillButton
+              type="button"
+              tone="ghost"
+              onClick={() => {
+                void data.refetch();
+                void physical.refetch();
+              }}
+            >
+              {uk ? "Повторити" : "Retry"}
+            </PillButton>
+          </div>
+        )}
+        {(data.isPending || physical.isPending) && (
+          <p role="status" className="mb-2 text-xs text-muted">
+            {uk ? `Завантаження зрізу ${snapshot}…` : `Loading snapshot ${snapshot}…`}
+          </p>
+        )}
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="min-w-0">
+            <HistoricalMapCanvas
+              historical={data.data}
+              land={physical.data?.land}
+              rivers={physical.data?.rivers}
+              places={drawn}
+              view={view}
+              uk={uk}
+              borders={borders}
+              riverLayer={rivers}
+              selected={selectedPlace?.id ?? (selectedPolity?.id as string | undefined)}
+              onPlace={choosePlace}
+              onPolity={choosePolity}
+            />
+            <p className="mt-2 text-xs text-muted">
+              {uk
+                ? "● Місто / поселення · ◌ Орієнтир регіону, не територіальна межа · Пунктир: приблизна геометрія. Берегова лінія й річки — сучасна фізична основа."
+                : "● Settlement · ◌ Regional reference, not a boundary · Dashed borders: approximate. Coastlines and rivers are modern physical references."}
+            </p>
+          </div>
+          <aside className="min-w-0 space-y-4">
+            <div className="rounded-2xl border border-hairline bg-surface-2/40 p-4">
+              <p className="text-xs font-bold text-forest-mid">
+                {year} · {period.from}–{period.to}
+              </p>
+              <h3 className="mt-1 font-display font-extrabold">{period.title}</h3>
+              <p className="mt-2 text-xs leading-5">{period.description}</p>
+              <Sources ids={period.sources} />
+            </div>
+            {selectedPlace ? (
+              <div className="rounded-2xl border border-forest-mid/30 p-4">
+                <p className="text-xs font-bold text-forest-mid">
+                  {selectedPlace.type === "city" ? "Місто / поселення" : "Регіональний осередок"}
+                </p>
+                <h3 className="mt-1 font-display text-lg font-extrabold">{selectedPlace.name}</h3>
+                <p className="mt-2 text-xs font-semibold">{selectedPlace.dateLabel}</p>
+                <p className="mt-2 text-sm leading-6">{selectedPlace.description}</p>
+                <p className="mt-2 text-xs text-muted">
+                  {uk
+                    ? "Координата — орієнтир міста або регіону; вона не задає точний археологічний центр чи кордон."
+                    : "Coordinates mark a reference location, not a surveyed archaeological site or territorial boundary."}
+                </p>
+                <Sources ids={selectedPlace.sources} />
+              </div>
+            ) : selectedPolity ? (
+              <div className="rounded-2xl border border-forest-mid/30 p-4">
+                <p className="text-xs font-bold text-forest-mid">
+                  {uk ? "Дані зрізу" : "Snapshot data"} {snapshot}
+                </p>
+                <h3 className="mt-1 font-display text-lg font-extrabold">
+                  {historicalName(selectedPolity.properties.name, uk)}
+                </h3>
+                <p className="mt-2 text-xs text-muted">
+                  {selectedPolity.properties.name} ·{" "}
+                  {uk ? "Рівень точності джерела" : "Source precision"}:{" "}
+                  {selectedPolity.properties.precision}/3
+                </p>
+                <p className="mt-2 text-sm leading-6">
+                  {featureNote(selectedPolity.properties.name, snapshot)}
+                </p>
+                <Sources ids={["basemaps"]} />
+              </div>
+            ) : (
+              <p className="rounded-xl bg-cream p-3 text-xs text-muted">
+                {uk
+                  ? "Натисніть на територію або позначку, щоб відкрити її картку. Нижче є пошук та вибір з клавіатури."
+                  : "Select a territory or marker for details. Search and keyboard selection are available below."}
+              </p>
+            )}
+          </aside>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div>
+            <label className="relative block">
+              <span className="sr-only">
+                {uk ? "Пошук міста або осередку" : "Search settlements or references"}
+              </span>
+              <Search className="absolute top-3.5 left-3 size-4 text-muted" />
+              <TextInput
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={
+                  uk ? "Місто, князівство, спільнота…" : "Town, principality, community…"
+                }
+                className="w-full pl-9"
+              />
+            </label>
+            <div className="mt-2 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+              {matches.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => choosePlace(p)}
+                  className="flex min-h-10 items-center gap-1 rounded-xl bg-surface-2 px-3 text-left text-xs font-bold"
+                >
+                  <MapPin className="size-3 shrink-0" />
+                  {p.name}
+                </button>
+              ))}
+              {!matches.length && (
+                <p className="p-2 text-xs text-muted">
+                  {uk
+                    ? "Немає позначок для цього року й пошуку. Перша згадка не є датою заснування."
+                    : "No references for this year and search. First record is not a foundation date."}
+                </p>
+              )}
+            </div>
+          </div>
+          <label className="block text-xs font-bold">
+            {uk
+              ? `Територія на оглядовій мапі ${snapshot}`
+              : `Territory on overview map ${snapshot}`}
+            <select
+              aria-label={
+                uk
+                  ? `Територія на оглядовій мапі ${snapshot}`
+                  : `Territory on overview map ${snapshot}`
+              }
+              className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
+              value={selectedPolity?.id ?? ""}
+              disabled={!data.data || !borders}
+              onChange={(e) => {
+                const f = data.data?.features.find((f) => f.id === e.target.value);
+                if (f) choosePolity(f);
+              }}
+            >
+              <option value="">{uk ? "Виберіть територію" : "Select territory"}</option>
+              {data.data?.features
+                .slice()
+                .sort((a, b) =>
+                  historicalName(a.properties.name, uk).localeCompare(
+                    historicalName(b.properties.name, uk),
+                  ),
+                )
+                .map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {historicalName(f.properties.name, uk)}
+                  </option>
+                ))}
+            </select>
+            <p className="mt-2 text-xs font-normal text-muted">
+              {uk
+                ? "Оглядові геометрії світу; подробиці Русі-України дивіться в регіональних картках."
+                : "World overview geometries; regional cards add detail for Rus’-Ukraine."}
+            </p>
+          </label>
+        </div>
+      </Panel>
+      <Panel>
+        <h2 className="font-display text-xl font-extrabold">
+          {uk ? "Поруч на часовій шкалі" : "Nearby on the timeline"}
+        </h2>
+        <p className="mt-1 text-xs text-muted">
+          {uk
+            ? "Події до й після обраного року. Натисніть рік, щоб перейти до нього; ≈ означає умовне або дискусійне датування."
+            : "Events before and after the selected year. Select a date to visit it; ≈ marks approximate or disputed dating."}
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {nearby.map((e) => (
+            <article key={`${e.year}:${e.title}`} className="rounded-xl border border-hairline p-3">
+              <button
+                type="button"
+                onClick={() => onChange(e.year, view)}
+                className="min-h-9 rounded-full bg-forest/10 px-3 text-sm font-extrabold text-forest-mid"
+              >
+                {e.approximate ? "≈ " : ""}
+                {e.year}
+              </button>
+              <h3 className="mt-2 text-sm font-extrabold">{e.title}</h3>
+              <p className="mt-2 text-xs leading-5">{e.description}</p>
+              <Sources ids={e.sources} />
+            </article>
+          ))}
+        </div>
+      </Panel>
+      <Panel>
+        <details>
+          <summary className="cursor-pointer font-display text-lg font-extrabold">
+            {uk ? "Джерела й методика" : "Sources and method"} ({ATLAS_SOURCES.length})
+          </summary>
+          <div className="mt-4 space-y-4 text-sm">
+            <p>
+              {uk
+                ? "Це навчальна реконструкція з 11 датованими картами, а не точний атлас кордонів для кожного року. Зрізи не інтерполюються. У середньовіччі культурний ареал, данина, князівські права та пряме управління могли перекриватися."
+                : "This educational reconstruction has 11 dated maps, not independently verified borders for every year. Cultural areas, tribute, dynastic rights and direct rule can overlap."}
+            </p>
+            <p>
+              {uk
+                ? "Маркери міст фільтруються за документованими етапами; перша письмова згадка не дорівнює заснуванню. Числові межі показу племінних ареалів є оглядовою періодизацією. Природні русла й береги з часом змінювалися. Для академічної роботи звіряйте конкретне твердження з указаним джерелом."
+                : "First written mentions are not founding dates. Tribal marker ranges are broad periodization. Rivers and coasts changed over time. Check each claim against its linked scholarly source."}
+            </p>
+            <p className="text-xs text-muted">
+              {uk
+                ? "Підготовлено 12.10.2026. Історична геометрія: Historical Basemaps, GPL-3.0; сучасна фізична основа: Natural Earth, public domain. Мапи спрощено для браузера (0,02°); ця величина не означає історичну точність."
+                : "Prepared 2026-10-12. Historical Basemaps (GPL-3.0); Natural Earth (public domain). Browser simplification 0.02° is not a historical accuracy claim."}{" "}
+              <a
+                className="underline"
+                href="/atlas/NOTICE.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {uk ? "Походження даних" : "Data provenance"}
+              </a>{" "}
+              ·{" "}
+              <a
+                className="underline"
+                href="/atlas/historical-basemaps-LICENSE.txt"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GPL-3.0
+              </a>
+            </p>
+            <ul className="grid gap-3 md:grid-cols-2">
+              {ATLAS_SOURCES.map((s) => (
+                <li key={s.id} className="rounded-xl bg-surface-2 p-3">
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-forest-mid underline underline-offset-4"
+                  >
+                    {s.title}
+                  </a>
+                  <p className="mt-1 text-xs text-muted">{s.note}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      </Panel>
+    </>
+  );
+}

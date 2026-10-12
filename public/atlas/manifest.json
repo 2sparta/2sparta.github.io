@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-10-12",
+  "historicalCommit": "da7a4b735ecef70aebdc9c73e409d8a2500d50f3",
+  "toleranceDegrees": 0.02,
+  "files": [
+    {
+      "year": 500,
+      "path": "world-500.geojson",
+      "sourceSha256": "06f7512efec9151b91b5967e8bee3e2dacf8c623e8719de8c64a996bec5ec2c1",
+      "sha256": "397fe320ca48e108c3f1aac42cacc7513fd273c4e9002ec4dfc8d75d1e540d39",
+      "features": 205,
+      "bytes": 370060
+    },
+    {
+      "year": 600,
+      "path": "world-600.geojson",
+      "sourceSha256": "e8d285de5d4257c55158979e866191d13464abc74e3082fb5f2065b357beec7a",
+      "sha256": "f197f4524193839583055b0ea66abd6321c831544c412ff87ca825318fe39f63",
+      "features": 204,
+      "bytes": 376362
+    },
+    {
+      "year": 700,
+      "path": "world-700.geojson",
+      "sourceSha256": "bb66ebee15e57f5d43b0ca524dd9a230651bb821e7e002882b1981a25fd42a38",
+      "sha256": "15d28196fa5b4e089c0e5af45e3c64944b907f328d8367f59c11e494f042b713",
+      "features": 253,
+      "bytes": 373497
+    },
+    {
+      "year": 800,
+      "path": "world-800.geojson",
+      "sourceSha256": "9d046cdc4662109c3f803ae46e2c8cba941aa092ec86eccc7823e6cf1554920c",
+      "sha256": "590a8aff5bc50722a64a9f1f1a695044532e82f9494c8a0e77e77949d7be9f18",
+      "features": 225,
+      "bytes": 370336
+    },
+    {
+      "year": 900,
+      "path": "world-900.geojson",
+      "sourceSha256": "f483b93e799d6518830ed6da6c3772c49170872d0f07515981a53e71d8dbc74c",
+      "sha256": "a748461dec78f23f2e2755b6245926532a8929b90b4b76fcf4f0cc0f2c2013c3",
+      "features": 244,
+      "bytes": 389607
+    },
+    {
+      "year": 1000,
+      "path": "world-1000.geojson",
+      "sourceSha256": "2140776fd7888c1d4a30e8f6debdaf56192cdf49587f3b6bb67841930ca82d29",
+      "sha256": "650baf78e8e96cbec392d0efac2a6c6f1d283f0dfa03070938f6e02a46fd8f37",
+      "features": 264,
+      "bytes": 423225
+    },
+    {
+      "year": 1100,
+      "path": "world-1100.geojson",
+      "sourceSha256": "8b038ee5ec8f032d01a67293e7cf08b7bd3ed58e00defc06af9144e67e708a86",
+      "sha256": "1229a70b24daa260bb03b44d84ddb1257f22eb2f25b0756f3ab0560116a9d030",
+      "features": 235,
+      "bytes": 401417
+    },
+    {
+      "year": 1200,
+      "path": "world-1200.geojson",
+      "sourceSha256": "2d6913ecedb38e269e41d249c87874d81e3e8d7351754821f57e627442d91525",
+      "sha256": "7d242f091d5ebc113de04092c2561ff432af693c91717b60a25978e2f31e1619",
+      "features": 286,
+      "bytes": 404758
+    },
+    {
+      "year": 1279,
+      "path": "world-1279.geojson",
+      "sourceSha256": "839f48f61d984dd58f70f312dfe626c3988d4d4822e78d68a123fd0784e852e2",
+      "sha256": "c4b55d3a73c3a3d3fafc2e7f7d45a10cbdc3c4a4691709dfeb0cb731d112ad6b",
+      "features": 247,
+      "bytes": 396363
+    },
+    {
+      "year": 1300,
+      "path": "world-1300.geojson",
+      "sourceSha256": "a27985e60d936611d7933f0c30f1b52c36ef4a17225dfac25fb96abe40fa496f",
+      "sha256": "0edaa15b41e8d231d45ef472d176c2245794fbfee63a489b4e90d91cac7aa9cf",
+      "features": 237,
+      "bytes": 393502
+    },
+    {
+      "year": 1400,
+      "path": "world-1400.geojson",
+      "sourceSha256": "c6b0efcb42d9520a1a724f981373296e84ea2c0a0527de7a06f8f9e2465eb6ec",
+      "sha256": "53a6e1cef2a620b40d99a1c99b8d2d1c3f0781af252a1e27b30297571e738bb3",
+      "features": 233,
+      "bytes": 397221
+    }
+  ],
+  "naturalEarthVersion": "5.1.2",
+  "rivers": [
+    "Dniester",
+    "Dnipro",
+    "Don",
+    "Vistula",
+    "Volga",
+    "Danube",
+    "Dnepre",
+    "Dniester",
+    "Dnipro",
+    "Don",
+    "Donau",
+    "Vistula",
+    "Volga"
+  ]
+}
