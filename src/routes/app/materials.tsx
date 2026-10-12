@@ -10,6 +10,7 @@ import {
   Play,
   Plus,
   Search,
+  Compass,
 } from "lucide-react";
 import { listMaterials, removeMaterial } from "@/lib/materials/api";
 import {
@@ -23,20 +24,53 @@ import { useMeQuery } from "@/components/session-gate";
 import { usePrefs } from "@/lib/prefs";
 import { ArticleContent } from "@/components/article-content";
 import { MaterialEditor } from "@/components/material-editor";
+import { HistoricalAtlas } from "@/components/historical-atlas";
+import { clampAtlasYear, type AtlasView } from "@/lib/atlas/model";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
 
-export type MaterialSection = "overview" | "videos" | "articles" | "links";
+export type MaterialSection = "overview" | "videos" | "articles" | "links" | "useful";
 export const Route = createFileRoute("/app/materials")({
-  validateSearch: (search: Record<string, unknown>): { section: MaterialSection; id?: string } => ({
-    section: ["overview", "videos", "articles", "links"].includes(String(search.section))
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { section: MaterialSection; id?: string; year?: number; view?: AtlasView } => ({
+    section: ["overview", "videos", "articles", "links", "useful"].includes(String(search.section))
       ? (search.section as MaterialSection)
       : "overview",
     ...(typeof search.id === "string" ? { id: search.id } : {}),
+    ...(search.year !== undefined ? { year: clampAtlasYear(Number(search.year)) } : {}),
+    ...(["rus", "europe", "world"].includes(String(search.view))
+      ? { view: search.view as AtlasView }
+      : {}),
   }),
   component: Page,
 });
 function Page() {
-  const { section, id } = Route.useSearch();
+  const { section, id, year, view } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const uk = usePrefs((s) => s.lang) === "uk";
+  if (section === "useful")
+    return (
+      <div>
+        <div className="mb-5">
+          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-forest-mid">
+            {uk ? "Додаткові матеріали" : "Learning resources"}
+          </p>
+          <h1 className="font-display text-3xl font-extrabold">{uk ? "Корисне" : "Tools"}</h1>
+          <p className="mt-2 text-sm text-muted">
+            {uk
+              ? "Інтерактивні інструменти для навчання. Наразі доступна історична мапа."
+              : "Interactive learning tools. The historical map is available now."}
+          </p>
+        </div>
+        <HistoricalAtlas
+          year={year ?? 1000}
+          view={view ?? "rus"}
+          onChange={(year, view) =>
+            void navigate({ search: { section: "useful", year, view }, replace: true })
+          }
+        />
+      </div>
+    );
   // Reset filters and editors when switching material tabs.
   return <MaterialsPage key={`${section}:${id ?? ""}`} section={section} id={id} />;
 }
@@ -210,7 +244,7 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
       {!id && (
         <>
           {section === "overview" && (
-            <div className="mb-6 grid gap-3 sm:grid-cols-3">
+            <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 {
                   section: "videos" as const,
@@ -237,6 +271,15 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                   title: uk ? "Корисні посилання" : "Useful links",
                   description: uk ? "Добірки ресурсів для навчання" : "Curated learning resources",
                 },
+                {
+                  section: "useful" as const,
+                  kind: "tool",
+                  icon: Compass,
+                  title: uk ? "Корисне" : "Tools",
+                  description: uk
+                    ? "Історична мапа світу й Русі-України"
+                    : "Historical map of the world and Rus’-Ukraine",
+                },
               ].map((tab) => (
                 <Link
                   key={tab.section}
@@ -248,8 +291,18 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                   <h2 className="font-display text-lg font-extrabold">{tab.title}</h2>
                   <p className="mt-1 text-sm text-muted">{tab.description}</p>
                   <p className="mt-4 text-xs font-bold text-forest-mid">
-                    {all.filter((m) => m.kind === tab.kind && m.status === "published").length}{" "}
-                    {uk ? "матеріалів" : "resources"}
+                    {tab.kind === "tool" ? (
+                      uk ? (
+                        "Відкрити мапу"
+                      ) : (
+                        "Open map"
+                      )
+                    ) : (
+                      <>
+                        {all.filter((m) => m.kind === tab.kind && m.status === "published").length}{" "}
+                        {uk ? "матеріалів" : "resources"}
+                      </>
+                    )}
                   </p>
                 </Link>
               ))}

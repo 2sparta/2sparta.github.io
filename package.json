@@ -19,7 +19,7 @@
     "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:school-tools": "node --experimental-strip-types --test tests/school-tools.test.ts tests/clipboard-images.test.ts tests/article-widgets.test.ts",
+    "test:school-tools": "node --experimental-strip-types --test tests/school-tools.test.ts tests/clipboard-images.test.ts tests/article-widgets.test.ts tests/historical-atlas.test.ts",
     "test:firestore": "node tests/firestore-rules.test.mjs"
   },
   "dependencies": {
@@ -60,6 +60,7 @@
     "firebase": "^11.10.0",
     "jose": "6.2.9",
     "kysely": "^0.28.5",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.510.0",
     "pg": "^8.16.3",
     "react": "^19.2.0",
@@ -79,6 +80,7 @@
   "devDependencies": {
     "@eslint/js": "^9.20.0",
     "@firebase/rules-unit-testing": "^4.0.1",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^22.16.5",
     "@types/pg": "^8.11.10",
     "@types/react": "^19.2.0",
