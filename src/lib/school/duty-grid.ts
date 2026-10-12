@@ -49,6 +49,24 @@ export function insertDutyRow(grid: DutyGrid, index: number): DutyGrid {
     rows: [...grid.rows.slice(0, index), grid.cols.map(() => ""), ...grid.rows.slice(index)],
   };
 }
+export function duplicateDutyColumn(grid: DutyGrid, index: number): DutyGrid {
+  if (grid.cols.length >= MAX_DUTY_COLS || index < 0 || index >= grid.cols.length) return grid;
+  return {
+    cols: [...grid.cols.slice(0, index + 1), grid.cols[index], ...grid.cols.slice(index + 1)],
+    rows: grid.rows.map((row) => [...row.slice(0, index + 1), row[index], ...row.slice(index + 1)]),
+  };
+}
+export function moveDutyColumn(grid: DutyGrid, index: number, delta: -1 | 1): DutyGrid {
+  const target = index + delta;
+  if (index < 0 || index >= grid.cols.length || target < 0 || target >= grid.cols.length)
+    return grid;
+  const swap = (row: string[]) => {
+    const next = [...row];
+    [next[index], next[target]] = [next[target], next[index]];
+    return next;
+  };
+  return { cols: swap(grid.cols), rows: grid.rows.map(swap) };
+}
 export function pasteDutyCells(grid: DutyGrid, row: number, col: number, text: string): DutyGrid {
   const lines = text
     .replace(/\r/g, "")
