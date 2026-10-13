@@ -93,6 +93,9 @@ export function HistoricalMapCanvas({
         instance.attributionControl.addAttribution(
           '<a href="/atlas/franks/NOTICE.md" target="_blank" rel="noopener noreferrer">Франки: Sémhur, Trasamundo (CC BY-SA 3.0), Romain0 (PD)</a>',
         );
+        instance.attributionControl.addAttribution(
+          '<a href="/atlas/rus/NOTICE.md" target="_blank" rel="noopener noreferrer">Русь: Unochepassava94, Koryakov Yuri, Das Steinerne Herz, Redx360, Hellerick, Mnohohrishnyi · CC BY-SA / CC0</a>',
+        );
         instance.createPane("atlas-original").style.zIndex = "410";
         instance.getPane("atlas-original")!.style.pointerEvents = "none";
         instance.createPane("atlas-markers").style.zIndex = "430";

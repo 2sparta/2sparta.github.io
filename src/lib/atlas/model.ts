@@ -16,7 +16,7 @@ export type HistoricalProperties = {
   detailed?: boolean;
   sourceYear?: number;
   sourceId?: string;
-  region?: "franks";
+  region?: "franks" | "rus";
   color?: string;
 };
 export type HistoricalFeature = Feature<Geometry, HistoricalProperties>;
@@ -36,6 +36,7 @@ export type AtlasPlace = {
   europe?: boolean;
   byzantine?: boolean;
   frankish?: boolean;
+  rus?: boolean;
   capital?: boolean;
 };
 export type AtlasEvent = {
@@ -77,13 +78,25 @@ export function isUnknownRegion(name: string) {
 export function isCoarseFrankish(name: string) {
   return /^(Franks|Frankish Kingdom|Carolingian Empire)$/.test(name);
 }
+export const RUS_YEARS = [882, 1054, 1113, 1132, 1194, 1237, 1240] as const;
+/** Last documented Rus frame; 1240 is an endpoint using the 1237 source. */
+export function rusSnapshot(year: number) {
+  if (year < 882 || year > 1240) return undefined;
+  return [...RUS_YEARS].reverse().find((y) => y <= year);
+}
+export function isCoarseRus(name: string) {
+  return /^(Kyivan Rus|Kievan Rus|Other Rus Principalities|Principality of Galicia-Volhynia|Principality of Novgorod)$/.test(
+    name,
+  );
+}
 export function combineHistoricalLayers(
   overview: HistoricalCollection | undefined,
   detailed: HistoricalCollection | undefined,
   frankish?: HistoricalCollection,
+  rus?: HistoricalCollection,
 ): HistoricalCollection | undefined {
   const clean = overview?.features.filter((f) => !isUnknownRegion(f.properties.name));
-  if (!detailed && !frankish)
+  if (!detailed && !frankish && !rus)
     return clean?.length === overview?.features.length
       ? overview
       : clean
@@ -95,10 +108,12 @@ export function combineHistoricalLayers(
       ...(clean ?? []).filter(
         (f) =>
           !(detailed && isCoarseByzantine(f.properties.name)) &&
-          !(frankish && isCoarseFrankish(f.properties.name)),
+          !(frankish && isCoarseFrankish(f.properties.name)) &&
+          !(rus && isCoarseRus(f.properties.name)),
       ),
       ...(detailed?.features ?? []),
       ...(frankish?.features ?? []),
+      ...(rus?.features ?? []),
     ],
   };
 }
@@ -126,6 +141,29 @@ export function historicalName(name: string, uk = true) {
   const names: Record<string, string> = {
     "Kyivan Rus": "Київська Русь",
     "Kievan Rus": "Київська Русь",
+    "Rus dependent territories": "Залежні території Русі",
+    "Principality of Kyiv": "Київське князівство",
+    "Principality of Chernihiv": "Чернігівське князівство",
+    "Principality of Pereiaslav": "Переяславське князівство",
+    "Principality of Smolensk": "Смоленське князівство",
+    "Principality of Polotsk": "Полоцьке князівство",
+    "Principality of Volhynia": "Волинське князівство",
+    "Principality of Halych": "Галицьке князівство",
+    "Principality of Rostov-Suzdal": "Ростово-Суздальське князівство",
+    "Principality of Vladimir-Suzdal": "Владимиро-Суздальське князівство",
+    "Principality of Murom": "Муромське князівство",
+    "Principality of Ryazan": "Рязанське князівство",
+    "Principality of Turiv-Pinsk": "Турово-Пінське князівство",
+    "Principality of Novhorod-Siverskyi": "Новгород-Сіверське князівство",
+    "Novgorod Republic": "Новгородська республіка",
+    "Novgorod core lands": "Новгородська земля — основні володіння",
+    "Kyiv and western Rus lands": "Київська й західні землі Русі",
+    "Volhynian appanages": "Волинські уділи",
+    "Galician appanages": "Галицькі князівські володіння",
+    "Vladimir-Suzdal lands": "Владимирська та Ростово-Суздальська землі",
+    "Polotsk and Minsk lands": "Полоцько-Мінські володіння",
+    "Smolensk and Toropets lands": "Смоленська земля й Торопецький уділ",
+    "Murom and Ryazan lands": "Муромська та Рязанська землі",
     "Rus' Khaganate": "Руський каганат? (гіпотеза)",
     "Other Rus Principalities": "Інші князівства Русі (узагальнення)",
     "Principality of Galicia-Volhynia": "Галицько-Волинська держава",

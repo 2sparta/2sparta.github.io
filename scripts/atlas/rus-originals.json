@@ -1,0 +1,57 @@
+[
+  {
+    "file": "growth.svg",
+    "originalTitle": "Rus' di Kiev 882-1240.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Rus'_di_Kiev_882-1240.svg",
+    "author": "Unochepassava94",
+    "license": "CC BY-SA 4.0",
+    "sourceId": "rus-growth",
+    "sha256": "df13e6fb294a7d32d0f7c50451f5ff5d9d78ca37ddee4762cc566a19665b333c",
+    "bytes": 1903613,
+    "changes": "Original file unchanged."
+  },
+  {
+    "file": "1054-1132.svg",
+    "originalTitle": "Principalities of Kievan Rus' (1054-1132) en.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Principalities_of_Kievan_Rus'_(1054-1132)_en.svg",
+    "author": "Das Steinerne Herz; Redx360",
+    "license": "CC BY-SA 3.0",
+    "sourceId": "rus-middle",
+    "sha256": "e6b2d2d265756a76c4d072dde307aba77e88bc9f96cad0832f6d0a68895b66b6",
+    "bytes": 1392561,
+    "changes": "Original file unchanged."
+  },
+  {
+    "file": "1237.svg",
+    "originalTitle": "Kyivan Rus in 1237 (ua).svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Kyivan_Rus_in_1237_(ua).svg",
+    "author": "Hellerick; Mnohohrishnyi",
+    "license": "CC0 1.0",
+    "sourceId": "rus-1237",
+    "sha256": "ccd9aa4dbaafe99533b1a87bcefa40152b8121d15cf9b2febd40dc87957c0448",
+    "bytes": 403949,
+    "changes": "Original file unchanged."
+  },
+  {
+    "file": "11c.png",
+    "originalTitle": "Kievan-rus-1015-1113-(hu).svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Kievan-rus-1015-1113-(hu).svg",
+    "author": "Koryakov Yuri; Sepultura",
+    "license": "CC BY-SA 2.5",
+    "sourceId": "rus-11c",
+    "sha256": "9f536a25ef063ae591c8da532b6f42f3f10f4674ec948a0ae01bf3b292ad17ed",
+    "bytes": 356398,
+    "changes": "11c.png: extracted unmodified embedded raster from the source SVG."
+  },
+  {
+    "file": "1194.png",
+    "originalTitle": "Rus-1113-1194.png",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Rus-1113-1194.png",
+    "author": "Koryakov Yuri; H2ppyme",
+    "license": "CC BY-SA 2.5",
+    "sourceId": "rus-1194",
+    "sha256": "e6c2e68a4f937d7357313161cbb5eba88b5c6751836f1a5f4d1d1ff17533c034",
+    "bytes": 570534,
+    "changes": "Original file unchanged."
+  }
+]
