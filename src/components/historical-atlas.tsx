@@ -40,6 +40,14 @@ import {
   type AtlasView,
   type HistoricalFeature,
 } from "@/lib/atlas/model";
+import {
+  FRANKISH_EVENTS,
+  FRANKISH_PERIODS,
+  FRANKISH_PLACES,
+  type FrankishData,
+  type FrankishFrame,
+} from "@/lib/atlas/frankish";
+import { FRANKISH_YEARS, frankishSnapshot } from "@/lib/atlas/model";
 import { HistoricalMapCanvas } from "./historical-map-canvas";
 import { Panel, PillButton, TextInput } from "./ui/panel";
 
@@ -70,7 +78,10 @@ function Sources({ ids }: { ids: string[] }) {
     </ul>
   );
 }
-function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame; uk: boolean }) {
+function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame | FrankishFrame; uk: boolean }) {
+  const frankish = "originalPath" in frame;
+  const imageUrl = frankish ? `/${frame.originalPath}` : frame.sourceUrl;
+  const author = frankish ? `${frame.author} · ${frame.license}` : "©Lucius";
   const [scale, setScale] = useState(1);
   const [failed, setFailed] = useState(false);
   return (
@@ -84,7 +95,13 @@ function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame; uk: boolean })
     >
       <Dialog.Trigger asChild>
         <PillButton type="button" tone="ghost">
-          {uk ? "Переглянути оригінал" : "View original"}
+          {frankish
+            ? uk
+              ? "Переглянути оригінал франків"
+              : "View Frankish original"
+            : uk
+              ? "Переглянути оригінал"
+              : "View original"}
         </PillButton>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -95,7 +112,7 @@ function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame; uk: boolean })
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Dialog.Title className="font-display text-lg font-extrabold">
-              {uk ? "Авторська мапа" : "Source map"} · {frame.year} · ©Lucius
+              {uk ? "Авторська мапа" : "Source map"} · {frame.year} · {author}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button
@@ -109,8 +126,12 @@ function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame; uk: boolean })
           </div>
           <p id="atlas-source-description" className="mt-1 text-xs text-muted">
             {uk
-              ? "Оригінальна проєкція та повна роздільність автора. Збільшуйте й прокручуйте, щоб читати міста, феми та легенду. Зображення завантажується із сайту автора."
-              : "Original projection and full source resolution. Zoom and scroll to read settlements, themes and the legend; loaded from the author's site."}
+              ? frankish
+                ? "Оригінальна векторна карта з легендою. Збільшуйте й прокручуйте для перевірки анклавів і кольорових областей; локальна копія джерела."
+                : "Оригінальна проєкція та повна роздільність автора. Збільшуйте й прокручуйте, щоб читати міста, феми та легенду. Зображення завантажується із сайту автора."
+              : frankish
+                ? "Original vector map with legend, preserved locally. Zoom and scroll to check enclaves and color areas."
+                : "Original projection and full source resolution. Zoom and scroll to read settlements, themes and the legend; loaded from the author's site."}
           </p>
           <div className="my-3 flex flex-wrap items-center gap-2">
             <PillButton
@@ -139,7 +160,7 @@ function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame; uk: boolean })
               rel="noopener noreferrer"
               className="ml-auto text-xs underline"
             >
-              {uk ? "Відкрити PNG автора" : "Open original PNG"}
+              {uk ? "Відкрити джерело" : "Open source"}
             </a>
           </div>
           <div
@@ -150,13 +171,15 @@ function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame; uk: boolean })
             {failed ? (
               <p role="alert" className="p-5 text-sm">
                 {uk
-                  ? "Сайт автора не надав зображення. Геоприв’язаний шар та векторні кордони доступні в атласі."
-                  : "Source image unavailable; local raster and vector layers remain available."}
+                  ? frankish
+                    ? "Оригінальну карту не завантажено. Векторні кордони доступні в атласі; джерело можна відкрити за посиланням."
+                    : "Сайт автора не надав зображення. Геоприв’язаний шар та векторні кордони доступні в атласі."
+                  : "Source image unavailable; vector boundaries remain available. Open the linked original source."}
               </p>
             ) : (
               <img
-                src={frame.sourceUrl}
-                alt={`${uk ? "Мапа Візантії" : "Byzantine map"} ${frame.year}, Lucius`}
+                src={imageUrl}
+                alt={`${frankish ? (uk ? "Франкська держава" : "Frankish realms") : uk ? "Мапа Візантії" : "Byzantine map"} ${frame.year}, ${author}`}
                 onError={() => setFailed(true)}
                 style={{ width: `${scale * 100}%`, maxWidth: "none", height: "auto" }}
               />
@@ -179,6 +202,8 @@ export function HistoricalAtlas({
   const uk = usePrefs((s) => s.lang) === "uk";
   const snapshot = overviewSnapshot(year);
   const byzYear = byzantineSnapshot(year);
+  const frYear = frankishSnapshot(year);
+  const [frankishDetail, setFrankishDetail] = useState(true);
   const [detailed, setDetailed] = useState(true);
   const [originalLayer, setOriginalLayer] = useState(false);
   const [yearText, setYearText] = useState(String(year));
@@ -191,7 +216,7 @@ export function HistoricalAtlas({
     { kind: "place"; id: string } | { kind: "polity"; feature: HistoricalFeature } | null
   >(null);
   useEffect(() => setYearText(String(year)), [year]);
-  useEffect(() => setSelection(null), [snapshot, byzYear, detailed]);
+  useEffect(() => setSelection(null), [snapshot, byzYear, detailed, frYear, frankishDetail]);
   const data = useQuery({
     queryKey: ["historical-atlas", snapshot],
     queryFn: async ({ signal }) =>
@@ -213,14 +238,29 @@ export function HistoricalAtlas({
     enabled: typeof window !== "undefined" && detailed,
     retry: 1,
   });
+  const frankish = useQuery({
+    queryKey: ["historical-atlas-franks"],
+    queryFn: async ({ signal }) => {
+      const raw = (await jsonFile("/atlas/franks/frames.json", signal)) as FrankishData;
+      if (!raw || !Array.isArray(raw.frames) || raw.frames.length !== FRANKISH_YEARS.length)
+        throw new Error("INVALID_FRANKISH_DATA");
+      for (const frame of raw.frames) validateHistoricalCollection(frame.collection);
+      return raw;
+    },
+    staleTime: Infinity,
+    enabled: typeof window !== "undefined" && frankishDetail && frYear !== undefined,
+    retry: 1,
+  });
+  const frFrame = frankish.data?.frames.find((f) => f.year === frYear);
   const byzFrame = byzantine.data?.frames.find((f) => f.year === byzYear);
   const historical = useMemo(
     () =>
       combineHistoricalLayers(
         snapshot !== undefined ? data.data : undefined,
         detailed ? byzFrame?.collection : undefined,
+        frankishDetail && frYear !== undefined ? frFrame?.collection : undefined,
       ),
-    [snapshot, data.data, detailed, byzFrame],
+    [snapshot, data.data, detailed, byzFrame, frankishDetail, frYear, frFrame],
   );
   const physical = useQuery({
     queryKey: ["historical-atlas-physical"],
@@ -235,12 +275,16 @@ export function HistoricalAtlas({
     enabled: typeof window !== "undefined",
     retry: 1,
   });
-  const allPlaces = useMemo(() => [...ATLAS_PLACES, ...BYZANTINE_PLACES], []);
+  const allPlaces = useMemo(() => [...ATLAS_PLACES, ...BYZANTINE_PLACES, ...FRANKISH_PLACES], []);
   const markerEpoch = placeEpoch(allPlaces, year);
   const available = useMemo(
     () =>
       activePlaces(allPlaces, markerEpoch).filter((p) =>
-        view === "byzantium" ? p.byzantine : view !== "rus" || !p.europe,
+        view === "franks"
+          ? p.frankish
+          : view === "byzantium"
+            ? p.byzantine
+            : view !== "rus" || !p.europe,
       ),
     [markerEpoch, view],
   );
@@ -263,16 +307,18 @@ export function HistoricalAtlas({
     selection?.kind === "polity" && historical?.features.some((f) => f.id === selection.feature.id)
       ? selection.feature
       : undefined;
-  const period = (view === "byzantium" ? BYZANTINE_PERIODS : ATLAS_PERIODS).find(
-    (p) => year >= p.from && year <= p.to,
-  )!;
+  const period = (
+    view === "franks" ? FRANKISH_PERIODS : view === "byzantium" ? BYZANTINE_PERIODS : ATLAS_PERIODS
+  ).find((p) => year >= p.from && year <= p.to)!;
   const matches = available.filter((p) =>
     `${p.name} ${p.description}`.toLowerCase().includes(search.trim().toLowerCase()),
   );
   const nearby = (
-    view === "byzantium"
-      ? [...BYZANTINE_EVENTS, ...ATLAS_EVENTS.filter((e) => e.sources.includes("met-byzantium"))]
-      : [...ATLAS_EVENTS, ...BYZANTINE_EVENTS]
+    view === "franks"
+      ? FRANKISH_EVENTS
+      : view === "byzantium"
+        ? [...BYZANTINE_EVENTS, ...ATLAS_EVENTS.filter((e) => e.sources.includes("met-byzantium"))]
+        : [...ATLAS_EVENTS, ...BYZANTINE_EVENTS, ...FRANKISH_EVENTS]
   )
     .filter((e) => view !== "rus" || !e.europe)
     .filter((e) => Math.abs(e.year - year) <= 150)
@@ -425,6 +471,7 @@ export function HistoricalAtlas({
           <strong>
             {uk ? "Рік подій" : "Events"}: {year} · {uk ? "Світ" : "World"}: {snapshot ?? "—"}
             {detailed && ` · ${uk ? "Візантія" : "Byzantium"}: ${byzYear}`}
+            {frankishDetail && frYear !== undefined && ` · ${uk ? "Франки" : "Franks"}: ${frYear}`}
           </strong>
           <p className="mt-1 text-xs text-muted">
             {snapshot === undefined
@@ -522,11 +569,99 @@ export function HistoricalAtlas({
               : `Last documented source frame at or before the event year: ${byzYear}. Source raster covers the overview within its region; themes and labels are preserved as imagery, not individually selectable units.`}
           </p>
         </div>
+        <div className="mt-4 rounded-2xl border border-[#8caa86]/40 bg-[#def0d0]/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-display font-extrabold">
+                {uk ? "Детальна Франкська держава" : "Detailed Frankish realms"}
+              </h3>
+              <p className="mt-1 text-xs text-muted">
+                {uk
+                  ? "481–900 · 10 картографічних зрізів · поділи, анклави й держави-наступниці"
+                  : "481–900 · 10 source snapshots · partitions, enclaves and successor kingdoms"}
+              </p>
+            </div>
+            <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
+              <input
+                type="checkbox"
+                checked={frankishDetail}
+                onChange={(e) => setFrankishDetail(e.target.checked)}
+              />
+              {uk ? "Детальні кордони франків" : "Detailed Frankish borders"}
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <PillButton
+              type="button"
+              tone="ghost"
+              aria-label={uk ? "Попередній зріз франків" : "Previous Frankish snapshot"}
+              disabled={frYear === undefined || frYear === FRANKISH_YEARS[0]}
+              onClick={() =>
+                frYear !== undefined &&
+                onChange(FRANKISH_YEARS[FRANKISH_YEARS.indexOf(frYear) - 1], view)
+              }
+            >
+              <ChevronLeft className="size-4" />
+            </PillButton>
+            <label className="min-w-40 flex-1 text-xs font-bold">
+              {uk ? "Картографічний зріз франків" : "Frankish source snapshot"}
+              <select
+                className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
+                value={frYear ?? ""}
+                onChange={(e) => onChange(Number(e.target.value), view)}
+              >
+                <option value="" disabled>
+                  {uk ? "Поза періодом 481–900" : "Outside 481–900"}
+                </option>
+                {FRANKISH_YEARS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <PillButton
+              type="button"
+              tone="ghost"
+              aria-label={uk ? "Наступний зріз франків" : "Next Frankish snapshot"}
+              disabled={frYear === undefined || frYear === FRANKISH_YEARS.at(-1)}
+              onClick={() =>
+                frYear !== undefined &&
+                onChange(FRANKISH_YEARS[FRANKISH_YEARS.indexOf(frYear) + 1], view)
+              }
+            >
+              <ChevronRight className="size-4" />
+            </PillButton>
+            {frFrame && frYear !== undefined && (
+              <SourceMapPreview key={`fr-${frYear}`} frame={frFrame} uk={uk} />
+            )}
+          </div>
+          <p className="mt-3 text-xs leading-5 text-muted">
+            {frYear === undefined
+              ? uk
+                ? "Детальні франкські території показуються лише в 481–900 роках."
+                : "Detailed Frankish territory is shown only in 481–900."
+              : uk
+                ? `Показано карту ${frYear} року. Між датами зберігається останній доступний зріз, без вигаданих річних кордонів. 481 — традиційний початок правління Хлодвіга; імператорська коронація — 800. Зрізи 511 і 768 відображають сукупні володіння, без внутрішнього спадкового поділу. Для 888–900 використано карту 888 року. Карти IX століття прив’язані за береговими орієнтирами, тому локальне суміщення менш певне, ніж за градусною сіткою Візантії.`
+                : `Showing source map ${frYear}, the last available frame at or before the chosen year. 481 is Clovis’s traditional accession; imperial coronation: 800. Maps 511 and 768 show combined territory, not internal partitions. Years 888–900 use the 888 map.`}
+          </p>
+          {frankish.isError && frankishDetail && frYear !== undefined && (
+            <div role="alert" className="mt-2 text-sm">
+              <p>
+                {uk ? "Не вдалося завантажити франкські карти." : "Frankish maps failed to load."}
+              </p>
+              <PillButton type="button" tone="ghost" onClick={() => void frankish.refetch()}>
+                {uk ? "Спробувати ще раз" : "Retry"}
+              </PillButton>
+            </div>
+          )}
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {(
             [
               ["rus", uk ? "Русь-Україна" : "Rus’-Ukraine"],
               ["byzantium", uk ? "Візантія" : "Byzantium"],
+              ["franks", uk ? "Франкська держава" : "Frankish realms"],
               ["europe", uk ? "Європа" : "Europe"],
               ["world", uk ? "Світ" : "World"],
             ] as const
@@ -588,9 +723,10 @@ export function HistoricalAtlas({
         )}
         {((snapshot !== undefined && data.isPending) ||
           physical.isPending ||
-          (detailed && byzantine.isPending)) && (
+          (detailed && byzantine.isPending) ||
+          (frankishDetail && frYear !== undefined && frankish.isPending)) && (
           <p role="status" className="mb-2 text-xs text-muted">
-            {uk ? `Завантаження мапи${detailed ? ` Візантії ${byzYear}` : ""}…` : "Loading atlas…"}
+            {uk ? "Завантаження картографічних шарів…" : "Loading atlas…"}
           </p>
         )}
         <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -652,18 +788,29 @@ export function HistoricalAtlas({
                   {selectedPolity.properties.name} ·{" "}
                   {selectedPolity.properties.detailed
                     ? uk
-                      ? "Контур з авторського растра"
+                      ? selectedPolity.properties.region === "franks"
+                        ? "Контур з векторної карти"
+                        : "Контур з авторського растра"
                       : "Digitized source contour"
                     : `${uk ? "Рівень точності джерела" : "Source precision"}: ${selectedPolity.properties.precision}/3`}
                 </p>
                 <p className="mt-2 text-sm leading-6">
                   {selectedPolity.properties.detailed
                     ? uk
-                      ? "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
-                      : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
+                      ? selectedPolity.properties.region === "franks"
+                        ? "Політична область перенесена безпосередньо з SVG джерела зі збереженням вигинів і анклавів. Контури суміщено за містами або береговими орієнтирами; це картографічна реконструкція, а не точні щорічні кордони. Перевіряйте кольори й залежні території за легендою оригіналу."
+                        : "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
+                      : selectedPolity.properties.region === "franks"
+                        ? "Political area transferred directly from source SVG, preserving bends and enclaves. Registration uses towns or coastal landmarks; check the original legend and snapshot date."
+                        : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
                     : featureNote(selectedPolity.properties.name, snapshot!)}
                 </p>
-                <Sources ids={[selectedPolity.properties.detailed ? "lucius" : "basemaps"]} />
+                <Sources
+                  ids={[
+                    selectedPolity.properties.sourceId ??
+                      (selectedPolity.properties.detailed ? "lucius" : "basemaps"),
+                  ]}
+                />
               </div>
             ) : (
               <p className="rounded-xl bg-cream p-3 text-xs text-muted">
@@ -741,8 +888,8 @@ export function HistoricalAtlas({
             </select>
             <p className="mt-2 text-xs font-normal text-muted">
               {uk
-                ? "Деталізовані контури Візантії поєднані з оглядовими геометріями світу. Інші країни не деталізовано."
-                : "World overview geometries; regional cards add detail for Rus’-Ukraine."}
+                ? "Деталізовані контури Візантії та франків поєднані з оглядовими геометріями світу. Інші країни не деталізовано."
+                : "Detailed Byzantine and Frankish contours are combined with world overview geometry; other countries retain their overview detail."}
             </p>
           </label>
         </div>
@@ -782,8 +929,8 @@ export function HistoricalAtlas({
           <div className="mt-4 space-y-4 text-sm">
             <p>
               {uk
-                ? "Це навчальний атлас: 11 оглядових зрізів світу та 39 детальних карт Візантії. Для Візантії використано останній авторський зріз не пізніше обраного року; для світу — найближчий оглядовий. Зрізи не інтерполюються. Культурний ареал, данина, князівські права та пряме управління могли перекриватися."
-                : "This educational reconstruction has 11 dated maps, not independently verified borders for every year. Cultural areas, tribute, dynastic rights and direct rule can overlap."}
+                ? "Це навчальний атлас: 11 оглядових зрізів світу, 39 детальних карт Візантії та 10 зрізів франків. Для Візантії використано останній авторський зріз не пізніше обраного року; для світу — найближчий оглядовий. Зрізи не інтерполюються. Культурний ареал, данина, князівські права та пряме управління могли перекриватися."
+                : "This educational reconstruction has 11 overview maps, 39 Byzantine and 10 Frankish snapshots. It does not provide independently verified borders for every year; cultural areas, tribute, dynastic rights and direct rule can overlap."}
             </p>
             <p>
               {uk
@@ -792,12 +939,25 @@ export function HistoricalAtlas({
             </p>
             <p>
               {uk
+                ? "Франки: оригінальні SVG Sémhur, Romain0 і Trasamundo → міста та берегові контрольні точки → геоприв’язка → пряме семплювання кривих Безьє → полігони. Церковні провінції 561 року не видаються за держави; залежні області 814 й спірну Аквітанію 843 показано окремо. Точність суміщення не є доказом історичної точності. Невизначені області оглядової бази вилучено: вони лишаються нейтральним суходолом."
+                : "Frankish original SVGs → city/coastal controls → geographic registration → direct Bézier sampling → polygons. Church provinces are not polities; dependent territories and disputed Aquitaine are distinct. Unspecified overview regions are omitted, leaving neutral land."}{" "}
+              <a
+                href="/atlas/franks/NOTICE.md"
+                className="underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {uk ? "Походження й ліцензії" : "Provenance and licenses"}
+              </a>
+            </p>
+            <p>
+              {uk
                 ? "Маркери міст фільтруються за документованими етапами; перша письмова згадка не дорівнює заснуванню. Числові межі показу племінних ареалів є оглядовою періодизацією. Природні русла й береги з часом змінювалися. Для академічної роботи звіряйте конкретне твердження з указаним джерелом."
                 : "First written mentions are not founding dates. Tribal marker ranges are broad periodization. Rivers and coasts changed over time. Check each claim against its linked scholarly source."}
             </p>
             <p className="text-xs text-muted">
               {uk
-                ? "Підготовлено 12.10.2026. Оглядові карти: Historical Basemaps, GPL-3.0 (спрощення 0,02°); фізична основа: Natural Earth, public domain. Візантія: надані користувачем карти ©Lucius, конічна геоприв’язка, контури спрощено на 1,25 пікселя оригіналу. Друкарські позначення приглушено лише в копії для розпізнавання заливки; авторський шар зберігає їх. Ці величини не визначають історичну точність."
+                ? "Оновлено 13.10.2026. Франки: Sémhur, Trasamundo (CC BY-SA 3.0), Romain0 (public domain), векторний перенос; походження та контрольні точки наведені в окремому описі. Оглядові карти: Historical Basemaps, GPL-3.0 (спрощення 0,02°); фізична основа: Natural Earth, public domain. Візантія: надані користувачем карти ©Lucius, конічна геоприв’язка, контури спрощено на 1,25 пікселя оригіналу. Друкарські позначення приглушено лише в копії для розпізнавання заливки; авторський шар зберігає їх. Ці величини не визначають історичну точність."
                 : "Prepared 2026-10-12. Overview: Historical Basemaps GPL-3.0, simplification 0.02°. Physical reference: Natural Earth, public domain. Byzantium: user-supplied ©Lucius PNGs, conic georeferencing, 1.25 source-pixel contour simplification; typography suppressed only in classification, preserved in displayed raster. These tolerances do not define historical accuracy."}{" "}
               <a
                 className="underline"

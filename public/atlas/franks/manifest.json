@@ -1,0 +1,321 @@
+{
+  "generatedAt": "2026-10-13",
+  "method": "Direct SVG political paths; ancestor transforms; <=1 source-unit curve sampling, <=0.2 source-unit topology-preserving simplification; sea masks; projected affine registration. No interpolation.",
+  "registration": {
+    "growth": {
+      "model": "transverse-mercator",
+      "crs": "+proj=tmerc +lat_0=48 +lon_0=6 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          73.81743504742332,
+          -0.4842531471076098
+        ],
+        [
+          -2.1095058146113486,
+          -73.09283018521637
+        ],
+        [
+          962.3496381017075,
+          691.536893016855
+        ]
+      ],
+      "fitRmsSourceUnits": 6.446,
+      "holdoutRmsSourceUnits": 6.824,
+      "holdoutMaxSourceUnits": 10.734,
+      "fittingPoints": 10,
+      "heldOutPoints": 8,
+      "holdouts": [
+        {
+          "name": "Tours",
+          "residualSourceUnits": 2.987
+        },
+        {
+          "name": "Reims",
+          "residualSourceUnits": 6.26
+        },
+        {
+          "name": "Strasbourg",
+          "residualSourceUnits": 7.201
+        },
+        {
+          "name": "Pavia",
+          "residualSourceUnits": 10.734
+        },
+        {
+          "name": "Lyon",
+          "residualSourceUnits": 3.014
+        },
+        {
+          "name": "Geneva",
+          "residualSourceUnits": 7.066
+        },
+        {
+          "name": "Aachen",
+          "residualSourceUnits": 5.654
+        },
+        {
+          "name": "Regensburg",
+          "residualSourceUnits": 8.147
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    },
+    "merovingian": {
+      "model": "lambert-conformal-conic",
+      "crs": "+proj=lcc +lat_1=43 +lat_2=52 +lat_0=48 +lon_0=6 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          52.30430160751713,
+          -3.071923529468767
+        ],
+        [
+          -4.420818381300901,
+          -55.48484172864681
+        ],
+        [
+          439.88292698637986,
+          301.17942075627604
+        ]
+      ],
+      "fitRmsSourceUnits": 6.711,
+      "holdoutRmsSourceUnits": 11.571,
+      "holdoutMaxSourceUnits": 21.11,
+      "fittingPoints": 8,
+      "heldOutPoints": 7,
+      "holdouts": [
+        {
+          "name": "Reims",
+          "residualSourceUnits": 0.737
+        },
+        {
+          "name": "Lyon",
+          "residualSourceUnits": 13.366
+        },
+        {
+          "name": "Poitiers",
+          "residualSourceUnits": 2.641
+        },
+        {
+          "name": "Angers",
+          "residualSourceUnits": 21.11
+        },
+        {
+          "name": "Metz",
+          "residualSourceUnits": 8.01
+        },
+        {
+          "name": "Coutances",
+          "residualSourceUnits": 9.338
+        },
+        {
+          "name": "Arles",
+          "residualSourceUnits": 12.413
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    },
+    "late": {
+      "model": "lambert-azimuthal-equal-area",
+      "crs": "+proj=laea +lat_0=48 +lon_0=6 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          69.76557462682946,
+          6.727332215543249
+        ],
+        [
+          6.055867308102731,
+          -69.61584146874021
+        ],
+        [
+          526.6292744439847,
+          486.62497272506096
+        ]
+      ],
+      "fitRmsSourceUnits": 7.341,
+      "holdoutRmsSourceUnits": 10.02,
+      "holdoutMaxSourceUnits": 13.043,
+      "fittingPoints": 12,
+      "heldOutPoints": 5,
+      "holdouts": [
+        {
+          "name": "La Rochelle / eastern Île de Ré coast",
+          "residualSourceUnits": 13.043
+        },
+        {
+          "name": "Western Scheldt / Zeeland delta mouth",
+          "residualSourceUnits": 12.338
+        },
+        {
+          "name": "Texel eastern coast / Wadden inlet",
+          "residualSourceUnits": 10.362
+        },
+        {
+          "name": "Elbe estuary near Stade",
+          "residualSourceUnits": 5.921
+        },
+        {
+          "name": "Western Corsica / Cap Rosso coast",
+          "residualSourceUnits": 6.104
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    }
+  },
+  "frames": [
+    {
+      "year": 481,
+      "file": "Frankish_Empire_481_to_814-fr.svg",
+      "sourceId": "fr-growth",
+      "features": 1,
+      "vertices": 440
+    },
+    {
+      "year": 511,
+      "file": "Frankish_Empire_481_to_814-fr.svg",
+      "sourceId": "fr-growth",
+      "features": 1,
+      "vertices": 1342
+    },
+    {
+      "year": 614,
+      "file": "Frankish_Empire_481_to_814-fr.svg",
+      "sourceId": "fr-growth",
+      "features": 1,
+      "vertices": 1592
+    },
+    {
+      "year": 768,
+      "file": "Frankish_Empire_481_to_814-fr.svg",
+      "sourceId": "fr-growth",
+      "features": 1,
+      "vertices": 1760
+    },
+    {
+      "year": 814,
+      "file": "Frankish_Empire_481_to_814-fr.svg",
+      "sourceId": "fr-growth",
+      "features": 2,
+      "vertices": 3340
+    },
+    {
+      "year": 561,
+      "file": "Le_royaume_des_Francs_en_561.svg",
+      "sourceId": "fr-561",
+      "features": 4,
+      "vertices": 2122
+    },
+    {
+      "year": 843,
+      "file": "Carolingian_empire_843.svg",
+      "sourceId": "fr-843",
+      "features": 5,
+      "vertices": 4492
+    },
+    {
+      "year": 870,
+      "file": "Carolingian_empire_870.svg",
+      "sourceId": "fr-870",
+      "features": 4,
+      "vertices": 2401
+    },
+    {
+      "year": 881,
+      "file": "Carolingian_empire_881.svg",
+      "sourceId": "fr-881",
+      "features": 6,
+      "vertices": 3525
+    },
+    {
+      "year": 888,
+      "file": "Carolingian_empire_888.svg",
+      "sourceId": "fr-888",
+      "features": 6,
+      "vertices": 2244
+    }
+  ],
+  "originals": [
+    {
+      "file": "Carolingian_empire_843.svg",
+      "available": true,
+      "bytes": 315434,
+      "sha256": "af9d14cdcaf2ca56b7e9e8edde5754ff81c2bde1096853e4bc4ed62e450a94d0",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Carolingian_empire_843.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Carolingian_empire_843.svg",
+      "author": "Trasamundo",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "credit": "Own work\n\n[1]: The clearest division was that along the Loire, cutting off the more Frankish Neustria and Austrasia from the more Romanized Aquitaine. This division had already been recognized in Charlemagne's day, for he had established Aquitaine as a sub-kingdom for his son Louis the Pious; when Charles the Bald obtained West Francia, Aquitaine was in hands of his nephew Pippin II, whose reluctance to recognize his uncle lent new sharpness to the old ethnic division. In fact Charles spent much of his reign striving for mastery south of the Loire; and though he was ultimately successful in 855\n[2]: Pepin II, son and successor of Pepin I, had to struggle for the possession of his kingdom with his uncle Charles le Chauve, by whom he was deposed after a long contest which was maintained with various fluctuations of success, during which the people of Aquitaine shifted their allegiance with wonderful facility.\n[3]: Charles eut l'ancienne Neustrie et la partie de la Gaule qui n'était point donnée à Lothaire. Dans celle partie, se trouvait comprise l'Aquitaine qu'il lui fallait soumettre , et la Bretagne qu'il devait conquérir, s'il désirait y obtenir une domination réelle.\n[4]: En Verdun, en 843, se hizo otra distribución: á saber, á Lotario Italia, Provenza, Delfinado, Saboya, Suiza Francesa, Franco Condado, la Borgoña al Este del Saona, la Alsacia, la Lorena, el Cambresis, y cuanto hay entre el Rhin, el Escalda, y el Mosa, excepto Spira, Worms, Maguncia, Ingelheim; luego sobre la derecha del Rhin desde Bonn hasta la Frisia, la antigua Francia Ripuaria desde el Rhin á la Sajonia; añadiendo sobre la derecha del Ródano el Lionés, el Vivarais y el Uzige. Tocó á Luis el Germánico la Francia Transriniana con Worms, Spira, Maguncia, Ingelhein, y por esto se le disminuyeron la Frisia, y la parte de Francia Ripuaria dadas al precedente. A Carlos el Calvo le correspondió la Francia Occidental, es decir, los países al Occidente del Escalda, del Mosa, del Saona, y del Ródano, hasta los dos mares que fueron los confines que conservó Francia hasta el siglo XIV.\n[5]: Lothair was quite ready to sacrifice his nephew, consequently he offered Charles the dominions of Pepin,—Aquitaine, together with Septimania, Provence and ten counties between Seine and Loire.\n[6]: Pepin I left a son of the same name as himself, but Lois set aside his claims in favour of Charles the Bald. Pepin II, however, was proclaimed king by a faction in Aquitaine, and was effectively ruler of part of the country from 839 to 852.",
+      "description": "Imperio carolingio tras el Tratado de Verdún (843)"
+    },
+    {
+      "file": "Carolingian_empire_870.svg",
+      "available": true,
+      "bytes": 201786,
+      "sha256": "618d435bd8b1fb637e8021b4a5f37f9ef9a76caa9a415ef0ca6bd06a7604d7cc",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/19/Carolingian_empire_870.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Carolingian_empire_870.svg",
+      "author": "Trasamundo",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "credit": "Own work",
+      "description": "Imperio carolingio tras el Tratado de Merson (870). La línea punteada indica la división territorial del Tratato de Verdún del 843."
+    },
+    {
+      "file": "Carolingian_empire_881.svg",
+      "available": true,
+      "bytes": 324679,
+      "sha256": "327e59bcb7e8ead48a495b372efc2521a32778a2d42ad1660c9139e379e5eead",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Carolingian_empire_881.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Carolingian_empire_881.svg",
+      "author": "Trasamundo",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "credit": "Own work",
+      "description": "Imperio carolingio con la ascensión de Carlos III el Gordo (881) posterior al tratado de Robemont (880)"
+    },
+    {
+      "file": "Carolingian_empire_888.svg",
+      "available": true,
+      "bytes": 163076,
+      "sha256": "72c87e8c45538d0f3e477f14735d768c826e29b4045533f4740db651e4c12ad8",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/70/Carolingian_empire_888.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Carolingian_empire_888.svg",
+      "author": "Trasamundo",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "credit": "Own work\n\n[1] Further south, the implications of Charles's unusual move were still being felt in 890 when Louis was crowned king of Provence. The acts of his election at Valence are laced with imperial mementos. The archbishops observed that when that most glorious Emperor died, Provence had been left without a king and had suffered severely.\n[2] At any rate, Charles the Fat was deposed later in 887 and died early in 888, and no one else immediately took up the imperial title. This left the broad strip of Burgundy and Provence which had been attached to the empire since 843 without a ruler, making possible both Rudolf's accession to upper Burgundy in 888, as already noted, and Louis' election to lower Burgundy (Provence) in 890. He was elected in an assembly at Valence withaout any apparent opposition.\n[3] In 888, three separate non-Carolingians were elected king (or \"kinglets,\" reguli, as the Annales of Fulda called them): Odo in France (the first king fron the Robertian/capetian line), Berengar in Italy, and Rudolph I in trans-Saône Burgundy/Capetian line), Berengar in Italy, and Rudolph I in trans-Sône Burgundy (in the region northeast of where Boso had ruled). In the aftermath of these three elections, there was little reason to be reticent in electing another \"kinglet.\" This was especially true as, according to the Annales of Fulda, Charles de Fat had been persuaded by Emergand, Boso's widow and his own cousin, to \"quasi-adopt\" Boso's young son Louis as his own son. In 890 Louis was elected without opposition to succeed his father in Provence.",
+      "description": "Fragmentación del imperio carolingio tras la deposición y fallecimiento del emperador Carlos III (888)"
+    },
+    {
+      "file": "Frankish_Empire_481_to_814-fr.svg",
+      "available": true,
+      "bytes": 302776,
+      "sha256": "fda5d307bb08059e433219aa6cf2a12120c9025cad31b46256a8be826581d79c",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/70/Frankish_Empire_481_to_814-fr.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Frankish_Empire_481_to_814-fr.svg",
+      "author": "Sémhur",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "credit": "Own work, d'après Image:Frankish empire.jpg, elle-même tirée de en:Image:Frankish power 481 814.jpg, issue de l'Atlas Historique de William R. Shepherd (Shepherd, William. Historical Atlas. New York: Henry Holt and Company, 1911.)",
+      "description": "Map of the rise of Frankish Empire, from 481 to 814."
+    },
+    {
+      "file": "Le_royaume_des_Francs_en_561.svg",
+      "available": true,
+      "bytes": 372618,
+      "sha256": "71ce97eee8bf0b147aaf1c22deb798a0795b755c3134c17f439fbc8df381f643",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Le_royaume_des_Francs_en_561.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Le_royaume_des_Francs_en_561.svg",
+      "author": "Romain0",
+      "license": "Public domain",
+      "licenseUrl": null,
+      "credit": "Travail personnel sur un fond de carte de historicair : Image:Blank map of Gaul 1st century BC.svg. D'après Paul Vidal de La Blache, Gaule à la mort de Clotaire (561) Image:Division of Gaul - 561.jpg, Atlas général d'histoire et de géographie (1894), Frédéric Armand, Chilpéric Ier, La Louve éditions, 2008, p. 77 et Bruno Dumézil, La reine Brunehaut, éditions Fayard, 2008, p. 536.",
+      "description": "Le royaume des Francs en 561."
+    }
+  ],
+  "data": {
+    "path": "frames.json",
+    "bytes": 915494,
+    "sha256": "1471af0d90edf129d47289848410a34e269962f27613a1c05cc57b0719f0f045"
+  }
+}

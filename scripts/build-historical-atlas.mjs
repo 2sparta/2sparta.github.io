@@ -55,7 +55,9 @@ function geometry(g) {
   throw new Error(`Unsupported geometry: ${g.type}`);
 }
 const manifest = {
-  generatedAt: "2026-10-12",
+  generatedAt: "2026-10-13",
+  unknownRegions:
+    "Omitted: Unspecified records leave neutral physical land; known geometries unchanged.",
   historicalCommit: PIN,
   toleranceDegrees: 0.02,
   files: [],
@@ -67,16 +69,20 @@ for (let i = 0; i < YEARS.length; i += 3) {
       const data = JSON.parse(raw);
       const collection = {
         type: "FeatureCollection",
-        features: data.features.map((f, index) => ({
-          type: "Feature",
-          id: `${year}-${index}`,
-          properties: {
-            name: String(f.properties.NAME || "Unspecified"),
-            subject: String(f.properties.SUBJECTO || f.properties.NAME || "Unspecified"),
-            precision: Number(f.properties.BORDERPRECISION) || 1,
-          },
-          geometry: geometry(f.geometry),
-        })),
+        features: data.features
+          .map((f, index) => ({
+            type: "Feature",
+            id: `${year}-${index}`,
+            properties: {
+              name:
+                String(f.properties.NAME ?? "").trim() ||
+                String(f.properties.SUBJECTO || "Unspecified"),
+              subject: String(f.properties.SUBJECTO || f.properties.NAME || "Unspecified"),
+              precision: Number(f.properties.BORDERPRECISION) || 1,
+            },
+            geometry: geometry(f.geometry),
+          }))
+          .filter((f) => f.properties.name.trim().toLowerCase() !== "unspecified"),
       };
       const text = JSON.stringify(collection);
       const path = `world-${year}.geojson`;
@@ -89,6 +95,7 @@ for (let i = 0; i < YEARS.length; i += 3) {
           .update(text + "\n")
           .digest("hex"),
         features: collection.features.length,
+        omittedUnknown: data.features.length - collection.features.length,
         bytes: Buffer.byteLength(text) + 1,
       });
       console.log(year, collection.features.length, Buffer.byteLength(text));

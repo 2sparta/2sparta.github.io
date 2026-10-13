@@ -13,6 +13,10 @@ import {
 } from "@/lib/atlas/model";
 
 export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
+  franks: [
+    [39, -7],
+    [55, 19],
+  ],
   byzantium: [
     [27, 9],
     [47, 47],
@@ -85,6 +89,9 @@ export function HistoricalMapCanvas({
         );
         instance.attributionControl.addAttribution(
           '<a href="https://lucius-note.net/byzantium/" target="_blank" rel="noopener noreferrer">Візантія: ©Lucius</a>',
+        );
+        instance.attributionControl.addAttribution(
+          '<a href="/atlas/franks/NOTICE.md" target="_blank" rel="noopener noreferrer">Франки: Sémhur, Trasamundo (CC BY-SA 3.0), Romain0 (PD)</a>',
         );
         instance.createPane("atlas-original").style.zIndex = "410";
         instance.getPane("atlas-original")!.style.pointerEvents = "none";
@@ -172,9 +179,16 @@ export function HistoricalMapCanvas({
         style: (feature) => {
           const p = feature!.properties;
           return {
-            color: feature!.id === selected ? "#8e173b" : p.detailed ? "#a56177" : "#9aa5b0",
+            color:
+              feature!.id === selected
+                ? "#8e173b"
+                : p.region === "franks"
+                  ? "#606f85"
+                  : p.detailed
+                    ? "#a56177"
+                    : "#9aa5b0",
             weight: feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
-            fillColor: polityColor(p.subject),
+            fillColor: p.color ?? polityColor(p.subject),
             fillOpacity: feature!.id === selected ? 0.9 : p.detailed ? 1 : 0.23,
             dashArray: p.precision === 1 ? "4 3" : undefined,
           };

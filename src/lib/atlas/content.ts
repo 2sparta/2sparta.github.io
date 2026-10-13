@@ -1,8 +1,10 @@
 import type { AtlasSource, AtlasPlace, AtlasEvent } from "./model";
+import { FRANKISH_SOURCES } from "./frankish.ts";
 import { BYZANTINE_SOURCES } from "./byzantine.ts";
 
 export const ATLAS_SOURCES: AtlasSource[] = [
   ...BYZANTINE_SOURCES,
+  ...FRANKISH_SOURCES,
   {
     id: "basemaps",
     title: "Historical Basemaps — André Ourednik",
