@@ -20,6 +20,12 @@ export type HistoricalProperties = {
   region?: "franks" | "rus" | "mongols";
   validTo?: number;
   invaded?: boolean;
+  custom?: boolean;
+  control?: "direct" | "relative";
+  relation?: string;
+  validFrom?: number;
+  description?: string;
+  sourceUrl?: string;
   color?: string;
 };
 export type HistoricalFeature = Feature<Geometry, HistoricalProperties>;

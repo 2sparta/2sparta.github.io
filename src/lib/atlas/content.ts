@@ -6,6 +6,12 @@ import { RUS_SOURCES } from "./rus.ts";
 import { MONGOL_SOURCES } from "./mongols.ts";
 
 export const ATLAS_SOURCES: AtlasSource[] = [
+  {
+    id: "manual-atlas",
+    title: "Ручні території шкільного атласу",
+    url: "https://github.com/2sparta/2sparta.github.io/blob/main/public/atlas/editor.md",
+    note: "Авторські правки власника школи: роки дії, геометрія та характер контролю. Джерела й пояснення зазначені у картці території.",
+  },
   ...BYZANTINE_SOURCES,
   ...FRANKISH_SOURCES,
   ...RUS_SOURCES,

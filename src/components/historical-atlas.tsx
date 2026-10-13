@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FeatureCollection } from "geojson";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -69,6 +69,16 @@ import {
   markInvadedRus,
   type MongolFrame,
 } from "@/lib/atlas/mongols";
+import { useMeQuery } from "./session-gate";
+import { AtlasEditingPanel, useAtlasEditor } from "./atlas-editing-panel";
+import { loadSchoolAtlas, saveSchoolAtlas } from "@/lib/atlas/edits-api";
+import {
+  applyAtlasEdits,
+  atlasEditError,
+  newAtlasEdit,
+  validateAtlasEdits,
+  type AtlasEdit,
+} from "@/lib/atlas/edits";
 import { HistoricalMapCanvas } from "./historical-map-canvas";
 import { Panel, PillButton, TextInput } from "./ui/panel";
 
@@ -238,6 +248,62 @@ export function HistoricalAtlas({
   onChange: (year: number, view: AtlasView) => void;
 }) {
   const uk = usePrefs((s) => s.lang) === "uk";
+  const profile = useMeQuery().data?.profile;
+  const qc = useQueryClient();
+  const editor = useAtlasEditor();
+  const draftRevision = useRef<number | null>(null);
+  const [manualError, setManualError] = useState("");
+  const manualKey = ["atlas-manual", profile?.schoolId, profile?.userId];
+  const manual = useQuery({
+    queryKey: manualKey,
+    queryFn: loadSchoolAtlas,
+    enabled: Boolean(profile?.schoolId),
+    staleTime: 30_000,
+    refetchInterval: editor.draft ? false : 60_000,
+    refetchOnWindowFocus: !editor.draft,
+  });
+  const saveManual = useMutation({ mutationFn: saveSchoolAtlas });
+  useEffect(() => {
+    draftRevision.current = editor.draft ? (manual.data?.revision ?? null) : null;
+  }, [editor.draft?.id, profile?.schoolId]);
+  const saveEntries = async (entries: AtlasEdit[]) => {
+    if (!manual.data?.canEdit || manual.isError || saveManual.isPending) return false;
+    try {
+      const result = await saveManual.mutateAsync({
+        schoolId: manual.data.schoolId,
+        revision: editor.draft
+          ? (draftRevision.current ?? manual.data.revision)
+          : manual.data.revision,
+        entries,
+      });
+      qc.setQueryData(manualKey, { ...manual.data, ...result });
+      setManualError("");
+      toast.success(uk ? "Території збережено для школи" : "School territories saved");
+      return true;
+    } catch (e) {
+      const message = atlasEditError(e, uk);
+      setManualError(message);
+      toast.error(message);
+      return false;
+    }
+  };
+  useEffect(() => {
+    editor.dispatch({ type: "cancel" });
+  }, [profile?.schoolId, profile?.userId]);
+  const saveDraft = async () => {
+    if (!editor.draft || !manual.data) return;
+    try {
+      const entries = validateAtlasEdits([
+        ...manual.data.entries.filter((e) => e.id !== editor.draft!.id),
+        editor.draft,
+      ]);
+      if (await saveEntries(entries)) editor.dispatch({ type: "cancel" });
+    } catch (e) {
+      const message = atlasEditError(e, uk);
+      setManualError(message);
+      toast.error(message);
+    }
+  };
   const snapshot = overviewSnapshot(year);
   const byzYear = byzantineSnapshot(year);
   const frYear = frankishSnapshot(year);
@@ -336,7 +402,7 @@ export function HistoricalAtlas({
     [invasion, mongolDetail, year, campaignStep],
   );
   useEffect(() => setSelection(null), [year, campaignStep, mongolDetail]);
-  const historical = useMemo(
+  const sourceHistorical = useMemo(
     () =>
       combineHistoricalLayers(
         snapshot !== undefined ? data.data : undefined,
@@ -366,6 +432,10 @@ export function HistoricalAtlas({
       campaignStep,
       mongolCollection,
     ],
+  );
+  const historical = useMemo(
+    () => applyAtlasEdits(sourceHistorical, manual.data?.entries ?? [], year),
+    [sourceHistorical, manual.data?.entries, year],
   );
   const physical = useQuery({
     queryKey: ["historical-atlas-physical"],
@@ -412,14 +482,16 @@ export function HistoricalAtlas({
     setSelection({ kind: "place", id: place.id });
   }, []);
   const choosePolity = useCallback(
-    (feature: HistoricalFeature) => setSelection({ kind: "polity", feature }),
-    [],
+    (feature: HistoricalFeature) => {
+      if (!editor.draft) setSelection({ kind: "polity", feature });
+    },
+    [Boolean(editor.draft)],
   );
   const selectedPlace =
     selection?.kind === "place" ? available.find((p) => p.id === selection.id) : undefined;
   const selectedPolity =
     selection?.kind === "polity" && historical?.features.some((f) => f.id === selection.feature.id)
-      ? selection.feature
+      ? historical.features.find((f) => f.id === selection.feature.id)
       : undefined;
   const period = newView
     ? mongolPeriod(year, view)
@@ -1157,10 +1229,108 @@ export function HistoricalAtlas({
             {uk ? "Завантаження картографічних шарів…" : "Loading atlas…"}
           </p>
         )}
+        {profile?.schoolId && manual.isPending && (
+          <p role="status" className="mb-2 text-xs text-muted">
+            {uk ? "Завантаження ручних територій школи…" : "Loading school territories…"}
+          </p>
+        )}
+        {manual.isError && (
+          <div role="alert" className="mb-3 rounded-xl bg-terracotta/10 p-3 text-sm">
+            {uk
+              ? "Ручні шари школи не завантажилися. Вихідна карта доступна; збереження правок вимкнене до завантаження."
+              : "School layers failed to load. Source maps remain available; saving is disabled until the layers load."}
+            <PillButton type="button" tone="ghost" onClick={() => void manual.refetch()}>
+              {uk ? "Повторити" : "Retry"}
+            </PillButton>
+          </div>
+        )}
+        {manual.data && (
+          <AtlasEditingPanel
+            editor={editor}
+            entries={manual.data.entries}
+            base={sourceHistorical}
+            year={year}
+            uk={uk}
+            saving={saveManual.isPending || manual.isError}
+            canEdit={manual.data.canEdit}
+            onSave={saveEntries}
+            onRemove={async (id) => {
+              const ok = await saveEntries(manual.data.entries.filter((e) => e.id !== id));
+              if (ok && editor.draft?.id === id) editor.dispatch({ type: "cancel" });
+              return ok;
+            }}
+            onRefresh={() => {
+              void manual.refetch().then((result) => {
+                if (result.data) draftRevision.current = result.data.revision;
+              });
+            }}
+            error={manualError}
+          />
+        )}
         <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="min-w-0">
+            {editor.draft && manual.data?.canEdit && (
+              <div className="atlas-editor mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-forest-mid/30 bg-surface p-2">
+                <PillButton
+                  type="button"
+                  tone="ghost"
+                  disabled={saveManual.isPending}
+                  onClick={() =>
+                    editor.dispatch({
+                      type: "mode",
+                      mode: editor.mode === "draw" ? "edit" : "draw",
+                    })
+                  }
+                >
+                  {editor.mode === "draw"
+                    ? uk
+                      ? "Завершити малювання"
+                      : "Finish drawing"
+                    : uk
+                      ? "Додавати точки"
+                      : "Add vertices"}
+                </PillButton>
+                <PillButton
+                  type="button"
+                  tone="ghost"
+                  disabled={saveManual.isPending || !editor.past.length}
+                  onClick={() => editor.dispatch({ type: "undo" })}
+                >
+                  {uk ? "Скасувати точку" : "Undo geometry"}
+                </PillButton>
+                <PillButton
+                  type="button"
+                  disabled={saveManual.isPending || manual.isError}
+                  onClick={() => void saveDraft()}
+                >
+                  {saveManual.isPending
+                    ? uk
+                      ? "Збереження…"
+                      : "Saving…"
+                    : uk
+                      ? "Зберегти територію"
+                      : "Save territory"}
+                </PillButton>
+                <PillButton
+                  type="button"
+                  tone="ghost"
+                  onClick={() =>
+                    document
+                      .getElementById("atlas-editor-fields")
+                      ?.scrollIntoView({ block: "start", behavior: "smooth" })
+                  }
+                >
+                  {uk ? "Назва, роки та джерело" : "Name, dates and source"}
+                </PillButton>
+              </div>
+            )}
             <HistoricalMapCanvas
               historical={historical}
+              edit={
+                manual.data?.canEdit && editor.canvas
+                  ? { ...editor.canvas, disabled: saveManual.isPending || manual.isError }
+                  : undefined
+              }
               land={physical.data?.land}
               rivers={physical.data?.rivers}
               places={drawn}
@@ -1175,6 +1345,23 @@ export function HistoricalAtlas({
                 originalLayer && detailed && borders && year <= 1453 ? byzFrame?.raster : undefined
               }
             />
+            <p className="mt-2 text-xs text-muted">
+              <span className="atlas-hatch-swatch" aria-hidden="true" />{" "}
+              {uk
+                ? "Штрихування — відносна територія: залежність, сфера впливу або неповний контроль. Суцільний колір — основна територія."
+                : "Hatching: dependency, influence or partial control. Solid fill: core territory."}
+            </p>
+            {editor.draft && (
+              <p role="status" className="mt-2 rounded-xl bg-forest-mid/10 p-3 text-xs">
+                {editor.mode === "draw"
+                  ? uk
+                    ? "Малювання: натискайте на мапу, щоб додавати точки. Для переміщення мапи тягніть порожню ділянку."
+                    : "Drawing: click the map to add vertices. Drag empty space to pan."
+                  : uk
+                    ? "Редагування: перетягуйте сині точки або вставляйте нові через «+». Чернетка ще не збережена."
+                    : "Editing: drag blue handles or insert vertices with +. The draft is not saved yet."}
+              </p>
+            )}
             <p className="mt-2 text-xs text-muted">
               {uk
                 ? "■ Константинополь · ● Місто / поселення · ◌ Орієнтир регіону · Пунктир: оглядова межа. Фізична основа сучасна; деталізований шар відтворює берегові контури джерела."
@@ -1209,46 +1396,119 @@ export function HistoricalAtlas({
               <div className="rounded-2xl border border-forest-mid/30 p-4">
                 <p className="text-xs font-bold text-forest-mid">
                   {uk ? "Дані зрізу" : "Snapshot data"}{" "}
-                  {selectedPolity.properties.sourceYear ?? snapshot}
+                  {selectedPolity.properties.custom
+                    ? `${selectedPolity.properties.validFrom}–${selectedPolity.properties.validTo}`
+                    : (selectedPolity.properties.sourceYear ?? snapshot)}
                 </p>
                 <h3 className="mt-1 font-display text-lg font-extrabold">
                   {historicalName(selectedPolity.properties.name, uk)}
                 </h3>
                 <p className="mt-2 text-xs text-muted">
                   {selectedPolity.properties.name} ·{" "}
-                  {selectedPolity.properties.region === "mongols"
+                  {selectedPolity.properties.custom
                     ? uk
-                      ? "Контур джерела; приблизні межі"
-                      : "Source contour; approximate boundaries"
-                    : selectedPolity.properties.detailed
+                      ? "Ручний шар школи"
+                      : "School manual layer"
+                    : selectedPolity.properties.region === "mongols"
                       ? uk
-                        ? selectedPolity.properties.region === "rus"
-                          ? "Контур карти Русі"
-                          : selectedPolity.properties.region === "franks"
-                            ? "Контур з векторної карти"
-                            : "Контур з авторського растра"
-                        : "Digitized source contour"
-                      : `${uk ? "Рівень точності джерела" : "Source precision"}: ${selectedPolity.properties.precision}/3`}
+                        ? "Контур джерела; приблизні межі"
+                        : "Source contour; approximate boundaries"
+                      : selectedPolity.properties.detailed
+                        ? uk
+                          ? selectedPolity.properties.region === "rus"
+                            ? "Контур карти Русі"
+                            : selectedPolity.properties.region === "franks"
+                              ? "Контур з векторної карти"
+                              : "Контур з авторського растра"
+                          : "Digitized source contour"
+                        : `${uk ? "Рівень точності джерела" : "Source precision"}: ${selectedPolity.properties.precision}/3`}
                 </p>
                 <p className="mt-2 text-sm leading-6">
-                  {selectedPolity.properties.region === "mongols"
-                    ? uk
-                      ? `Карта-джерело ${selectedPolity.properties.sourceYear}; показано приблизний історичний контур. Пряме управління і васальна залежність у джерелі можуть поєднуватися. ${selectedPolity.properties.validTo ? `Цей полігон застосований не пізніше ${selectedPolity.properties.validTo} року; це дата обмеження реконструкції, не завжди дата зникнення держави.` : ""}`
-                      : "Dated source contour; direct rule and vassal dependency may be combined. Expiry limits the reconstruction, and is not necessarily the end of the state."
-                    : selectedPolity.properties.detailed
+                  {selectedPolity.properties.custom
+                    ? selectedPolity.properties.description ||
+                      (uk ? "Опис ще не додано." : "No description provided.")
+                    : selectedPolity.properties.region === "mongols"
                       ? uk
-                        ? selectedPolity.properties.region === "rus"
-                          ? `${rusFrame?.note ?? "Картографічна реконструкція Русі."} Колір збережено за джерелом; картки об’єднаних земель не означають єдиного князівства. Дрібні уділи доступні в оригіналі.`
-                          : selectedPolity.properties.region === "franks"
-                            ? "Політична область перенесена безпосередньо з SVG джерела зі збереженням вигинів і анклавів. Контури суміщено за містами або береговими орієнтирами; це картографічна реконструкція, а не точні щорічні кордони. Перевіряйте кольори й залежні території за легендою оригіналу."
-                            : "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
-                        : selectedPolity.properties.region === "rus"
-                          ? "Rus source contour with original colours. Registration is approximate. Some period maps group appanages; see the original legend. The 1240 endpoint uses the 1237 pre-invasion map."
-                          : selectedPolity.properties.region === "franks"
-                            ? "Political area transferred directly from source SVG, preserving bends and enclaves. Registration uses towns or coastal landmarks; check the original legend and snapshot date."
-                            : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
-                      : featureNote(selectedPolity.properties.name, snapshot!)}
+                        ? `Карта-джерело ${selectedPolity.properties.sourceYear}; показано приблизний історичний контур. Пряме управління і васальна залежність у джерелі можуть поєднуватися. ${selectedPolity.properties.validTo ? `Цей полігон застосований не пізніше ${selectedPolity.properties.validTo} року; це дата обмеження реконструкції, не завжди дата зникнення держави.` : ""}`
+                        : "Dated source contour; direct rule and vassal dependency may be combined. Expiry limits the reconstruction, and is not necessarily the end of the state."
+                      : selectedPolity.properties.detailed
+                        ? uk
+                          ? selectedPolity.properties.region === "rus"
+                            ? `${rusFrame?.note ?? "Картографічна реконструкція Русі."} Колір збережено за джерелом; картки об’єднаних земель не означають єдиного князівства. Дрібні уділи доступні в оригіналі.`
+                            : selectedPolity.properties.region === "franks"
+                              ? "Політична область перенесена безпосередньо з SVG джерела зі збереженням вигинів і анклавів. Контури суміщено за містами або береговими орієнтирами; це картографічна реконструкція, а не точні щорічні кордони. Перевіряйте кольори й залежні території за легендою оригіналу."
+                              : "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
+                          : selectedPolity.properties.region === "rus"
+                            ? "Rus source contour with original colours. Registration is approximate. Some period maps group appanages; see the original legend. The 1240 endpoint uses the 1237 pre-invasion map."
+                            : selectedPolity.properties.region === "franks"
+                              ? "Political area transferred directly from source SVG, preserving bends and enclaves. Registration uses towns or coastal landmarks; check the original legend and snapshot date."
+                              : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
+                        : featureNote(selectedPolity.properties.name, snapshot!)}
                 </p>
+                {selectedPolity.properties.custom && (
+                  <div className="mt-2 space-y-2 text-xs">
+                    <p>
+                      {uk ? "Контролер" : "Controller"}:{" "}
+                      {historicalName(selectedPolity.properties.subject, uk)} ·{" "}
+                      {selectedPolity.properties.control === "relative"
+                        ? selectedPolity.properties.relation
+                        : uk
+                          ? "основна територія"
+                          : "core territory"}
+                    </p>
+                    {selectedPolity.properties.sourceUrl && (
+                      <a
+                        className="inline-block text-forest-mid underline"
+                        href={selectedPolity.properties.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {uk ? "Джерело ручної правки" : "Manual edit source"}
+                      </a>
+                    )}
+                  </div>
+                )}
+                {manual.data?.canEdit && (
+                  <div className="atlas-editor mt-3 flex flex-wrap gap-2">
+                    <PillButton
+                      type="button"
+                      tone="ghost"
+                      onClick={() => {
+                        const saved = manual.data.entries.find(
+                          (e) => `manual-${e.id}` === selectedPolity.id,
+                        );
+                        const draft = saved ?? newAtlasEdit(year, selectedPolity);
+                        if (!saved) {
+                          draft.name = historicalName(draft.name, uk);
+                          draft.subject = historicalName(draft.subject, uk);
+                        }
+                        editor.start(draft);
+                        setBorders(true);
+                        setOriginalLayer(false);
+                        setSelection(null);
+                      }}
+                    >
+                      {uk ? "Редагувати країну й кордони" : "Edit country and borders"}
+                    </PillButton>
+                    <PillButton
+                      type="button"
+                      tone="ghost"
+                      onClick={() => {
+                        const draft = newAtlasEdit(year, selectedPolity, true);
+                        draft.name =
+                          (uk ? "Залежна територія: " : "Dependent territory: ") +
+                          historicalName(selectedPolity.properties.name, uk);
+                        draft.subject = historicalName(draft.subject, uk);
+                        editor.start(draft);
+                        setBorders(true);
+                        setOriginalLayer(false);
+                        setSelection(null);
+                      }}
+                    >
+                      {uk ? "Додати штриховану залежність" : "Add hatched dependency"}
+                    </PillButton>
+                  </div>
+                )}
                 {selectedPolity.properties.invaded && (
                   <p className="mt-2 rounded-xl bg-terracotta/10 p-3 text-xs text-terracotta">
                     {uk
