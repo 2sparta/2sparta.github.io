@@ -1,8 +1,21 @@
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 export const ATLAS_YEARS = [500, 600, 700, 800, 900, 1000, 1100, 1200, 1279, 1300, 1400] as const;
-export type AtlasView = "rus" | "europe" | "world";
-export type HistoricalProperties = { name: string; subject: string; precision: number };
+export const ATLAS_MIN_YEAR = 395;
+export const ATLAS_MAX_YEAR = 1453;
+export const BYZANTINE_YEARS = [
+  395, 450, 476, 565, 592, 622, 630, 641, 668, 717, 775, 813, 842, 867, 927, 959, 969, 975, 1000,
+  1025, 1045, 1059, 1081, 1118, 1143, 1155, 1180, 1203, 1205, 1230, 1254, 1262, 1328, 1340, 1354,
+  1400, 1403, 1445, 1453,
+] as const;
+export type AtlasView = "rus" | "europe" | "world" | "byzantium";
+export type HistoricalProperties = {
+  name: string;
+  subject: string;
+  precision: number;
+  detailed?: boolean;
+  sourceYear?: number;
+};
 export type HistoricalFeature = Feature<Geometry, HistoricalProperties>;
 export type HistoricalCollection = FeatureCollection<Geometry, HistoricalProperties>;
 export type AtlasSource = { id: string; title: string; url: string; note: string };
@@ -18,6 +31,8 @@ export type AtlasPlace = {
   description: string;
   sources: string[];
   europe?: boolean;
+  byzantine?: boolean;
+  capital?: boolean;
 };
 export type AtlasEvent = {
   year: number;
@@ -28,7 +43,37 @@ export type AtlasEvent = {
   europe?: boolean;
 };
 export function clampAtlasYear(value: number) {
-  return Math.max(500, Math.min(1400, Math.round(Number.isFinite(value) ? value : 1000)));
+  return Math.max(
+    ATLAS_MIN_YEAR,
+    Math.min(ATLAS_MAX_YEAR, Math.round(Number.isFinite(value) ? value : 1000)),
+  );
+}
+/** Other countries have no configured historical geometry outside the original range. */
+export function overviewSnapshot(year: number) {
+  return year >= 500 && year <= 1400 ? nearestSnapshot(year) : undefined;
+}
+/** Use the last documented Byzantine frame; never borrow future conquests or interpolate. */
+export function byzantineSnapshot(year: number) {
+  const target = clampAtlasYear(year);
+  return [...BYZANTINE_YEARS].reverse().find((y) => y <= target)!;
+}
+export function isCoarseByzantine(name: string) {
+  return /^(Byzantine Empire|Eastern Roman Empire|Trebizond|Empire of Nicaea|Nicaea|Despotate of Epirus|Principality of Theodoro)$/.test(
+    name,
+  );
+}
+export function combineHistoricalLayers(
+  overview: HistoricalCollection | undefined,
+  detailed: HistoricalCollection | undefined,
+): HistoricalCollection | undefined {
+  if (!detailed) return overview;
+  return {
+    type: "FeatureCollection",
+    features: [
+      ...(overview?.features ?? []).filter((f) => !isCoarseByzantine(f.properties.name)),
+      ...detailed.features,
+    ],
+  };
 }
 export function nearestSnapshot(year: number) {
   const target = clampAtlasYear(year);
@@ -43,8 +88,11 @@ export function activePlaces(places: AtlasPlace[], year: number) {
 /** Stable between marker dates, so scrubbing a year does not redraw unchanged geographic layers. */
 export function placeEpoch(places: AtlasPlace[], year: number) {
   return Math.max(
-    500,
-    ...places.flatMap((p) => [p.from <= year ? p.from : 500, p.to < year ? p.to + 1 : 500]),
+    ATLAS_MIN_YEAR,
+    ...places.flatMap((p) => [
+      p.from <= year ? p.from : ATLAS_MIN_YEAR,
+      p.to < year ? p.to + 1 : ATLAS_MIN_YEAR,
+    ]),
   );
 }
 export function historicalName(name: string, uk = true) {
@@ -63,6 +111,12 @@ export function historicalName(name: string, uk = true) {
     "Poland-Lithuania": "Польща і ВКЛ (узагальнена геометрія)",
     "Byzantine Empire": "Візантійська імперія",
     "Eastern Roman Empire": "Східна Римська імперія",
+    "Empire of Nicaea": "Нікейська імперія",
+    "Empire of Trebizond": "Трапезундська імперія",
+    "Despotate of Epirus": "Епірська держава",
+    "Empire of Thessalonica": "Фессалонікійська імперія",
+    "Principality of Theodoro": "Князівство Феодоро",
+    "Byzantine-Arab condominium": "Візантійсько-арабське співволодіння",
     "Roman Empire": "Римська імперія",
     "Frankish Kingdom": "Франкське королівство",
     Franks: "Франки",
@@ -93,6 +147,11 @@ export function featureNote(name: string, year: number) {
   return "Джерело подає оглядову територію держави або культурного ареалу. Межі не є сучасними юридичними кордонами й можуть перекриватися.";
 }
 export function polityColor(name: string) {
+  if (name === "Byzantine-Arab condominium") return "#f8e0e9";
+  if (/Byzantine|Eastern Roman|Nicaea/.test(name)) return "#f3cbda";
+  if (/Trebizond/.test(name)) return "#d2f3be";
+  if (/Epirus|Thessalonica/.test(name)) return "#f3f28c";
+  if (/Theodoro/.test(name)) return "#c5c1ff";
   if (/Rus|Kievan|Galicia/.test(name)) return "#a65839";
   const colors = [
     "#749d74",

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FeatureCollection } from "geojson";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,17 +10,30 @@ import {
   MapPin,
   Search,
   Share2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
 import { ATLAS_EVENTS, ATLAS_PERIODS, ATLAS_PLACES, ATLAS_SOURCES } from "@/lib/atlas/content";
 import {
+  BYZANTINE_EVENTS,
+  BYZANTINE_PERIODS,
+  BYZANTINE_PLACES,
+  type ByzantineData,
+  type ByzantineFrame,
+} from "@/lib/atlas/byzantine";
+import {
   activePlaces,
   ATLAS_YEARS,
+  ATLAS_MIN_YEAR,
+  ATLAS_MAX_YEAR,
+  BYZANTINE_YEARS,
+  byzantineSnapshot,
+  overviewSnapshot,
+  combineHistoricalLayers,
   clampAtlasYear,
   featureNote,
   historicalName,
-  nearestSnapshot,
   placeEpoch,
   validateHistoricalCollection,
   type AtlasPlace,
@@ -56,6 +70,103 @@ function Sources({ ids }: { ids: string[] }) {
     </ul>
   );
 }
+function SourceMapPreview({ frame, uk }: { frame: ByzantineFrame; uk: boolean }) {
+  const [scale, setScale] = useState(1);
+  const [failed, setFailed] = useState(false);
+  return (
+    <Dialog.Root
+      onOpenChange={(open) => {
+        if (open) {
+          setScale(1);
+          setFailed(false);
+        }
+      }}
+    >
+      <Dialog.Trigger asChild>
+        <PillButton type="button" tone="ghost">
+          {uk ? "Переглянути оригінал" : "View original"}
+        </PillButton>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/75" />
+        <Dialog.Content
+          aria-describedby="atlas-source-description"
+          className="fixed left-1/2 top-1/2 z-[101] flex h-[90dvh] w-[96vw] max-w-7xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl bg-surface p-3 shadow-2xl outline-none sm:p-5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Dialog.Title className="font-display text-lg font-extrabold">
+              {uk ? "Авторська мапа" : "Source map"} · {frame.year} · ©Lucius
+            </Dialog.Title>
+            <Dialog.Close asChild>
+              <button
+                type="button"
+                aria-label={uk ? "Закрити оригінал" : "Close original"}
+                className="grid size-11 place-items-center rounded-full bg-surface-2"
+              >
+                <X className="size-5" />
+              </button>
+            </Dialog.Close>
+          </div>
+          <p id="atlas-source-description" className="mt-1 text-xs text-muted">
+            {uk
+              ? "Оригінальна проєкція та повна роздільність автора. Збільшуйте й прокручуйте, щоб читати міста, феми та легенду. Зображення завантажується із сайту автора."
+              : "Original projection and full source resolution. Zoom and scroll to read settlements, themes and the legend; loaded from the author's site."}
+          </p>
+          <div className="my-3 flex flex-wrap items-center gap-2">
+            <PillButton
+              type="button"
+              tone="ghost"
+              disabled={scale <= 1}
+              onClick={() => setScale(Math.max(1, scale - 1))}
+            >
+              −
+            </PillButton>
+            <span className="text-xs font-bold">{scale * 100}%</span>
+            <PillButton
+              type="button"
+              tone="ghost"
+              disabled={scale >= 10}
+              onClick={() => setScale(Math.min(10, scale + 1))}
+            >
+              +
+            </PillButton>
+            <PillButton type="button" tone="ghost" onClick={() => setScale(1)}>
+              {uk ? "Вмістити" : "Fit"}
+            </PillButton>
+            <a
+              href={frame.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto text-xs underline"
+            >
+              {uk ? "Відкрити PNG автора" : "Open original PNG"}
+            </a>
+          </div>
+          <div
+            tabIndex={0}
+            aria-label={uk ? "Перегляд мапи з прокручуванням" : "Scrollable source map"}
+            className="min-h-0 flex-1 overflow-auto rounded-xl border border-hairline bg-white"
+          >
+            {failed ? (
+              <p role="alert" className="p-5 text-sm">
+                {uk
+                  ? "Сайт автора не надав зображення. Геоприв’язаний шар та векторні кордони доступні в атласі."
+                  : "Source image unavailable; local raster and vector layers remain available."}
+              </p>
+            ) : (
+              <img
+                src={frame.sourceUrl}
+                alt={`${uk ? "Мапа Візантії" : "Byzantine map"} ${frame.year}, Lucius`}
+                onError={() => setFailed(true)}
+                style={{ width: `${scale * 100}%`, maxWidth: "none", height: "auto" }}
+              />
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
 export function HistoricalAtlas({
   year,
   view,
@@ -66,7 +177,10 @@ export function HistoricalAtlas({
   onChange: (year: number, view: AtlasView) => void;
 }) {
   const uk = usePrefs((s) => s.lang) === "uk";
-  const snapshot = nearestSnapshot(year);
+  const snapshot = overviewSnapshot(year);
+  const byzYear = byzantineSnapshot(year);
+  const [detailed, setDetailed] = useState(true);
+  const [originalLayer, setOriginalLayer] = useState(false);
   const [yearText, setYearText] = useState(String(year));
   const [search, setSearch] = useState("");
   const [cities, setCities] = useState(true);
@@ -77,15 +191,37 @@ export function HistoricalAtlas({
     { kind: "place"; id: string } | { kind: "polity"; feature: HistoricalFeature } | null
   >(null);
   useEffect(() => setYearText(String(year)), [year]);
-  useEffect(() => setSelection(null), [snapshot]);
+  useEffect(() => setSelection(null), [snapshot, byzYear, detailed]);
   const data = useQuery({
     queryKey: ["historical-atlas", snapshot],
     queryFn: async ({ signal }) =>
       validateHistoricalCollection(await jsonFile(`/atlas/world-${snapshot}.geojson`, signal)),
     staleTime: Infinity,
-    enabled: typeof window !== "undefined",
+    enabled: typeof window !== "undefined" && snapshot !== undefined,
     retry: 1,
   });
+  const byzantine = useQuery({
+    queryKey: ["historical-atlas-byzantine"],
+    queryFn: async ({ signal }) => {
+      const raw = (await jsonFile("/atlas/byzantium/frames.json", signal)) as ByzantineData;
+      if (!raw || !Array.isArray(raw.frames) || raw.frames.length !== BYZANTINE_YEARS.length)
+        throw new Error("INVALID_BYZANTINE_DATA");
+      for (const frame of raw.frames) validateHistoricalCollection(frame.collection);
+      return raw;
+    },
+    staleTime: Infinity,
+    enabled: typeof window !== "undefined" && detailed,
+    retry: 1,
+  });
+  const byzFrame = byzantine.data?.frames.find((f) => f.year === byzYear);
+  const historical = useMemo(
+    () =>
+      combineHistoricalLayers(
+        snapshot !== undefined ? data.data : undefined,
+        detailed ? byzFrame?.collection : undefined,
+      ),
+    [snapshot, data.data, detailed, byzFrame],
+  );
   const physical = useQuery({
     queryKey: ["historical-atlas-physical"],
     queryFn: async ({ signal }) => {
@@ -99,9 +235,13 @@ export function HistoricalAtlas({
     enabled: typeof window !== "undefined",
     retry: 1,
   });
-  const markerEpoch = placeEpoch(ATLAS_PLACES, year);
+  const allPlaces = useMemo(() => [...ATLAS_PLACES, ...BYZANTINE_PLACES], []);
+  const markerEpoch = placeEpoch(allPlaces, year);
   const available = useMemo(
-    () => activePlaces(ATLAS_PLACES, markerEpoch).filter((p) => view !== "rus" || !p.europe),
+    () =>
+      activePlaces(allPlaces, markerEpoch).filter((p) =>
+        view === "byzantium" ? p.byzantine : view !== "rus" || !p.europe,
+      ),
     [markerEpoch, view],
   );
   const drawn = useMemo(
@@ -120,14 +260,21 @@ export function HistoricalAtlas({
   const selectedPlace =
     selection?.kind === "place" ? available.find((p) => p.id === selection.id) : undefined;
   const selectedPolity =
-    selection?.kind === "polity" && data.data?.features.some((f) => f.id === selection.feature.id)
+    selection?.kind === "polity" && historical?.features.some((f) => f.id === selection.feature.id)
       ? selection.feature
       : undefined;
-  const period = ATLAS_PERIODS.find((p) => year >= p.from && year <= p.to)!;
+  const period = (view === "byzantium" ? BYZANTINE_PERIODS : ATLAS_PERIODS).find(
+    (p) => year >= p.from && year <= p.to,
+  )!;
   const matches = available.filter((p) =>
     `${p.name} ${p.description}`.toLowerCase().includes(search.trim().toLowerCase()),
   );
-  const nearby = ATLAS_EVENTS.filter((e) => view !== "rus" || !e.europe)
+  const nearby = (
+    view === "byzantium"
+      ? [...BYZANTINE_EVENTS, ...ATLAS_EVENTS.filter((e) => e.sources.includes("met-byzantium"))]
+      : [...ATLAS_EVENTS, ...BYZANTINE_EVENTS]
+  )
+    .filter((e) => view !== "rus" || !e.europe)
     .filter((e) => Math.abs(e.year - year) <= 150)
     .sort((a, b) => Math.abs(a.year - year) - Math.abs(b.year - year) || a.year - b.year)
     .slice(0, 6)
@@ -138,6 +285,22 @@ export function HistoricalAtlas({
     onChange(next, view);
   };
   const warnings: string[] = [];
+  if (snapshot === undefined)
+    warnings.push(
+      "Кордони інших країн для цього проміжку ще не налаштовані. Нейтральний суходіл не означає відсутності держав або населення.",
+    );
+  if (detailed && year >= 1204 && year < 1205)
+    warnings.push(
+      "1204 — перехідний рік після захоплення Константинополя. Найближчі авторські зрізи: 1203 (до події) та 1205 (держави-наступниці); проміжні кордони не вигадуються.",
+    );
+  if (detailed && year >= 1261 && year < 1262)
+    warnings.push(
+      "Константинополь повернуто 1261 року; перший доступний авторський зріз після цієї події — 1262. До нього показаний попередній зріз, а не реконструйовані річні кордони.",
+    );
+  if (detailed && byzYear === 1453)
+    warnings.push(
+      "Мапа 1453 року показує володіння до захоплення Константинополя 29 травня. Вона не відображає стан після падіння столиці.",
+    );
   if (snapshot === 800)
     warnings.push(
       "«Руський каганат» у цьому зрізі — гіпотетична реконструкція, не встановлена територія держави.",
@@ -176,15 +339,17 @@ export function HistoricalAtlas({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-forest-mid">
-              500–1400 · {uk ? "навчальний атлас" : "learning atlas"}
+              395–1453 · {uk ? "навчальний атлас" : "learning atlas"}
             </p>
             <h2 className="mt-1 font-display text-2xl font-extrabold">
-              {uk ? "Світ і Русь-Україна крізь час" : "World and Rus’-Ukraine through time"}
+              {uk
+                ? "Світ, Русь-Україна та Візантія крізь час"
+                : "World, Rus’-Ukraine and Byzantium through time"}
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-muted">
               {uk
-                ? "Українські землі, міста, князівські осередки та їхній європейський контекст. До IX ст. показані попередні спільноти, а не держава Русь."
-                : "Ukrainian lands, towns and regional centers in European context. Before the ninth century, the atlas shows earlier communities, not a Rus’ state."}
+                ? "Детальна Візантія за завантаженими картами: острови, анклави та держави-наступниці. Русь-Україна й решта світу — оглядові шари; до IX ст. показані попередні спільноти, а не держава Русь."
+                : "Detailed Byzantine source maps, islands, enclaves and successor states; Rus’-Ukraine and the world remain overview layers."}
             </p>
           </div>
           <PillButton type="button" tone="ghost" onClick={() => void share()}>
@@ -197,8 +362,8 @@ export function HistoricalAtlas({
             {uk ? "Рік подій" : "Event year"}
             <TextInput
               type="number"
-              min={500}
-              max={1400}
+              min={ATLAS_MIN_YEAR}
+              max={ATLAS_MAX_YEAR}
               step={1}
               value={yearText}
               onChange={(e) => setYearText(e.target.value)}
@@ -213,7 +378,7 @@ export function HistoricalAtlas({
             <button
               type="button"
               aria-label={uk ? "На 10 років назад" : "Back 10 years"}
-              disabled={year <= 500}
+              disabled={year <= ATLAS_MIN_YEAR}
               onClick={() => onChange(clampAtlasYear(year - 10), view)}
               className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
             >
@@ -221,9 +386,9 @@ export function HistoricalAtlas({
             </button>
             <input
               type="range"
-              aria-label={uk ? "Часова шкала 500–1400" : "Timeline 500–1400"}
-              min={500}
-              max={1400}
+              aria-label={uk ? "Часова шкала 395–1453" : "Timeline 395–1453"}
+              min={ATLAS_MIN_YEAR}
+              max={ATLAS_MAX_YEAR}
               step={1}
               value={year}
               onChange={(e) => onChange(Number(e.target.value), view)}
@@ -232,7 +397,7 @@ export function HistoricalAtlas({
             <button
               type="button"
               aria-label={uk ? "На 10 років уперед" : "Forward 10 years"}
-              disabled={year >= 1400}
+              disabled={year >= ATLAS_MAX_YEAR}
               onClick={() => onChange(clampAtlasYear(year + 10), view)}
               className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
             >
@@ -258,16 +423,21 @@ export function HistoricalAtlas({
         </div>
         <div className="mt-4 rounded-xl border border-forest-mid/25 bg-forest-mid/5 p-3 text-sm">
           <strong>
-            {uk ? "Рік подій" : "Events"}: {year} · {uk ? "Мапа" : "Map"}: {snapshot}
+            {uk ? "Рік подій" : "Events"}: {year} · {uk ? "Світ" : "World"}: {snapshot ?? "—"}
+            {detailed && ` · ${uk ? "Візантія" : "Byzantium"}: ${byzYear}`}
           </strong>
           <p className="mt-1 text-xs text-muted">
-            {year === snapshot
+            {snapshot === undefined
               ? uk
-                ? "Оглядовий картографічний зріз цього року; межі приблизні."
-                : "Overview snapshot for this year; boundaries are approximate."
-              : uk
-                ? `Показано найближчий доступний зріз (${snapshot}). Між зрізами кордони не інтерполюються. Міста, картки й події відфільтровані за обраним ${year} роком.`
-                : `Nearest available snapshot (${snapshot}). Borders are not interpolated; regional notes use event year ${year}.`}
+                ? "Для інших країн цей період ще не налаштовано."
+                : "Other countries are not configured for this period."
+              : year === snapshot
+                ? uk
+                  ? "Оглядовий картографічний зріз цього року; межі приблизні."
+                  : "Overview snapshot for this year; boundaries are approximate."
+                : uk
+                  ? `Світ: найближчий оглядовий зріз (${snapshot}). Візантія: останній доступний авторський зріз не пізніше обраного року. Кордони не інтерполюються.`
+                  : `Nearest available snapshot (${snapshot}). Borders are not interpolated; regional notes use event year ${year}.`}
           </p>
           {warnings.map((note) => (
             <p key={note} className="mt-2 text-xs text-terracotta">
@@ -275,10 +445,88 @@ export function HistoricalAtlas({
             </p>
           ))}
         </div>
+        <div className="mt-4 rounded-2xl border border-[#bb8a9b]/40 bg-[#f3cbda]/15 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-display font-extrabold">
+                {uk ? "Детальна Візантія" : "Detailed Byzantium"}
+              </h3>
+              <p className="mt-1 text-xs text-muted">
+                {uk
+                  ? "39 авторських зрізів · острови, анклави та держави-наступниці"
+                  : "39 source snapshots · islands, enclaves and successor states"}
+              </p>
+            </div>
+            <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
+              <input
+                type="checkbox"
+                checked={detailed}
+                onChange={(e) => {
+                  setDetailed(e.target.checked);
+                  if (!e.target.checked) setOriginalLayer(false);
+                }}
+              />
+              {uk ? "Детальні кордони Візантії" : "Detailed Byzantine borders"}
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <PillButton
+              type="button"
+              tone="ghost"
+              aria-label={uk ? "Попередній зріз Візантії" : "Previous Byzantine snapshot"}
+              disabled={byzYear === BYZANTINE_YEARS[0]}
+              onClick={() => onChange(BYZANTINE_YEARS[BYZANTINE_YEARS.indexOf(byzYear) - 1], view)}
+            >
+              <ChevronLeft className="size-4" />
+            </PillButton>
+            <label className="min-w-40 flex-1 text-xs font-bold">
+              {uk ? "Авторський зріз Візантії" : "Byzantine source snapshot"}
+              <select
+                className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
+                value={byzYear}
+                onChange={(e) => onChange(Number(e.target.value), view)}
+              >
+                {BYZANTINE_YEARS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                    {y === 1453 ? (uk ? " · до 29 травня" : " · before 29 May") : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <PillButton
+              type="button"
+              tone="ghost"
+              aria-label={uk ? "Наступний зріз Візантії" : "Next Byzantine snapshot"}
+              disabled={byzYear === BYZANTINE_YEARS.at(-1)}
+              onClick={() => onChange(BYZANTINE_YEARS[BYZANTINE_YEARS.indexOf(byzYear) + 1], view)}
+            >
+              <ChevronRight className="size-4" />
+            </PillButton>
+            {byzFrame && <SourceMapPreview key={byzFrame.year} frame={byzFrame} uk={uk} />}
+          </div>
+          <label className="mt-3 flex min-h-10 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={originalLayer}
+              disabled={!detailed || !borders || !byzFrame}
+              onChange={(e) => setOriginalLayer(e.target.checked)}
+            />
+            {uk
+              ? "Авторський шар: міста, феми й підписи"
+              : "Source layer: towns, themes and labels"}
+          </label>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            {uk
+              ? `Показано останній відомий авторський зріз ${byzYear}, що не пізніше обраного року. Контури перенесені через градусну сітку. Авторський шар відтворює весь регіон джерела й закриває в ньому оглядову мапу; феми й підписи збережені як зображення, а не окремі інтерактивні одиниці.`
+              : `Last documented source frame at or before the event year: ${byzYear}. Source raster covers the overview within its region; themes and labels are preserved as imagery, not individually selectable units.`}
+          </p>
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {(
             [
               ["rus", uk ? "Русь-Україна" : "Rus’-Ukraine"],
+              ["byzantium", uk ? "Візантія" : "Byzantium"],
               ["europe", uk ? "Європа" : "Europe"],
               ["world", uk ? "Світ" : "World"],
             ] as const
@@ -317,7 +565,7 @@ export function HistoricalAtlas({
             </label>
           ))}
         </div>
-        {(data.isError || physical.isError) && (
+        {(data.isError || physical.isError || (detailed && byzantine.isError)) && (
           <div
             role="alert"
             className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-terracotta/10 p-3 text-sm"
@@ -329,23 +577,26 @@ export function HistoricalAtlas({
               type="button"
               tone="ghost"
               onClick={() => {
-                void data.refetch();
+                if (snapshot !== undefined) void data.refetch();
                 void physical.refetch();
+                if (detailed) void byzantine.refetch();
               }}
             >
               {uk ? "Повторити" : "Retry"}
             </PillButton>
           </div>
         )}
-        {(data.isPending || physical.isPending) && (
+        {((snapshot !== undefined && data.isPending) ||
+          physical.isPending ||
+          (detailed && byzantine.isPending)) && (
           <p role="status" className="mb-2 text-xs text-muted">
-            {uk ? `Завантаження зрізу ${snapshot}…` : `Loading snapshot ${snapshot}…`}
+            {uk ? `Завантаження мапи${detailed ? ` Візантії ${byzYear}` : ""}…` : "Loading atlas…"}
           </p>
         )}
         <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="min-w-0">
             <HistoricalMapCanvas
-              historical={data.data}
+              historical={historical}
               land={physical.data?.land}
               rivers={physical.data?.rivers}
               places={drawn}
@@ -356,10 +607,11 @@ export function HistoricalAtlas({
               selected={selectedPlace?.id ?? (selectedPolity?.id as string | undefined)}
               onPlace={choosePlace}
               onPolity={choosePolity}
+              sourceRaster={originalLayer && detailed && borders ? byzFrame?.raster : undefined}
             />
             <p className="mt-2 text-xs text-muted">
               {uk
-                ? "● Місто / поселення · ◌ Орієнтир регіону, не територіальна межа · Пунктир: приблизна геометрія. Берегова лінія й річки — сучасна фізична основа."
+                ? "■ Константинополь · ● Місто / поселення · ◌ Орієнтир регіону · Пунктир: оглядова межа. Фізична основа сучасна; деталізований шар відтворює берегові контури джерела."
                 : "● Settlement · ◌ Regional reference, not a boundary · Dashed borders: approximate. Coastlines and rivers are modern physical references."}
             </p>
           </div>
@@ -390,20 +642,28 @@ export function HistoricalAtlas({
             ) : selectedPolity ? (
               <div className="rounded-2xl border border-forest-mid/30 p-4">
                 <p className="text-xs font-bold text-forest-mid">
-                  {uk ? "Дані зрізу" : "Snapshot data"} {snapshot}
+                  {uk ? "Дані зрізу" : "Snapshot data"}{" "}
+                  {selectedPolity.properties.sourceYear ?? snapshot}
                 </p>
                 <h3 className="mt-1 font-display text-lg font-extrabold">
                   {historicalName(selectedPolity.properties.name, uk)}
                 </h3>
                 <p className="mt-2 text-xs text-muted">
                   {selectedPolity.properties.name} ·{" "}
-                  {uk ? "Рівень точності джерела" : "Source precision"}:{" "}
-                  {selectedPolity.properties.precision}/3
+                  {selectedPolity.properties.detailed
+                    ? uk
+                      ? "Контур з авторського растра"
+                      : "Digitized source contour"
+                    : `${uk ? "Рівень точності джерела" : "Source precision"}: ${selectedPolity.properties.precision}/3`}
                 </p>
                 <p className="mt-2 text-sm leading-6">
-                  {featureNote(selectedPolity.properties.name, snapshot)}
+                  {selectedPolity.properties.detailed
+                    ? uk
+                      ? "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
+                      : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
+                    : featureNote(selectedPolity.properties.name, snapshot!)}
                 </p>
-                <Sources ids={["basemaps"]} />
+                <Sources ids={[selectedPolity.properties.detailed ? "lucius" : "basemaps"]} />
               </div>
             ) : (
               <p className="rounded-xl bg-cream p-3 text-xs text-muted">
@@ -452,25 +712,21 @@ export function HistoricalAtlas({
             </div>
           </div>
           <label className="block text-xs font-bold">
-            {uk
-              ? `Територія на оглядовій мапі ${snapshot}`
-              : `Territory on overview map ${snapshot}`}
+            {uk ? `Територія на мапі ${year}` : `Territory on overview map ${snapshot}`}
             <select
               aria-label={
-                uk
-                  ? `Територія на оглядовій мапі ${snapshot}`
-                  : `Territory on overview map ${snapshot}`
+                uk ? `Територія на мапі ${year}` : `Territory on overview map ${snapshot}`
               }
               className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
               value={selectedPolity?.id ?? ""}
-              disabled={!data.data || !borders}
+              disabled={!historical || !borders}
               onChange={(e) => {
-                const f = data.data?.features.find((f) => f.id === e.target.value);
+                const f = historical?.features.find((f) => f.id === e.target.value);
                 if (f) choosePolity(f);
               }}
             >
               <option value="">{uk ? "Виберіть територію" : "Select territory"}</option>
-              {data.data?.features
+              {historical?.features
                 .slice()
                 .sort((a, b) =>
                   historicalName(a.properties.name, uk).localeCompare(
@@ -485,7 +741,7 @@ export function HistoricalAtlas({
             </select>
             <p className="mt-2 text-xs font-normal text-muted">
               {uk
-                ? "Оглядові геометрії світу; подробиці Русі-України дивіться в регіональних картках."
+                ? "Деталізовані контури Візантії поєднані з оглядовими геометріями світу. Інші країни не деталізовано."
                 : "World overview geometries; regional cards add detail for Rus’-Ukraine."}
             </p>
           </label>
@@ -526,8 +782,13 @@ export function HistoricalAtlas({
           <div className="mt-4 space-y-4 text-sm">
             <p>
               {uk
-                ? "Це навчальна реконструкція з 11 датованими картами, а не точний атлас кордонів для кожного року. Зрізи не інтерполюються. У середньовіччі культурний ареал, данина, князівські права та пряме управління могли перекриватися."
+                ? "Це навчальний атлас: 11 оглядових зрізів світу та 39 детальних карт Візантії. Для Візантії використано останній авторський зріз не пізніше обраного року; для світу — найближчий оглядовий. Зрізи не інтерполюються. Культурний ареал, данина, князівські права та пряме управління могли перекриватися."
                 : "This educational reconstruction has 11 dated maps, not independently verified borders for every year. Cultural areas, tribute, dynastic rights and direct rule can overlap."}
+            </p>
+            <p>
+              {uk
+                ? "Візантію перенесено з наданих PNG: перетини градусної сітки → підбір конічної проєкції → контроль берегів і річок → виділення кольорових областей → векторні контури. Оригінальні підписи й феми окремо перепроєктовано в локальний растровий шар. Похибка суміщення сітки не означає історичну точність кордонів; дрібні острови та вузькі анклави можуть втрачатися під час виділення кольору."
+                : "Uploaded PNG graticule → fitted conic projection → coastline/river registration → color segmentation → vector contours. Original annotations are also reprojected into a local raster layer. Registration residual is not historical border accuracy; small islands and narrow enclaves may be missed."}
             </p>
             <p>
               {uk
@@ -536,8 +797,8 @@ export function HistoricalAtlas({
             </p>
             <p className="text-xs text-muted">
               {uk
-                ? "Підготовлено 12.10.2026. Історична геометрія: Historical Basemaps, GPL-3.0; сучасна фізична основа: Natural Earth, public domain. Мапи спрощено для браузера (0,02°); ця величина не означає історичну точність."
-                : "Prepared 2026-10-12. Historical Basemaps (GPL-3.0); Natural Earth (public domain). Browser simplification 0.02° is not a historical accuracy claim."}{" "}
+                ? "Підготовлено 12.10.2026. Оглядові карти: Historical Basemaps, GPL-3.0 (спрощення 0,02°); фізична основа: Natural Earth, public domain. Візантія: надані користувачем карти ©Lucius, конічна геоприв’язка, контури спрощено на 1,25 пікселя оригіналу. Друкарські позначення приглушено лише в копії для розпізнавання заливки; авторський шар зберігає їх. Ці величини не визначають історичну точність."
+                : "Prepared 2026-10-12. Overview: Historical Basemaps GPL-3.0, simplification 0.02°. Physical reference: Natural Earth, public domain. Byzantium: user-supplied ©Lucius PNGs, conic georeferencing, 1.25 source-pixel contour simplification; typography suppressed only in classification, preserved in displayed raster. These tolerances do not define historical accuracy."}{" "}
               <a
                 className="underline"
                 href="/atlas/NOTICE.md"
