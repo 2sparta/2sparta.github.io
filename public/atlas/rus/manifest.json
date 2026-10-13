@@ -1,0 +1,312 @@
+{
+  "generatedAt": "2026-10-13",
+  "method": "Direct SVG political contours and original-resolution raster colour tracing; projected affine city-marker registration; no annual interpolation.",
+  "registration": {
+    "growth": {
+      "model": "equirectangular",
+      "crs": "+proj=eqc +lat_ts=55 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          27.478145848429687,
+          -10.033485408745431
+        ],
+        [
+          -9.362834671293424,
+          -27.57685155574996
+        ],
+        [
+          911.4029546515123,
+          2390.6857118391968
+        ]
+      ],
+      "fitRmsSourceUnits": 7.876,
+      "holdoutRmsSourceUnits": 9.824,
+      "holdoutMaxSourceUnits": 14.55,
+      "fittingPoints": 10,
+      "heldOutPoints": 4,
+      "holdouts": [
+        {
+          "name": "Pereiaslav",
+          "residualSourceUnits": 12.279
+        },
+        {
+          "name": "Suzdal",
+          "residualSourceUnits": 1.978
+        },
+        {
+          "name": "Murom",
+          "residualSourceUnits": 4.438
+        },
+        {
+          "name": "Pskov",
+          "residualSourceUnits": 14.55
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    },
+    "1054-1132": {
+      "model": "lambert-conformal-conic",
+      "crs": "+proj=lcc +lat_1=45 +lat_2=65 +lat_0=55 +lon_0=35 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          28.65332582396398,
+          -9.058209051434087
+        ],
+        [
+          -10.51335274572115,
+          -28.15827817978945
+        ],
+        [
+          297.19078974921274,
+          409.08752187499596
+        ]
+      ],
+      "fitRmsSourceUnits": 11.101,
+      "holdoutRmsSourceUnits": 13.074,
+      "holdoutMaxSourceUnits": 14.915,
+      "fittingPoints": 10,
+      "heldOutPoints": 2,
+      "holdouts": [
+        {
+          "name": "Pereiaslav",
+          "residualSourceUnits": 10.927
+        },
+        {
+          "name": "Suzdal",
+          "residualSourceUnits": 14.915
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate.",
+      "localCorrection": {
+        "method": "Thin-plate spline of projected registration residuals at fitted city markers; not a historical-border interpolation.",
+        "trainingPoints": 10,
+        "holdouts": [
+          {
+            "name": "Pereiaslav",
+            "residualKm": 28.41
+          },
+          {
+            "name": "Suzdal",
+            "residualKm": 32.54
+          }
+        ]
+      }
+    },
+    "1237": {
+      "model": "lambert-azimuthal-equal-area",
+      "crs": "+proj=laea +lat_0=55 +lon_0=35 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          165.8473805146317,
+          8.413252868545396
+        ],
+        [
+          10.897682552827348,
+          -169.36124625020693
+        ],
+        [
+          1931.0084107828727,
+          2697.3600335180645
+        ]
+      ],
+      "fitRmsSourceUnits": 19.569,
+      "holdoutRmsSourceUnits": 26.783,
+      "holdoutMaxSourceUnits": 42.323,
+      "fittingPoints": 11,
+      "heldOutPoints": 3,
+      "holdouts": [
+        {
+          "name": "Pereiaslav",
+          "residualSourceUnits": 42.323
+        },
+        {
+          "name": "Murom",
+          "residualSourceUnits": 8.207
+        },
+        {
+          "name": "Pskov",
+          "residualSourceUnits": 17.128
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    },
+    "11c": {
+      "model": "mercator",
+      "crs": "EPSG:3857",
+      "affineProjected100kmToSvg": [
+        [
+          63.65824850616818,
+          0.36027221845278495
+        ],
+        [
+          0.14712350821468334,
+          -64.1908510960759
+        ],
+        [
+          -1447.1783443955446,
+          6186.747854713136
+        ]
+      ],
+      "fitRmsSourceUnits": 3.296,
+      "holdoutRmsSourceUnits": 2.677,
+      "holdoutMaxSourceUnits": 3.638,
+      "fittingPoints": 9,
+      "heldOutPoints": 2,
+      "holdouts": [
+        {
+          "name": "Murom",
+          "residualSourceUnits": 1.048
+        },
+        {
+          "name": "Pereiaslav",
+          "residualSourceUnits": 3.638
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    },
+    "1194": {
+      "model": "mercator",
+      "crs": "EPSG:3857",
+      "affineProjected100kmToSvg": [
+        [
+          63.665134720375626,
+          0.3075468366359439
+        ],
+        [
+          0.13368750326210233,
+          -64.22873587334024
+        ],
+        [
+          -1434.2359454960088,
+          6205.829331025838
+        ]
+      ],
+      "fitRmsSourceUnits": 2.81,
+      "holdoutRmsSourceUnits": 10.215,
+      "holdoutMaxSourceUnits": 16.911,
+      "fittingPoints": 10,
+      "heldOutPoints": 3,
+      "holdouts": [
+        {
+          "name": "Pskov",
+          "residualSourceUnits": 4.611
+        },
+        {
+          "name": "Murom",
+          "residualSourceUnits": 16.911
+        },
+        {
+          "name": "Pereiaslav",
+          "residualSourceUnits": 2.408
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    }
+  },
+  "originals": [
+    {
+      "file": "growth.svg",
+      "originalTitle": "Rus' di Kiev 882-1240.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Rus'_di_Kiev_882-1240.svg",
+      "author": "Unochepassava94",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "rus-growth",
+      "sha256": "df13e6fb294a7d32d0f7c50451f5ff5d9d78ca37ddee4762cc566a19665b333c",
+      "bytes": 1903613,
+      "changes": "Original file unchanged."
+    },
+    {
+      "file": "1054-1132.svg",
+      "originalTitle": "Principalities of Kievan Rus' (1054-1132) en.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Principalities_of_Kievan_Rus'_(1054-1132)_en.svg",
+      "author": "Das Steinerne Herz; Redx360",
+      "license": "CC BY-SA 3.0",
+      "sourceId": "rus-middle",
+      "sha256": "e6b2d2d265756a76c4d072dde307aba77e88bc9f96cad0832f6d0a68895b66b6",
+      "bytes": 1392561,
+      "changes": "Original file unchanged."
+    },
+    {
+      "file": "1237.svg",
+      "originalTitle": "Kyivan Rus in 1237 (ua).svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Kyivan_Rus_in_1237_(ua).svg",
+      "author": "Hellerick; Mnohohrishnyi",
+      "license": "CC0 1.0",
+      "sourceId": "rus-1237",
+      "sha256": "ccd9aa4dbaafe99533b1a87bcefa40152b8121d15cf9b2febd40dc87957c0448",
+      "bytes": 403949,
+      "changes": "Original file unchanged."
+    },
+    {
+      "file": "11c.png",
+      "originalTitle": "Kievan-rus-1015-1113-(hu).svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Kievan-rus-1015-1113-(hu).svg",
+      "author": "Koryakov Yuri; Sepultura",
+      "license": "CC BY-SA 2.5",
+      "sourceId": "rus-11c",
+      "sha256": "9f536a25ef063ae591c8da532b6f42f3f10f4674ec948a0ae01bf3b292ad17ed",
+      "bytes": 356398,
+      "changes": "11c.png: extracted unmodified embedded raster from the source SVG."
+    },
+    {
+      "file": "1194.png",
+      "originalTitle": "Rus-1113-1194.png",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Rus-1113-1194.png",
+      "author": "Koryakov Yuri; H2ppyme",
+      "license": "CC BY-SA 2.5",
+      "sourceId": "rus-1194",
+      "sha256": "e6c2e68a4f937d7357313161cbb5eba88b5c6751836f1a5f4d1d1ff17533c034",
+      "bytes": 570534,
+      "changes": "Original file unchanged."
+    }
+  ],
+  "frames": [
+    {
+      "year": 882,
+      "sourceYear": 882,
+      "file": "growth.svg",
+      "features": 1
+    },
+    {
+      "year": 1054,
+      "sourceYear": 1054,
+      "file": "growth.svg",
+      "features": 2
+    },
+    {
+      "year": 1113,
+      "sourceYear": 1113,
+      "file": "11c.png",
+      "features": 8
+    },
+    {
+      "year": 1132,
+      "sourceYear": 1132,
+      "file": "1054-1132.svg",
+      "features": 10
+    },
+    {
+      "year": 1194,
+      "sourceYear": 1194,
+      "file": "1194.png",
+      "features": 12
+    },
+    {
+      "year": 1237,
+      "sourceYear": 1237,
+      "file": "1237.svg",
+      "features": 11
+    },
+    {
+      "year": 1240,
+      "sourceYear": 1237,
+      "file": "1237.svg",
+      "features": 11
+    }
+  ],
+  "data": {
+    "path": "frames.json",
+    "bytes": 333735,
+    "sha256": "03c5d8d63db007de4a4b85656d389f0f8c6bcb8a150c6acafbdb9fd2141a3290"
+  }
+}

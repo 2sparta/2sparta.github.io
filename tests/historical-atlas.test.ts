@@ -34,6 +34,171 @@ import {
 } from "../src/lib/atlas/byzantine.ts";
 
 import { FRANKISH_EVENTS, FRANKISH_PERIODS, FRANKISH_PLACES } from "../src/lib/atlas/frankish.ts";
+import { RUS_YEARS, rusSnapshot, isCoarseRus } from "../src/lib/atlas/model.ts";
+import { RUS_EVENTS, RUS_PERIODS, RUS_PLACES, validateRusData } from "../src/lib/atlas/rus.ts";
+
+test("Rus years use the last source and never borrow future expansion", () => {
+  assert.equal(rusSnapshot(881), undefined);
+  assert.equal(rusSnapshot(882), 882);
+  assert.equal(rusSnapshot(988), 882);
+  assert.equal(rusSnapshot(1054), 1054);
+  assert.equal(rusSnapshot(1112), 1054);
+  assert.equal(rusSnapshot(1132), 1132);
+  assert.equal(rusSnapshot(1199), 1194);
+  assert.equal(rusSnapshot(1240), 1240);
+  assert.equal(rusSnapshot(1241), undefined);
+  for (let y = 882; y <= 1240; y++) assert.ok(rusSnapshot(y)! <= y);
+});
+
+const rusDir = new URL("../public/atlas/rus/", import.meta.url);
+const rusRaw = readFileSync(new URL("frames.json", rusDir));
+const rusData = validateRusData(JSON.parse(rusRaw.toString()));
+
+test("Rus originals, data hashes, dates and provenance agree", () => {
+  const manifest = JSON.parse(readFileSync(new URL("manifest.json", rusDir), "utf8"));
+  assert.equal(manifest.data.sha256, createHash("sha256").update(rusRaw).digest("hex"));
+  assert.equal(manifest.data.bytes, rusRaw.length);
+  assert.deepEqual(
+    rusData.frames.map((f) => f.year),
+    RUS_YEARS,
+  );
+  for (const source of manifest.originals) {
+    const bytes = readFileSync(new URL(`originals/${source.file}`, rusDir));
+    assert.equal(source.sha256, createHash("sha256").update(bytes).digest("hex"));
+    assert.equal(source.bytes, bytes.length);
+    assert.ok(source.author && source.license && source.descriptionUrl.startsWith("https://"));
+  }
+  for (const frame of rusData.frames) {
+    const record = manifest.frames.find((f: { year: number }) => f.year === frame.year);
+    assert.equal(frame.collection.features.length, record.features);
+    assert.equal(frame.sourceYear, record.sourceYear);
+    assert.ok(frame.sourceYear <= frame.year);
+    assert.ok(ATLAS_SOURCES.some((s) => s.id === frame.sourceId));
+    assert.ok(readFileSync(new URL(`../public/${frame.originalPath}`, import.meta.url)).length);
+  }
+  const end = rusData.frames.at(-1)!;
+  assert.equal(end.sourceYear, 1237);
+  assert.match(end.note, /не нову карту 1240/);
+  assert.equal(end.collection.features.length, 11);
+  for (const group of Object.values(manifest.registration) as {
+    heldOutPoints: number;
+    holdoutMaxSourceUnits: number;
+  }[]) {
+    assert.ok(group.heldOutPoints >= 2);
+    assert.ok(Number.isFinite(group.holdoutMaxSourceUnits));
+  }
+});
+
+test("Rus replacement leaves every unrelated world feature byte-for-byte equivalent", () => {
+  for (const year of ATLAS_YEARS) {
+    const world = validateHistoricalCollection(
+      JSON.parse(
+        readFileSync(new URL(`../public/atlas/world-${year}.geojson`, import.meta.url), "utf8"),
+      ),
+    );
+    const frame = rusData.frames.find((f) => f.year === rusSnapshot(year));
+    const combined = combineHistoricalLayers(world, undefined, undefined, frame?.collection)!;
+    for (const feature of world.features.filter((f) => !isCoarseRus(f.properties.name)))
+      assert.deepEqual(
+        combined.features.find((f) => f.id === feature.id),
+        feature,
+      );
+    if (frame) {
+      assert.ok(
+        !combined.features.some((f) => isCoarseRus(f.properties.name) && !f.properties.detailed),
+      );
+      assert.equal(
+        combined.features.filter((f) => f.properties.region === "rus").length,
+        frame.collection.features.length,
+      );
+    } else assert.equal(combined, world);
+  }
+  assert.ok(!isCoarseRus("Golden Horde"));
+  assert.ok(!isCoarseRus("Khazar Khaganate"));
+  assert.ok(!isCoarseRus("Poland-Lithuania"));
+});
+
+test("Rus period maps do not pretend to describe simultaneous later states", () => {
+  const middle = rusData.frames.find((f) => f.year === 1132)!;
+  const names = middle.collection.features.map((f) => f.properties.name);
+  assert.ok(names.includes("Principality of Kyiv"));
+  assert.ok(names.includes("Murom and Ryazan lands"));
+  assert.ok(names.includes("Galician appanages"));
+  assert.ok(!names.includes("Principality of Halych"));
+  assert.ok(!names.some((name) => /Tmut|Belaya/.test(name)));
+  const late = rusData.frames.find((f) => f.year === 1237)!;
+  const lateNames = late.collection.features.map((f) => f.properties.name);
+  for (const name of [
+    "Principality of Murom",
+    "Principality of Ryazan",
+    "Novgorod Republic",
+    "Principality of Galicia-Volhynia",
+  ])
+    assert.ok(lateNames.includes(name), name);
+  assert.equal(new Set(lateNames).size, lateNames.length);
+});
+
+test("Rus geographic transfer assigns Kyiv, Murom and Old Ryazan to the correct territories", () => {
+  const inRing = (p: number[], ring: number[][]) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [x, y] = ring[i],
+        [xx, yy] = ring[j];
+      if (y > p[1] !== yy > p[1] && p[0] < ((xx - x) * (p[1] - y)) / (yy - y) + x) inside = !inside;
+    }
+    return inside;
+  };
+  const namesAt = (year: number, point: number[]) =>
+    rusData.frames
+      .find((f) => f.year === year)!
+      .collection.features.filter((f) => {
+        if (f.geometry.type !== "Polygon" && f.geometry.type !== "MultiPolygon") return false;
+        const polys =
+          f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+        return polys.some(
+          (rings) => inRing(point, rings[0]) && !rings.slice(1).some((r) => inRing(point, r)),
+        );
+      })
+      .map((f) => f.properties.name);
+  assert.deepEqual(namesAt(1132, [30.523, 50.45]), ["Principality of Kyiv"]);
+  assert.deepEqual(namesAt(1132, [42.041, 55.579]), ["Murom and Ryazan lands"]);
+  assert.deepEqual(namesAt(1237, [42.041, 55.579]), ["Principality of Murom"]);
+  assert.deepEqual(namesAt(1237, [40.579, 54.403]), ["Principality of Ryazan"]);
+  assert.deepEqual(namesAt(1237, [30.523, 50.45]), ["Principality of Kyiv"]);
+  assert.deepEqual(namesAt(1237, [31.3, 51.498]), ["Principality of Chernihiv"]);
+  assert.deepEqual(namesAt(1237, [24.326, 50.848]), ["Principality of Galicia-Volhynia"]);
+});
+
+test("Rus data rejects duplicate dates, future sources and incorrect regions", () => {
+  for (const change of [
+    (d: typeof rusData) => {
+      d.frames[1].year = 882;
+    },
+    (d: typeof rusData) => {
+      d.frames[0].sourceYear = 1054;
+    },
+    (d: typeof rusData) => {
+      d.frames[0].collection.features[0].properties.region = "franks";
+    },
+  ]) {
+    const copy = structuredClone(rusData);
+    change(copy);
+    assert.throws(() => validateRusData(copy), /INVALID_RUS_DATA/);
+  }
+});
+
+test("Rus history, markers and complete periods resolve their source references", () => {
+  const ids = new Set(ATLAS_SOURCES.map((s) => s.id));
+  for (let y = ATLAS_MIN_YEAR; y <= ATLAS_MAX_YEAR; y++)
+    assert.equal(RUS_PERIODS.filter((p) => y >= p.from && y <= p.to).length, 1);
+  for (const item of [...RUS_PERIODS, ...RUS_EVENTS, ...RUS_PLACES]) {
+    assert.ok(item.sources.length);
+    for (const source of item.sources) assert.ok(ids.has(source), source);
+  }
+  assert.ok(RUS_EVENTS.some((e) => e.year === 860));
+  assert.ok(RUS_EVENTS.some((e) => e.year === 1240));
+  assert.ok(RUS_PLACES.every((p) => p.to === 1240));
+});
 
 test("years are bounded and nearest snapshots are explicit, never interpolated", () => {
   assert.equal(clampAtlasYear(NaN), 1000);

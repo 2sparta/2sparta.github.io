@@ -1,0 +1,579 @@
+{
+  "growth": {
+    "file": "growth.svg",
+    "points": [
+      {
+        "name": "Kyiv",
+        "svgId": "path1565-2",
+        "x": 923.0647,
+        "y": 647.1421,
+        "lon": 30.523,
+        "lat": 50.45,
+        "role": "fit"
+      },
+      {
+        "name": "Chernihiv",
+        "svgId": "path1565-2-8-9",
+        "x": 936.2228,
+        "y": 616.4398,
+        "lon": 31.3,
+        "lat": 51.498,
+        "role": "fit"
+      },
+      {
+        "name": "Pereiaslav",
+        "svgId": "path1565-2-8",
+        "x": 941.0076,
+        "y": 647.1421,
+        "lon": 31.459,
+        "lat": 50.065,
+        "role": "holdout"
+      },
+      {
+        "name": "Novgorod",
+        "svgId": "path1565-2-8-9-3-1-7-1-7",
+        "x": 861.66,
+        "y": 396.7384,
+        "lon": 31.275,
+        "lat": 58.52,
+        "role": "fit"
+      },
+      {
+        "name": "Polotsk",
+        "svgId": "path1565-2-8-9-3",
+        "x": 833.7487,
+        "y": 506.7884,
+        "lon": 28.775,
+        "lat": 55.486,
+        "role": "fit"
+      },
+      {
+        "name": "Smolensk",
+        "svgId": "path1565-2-8-9-8-3-1",
+        "x": 909.5078,
+        "y": 513.5669,
+        "lon": 32.045,
+        "lat": 54.782,
+        "role": "fit"
+      },
+      {
+        "name": "Suzdal",
+        "svgId": "path1565-2-8-9-3-7",
+        "x": 1035.9059,
+        "y": 404.3143,
+        "lon": 40.452,
+        "lat": 56.42,
+        "role": "holdout"
+      },
+      {
+        "name": "Rostov",
+        "svgId": "path1565-2-8-9-3-7-6",
+        "x": 1009.5895,
+        "y": 384.3777,
+        "lon": 39.416,
+        "lat": 57.185,
+        "role": "fit"
+      },
+      {
+        "name": "Murom",
+        "svgId": "path1565-2-8-9-3-7-9",
+        "x": 1078.1715,
+        "y": 421.061,
+        "lon": 42.041,
+        "lat": 55.579,
+        "role": "holdout"
+      },
+      {
+        "name": "Volodymyr",
+        "svgId": "path1565-2-4-4-8-9-3",
+        "x": 804.6413,
+        "y": 677.8445,
+        "lon": 24.326,
+        "lat": 50.848,
+        "role": "fit"
+      },
+      {
+        "name": "Halych",
+        "svgId": "path1565-2-4",
+        "x": 837.7361,
+        "y": 738.8505,
+        "lon": 24.725,
+        "lat": 49.124,
+        "role": "fit"
+      },
+      {
+        "name": "Ladoga",
+        "svgId": "path1565-2-8-9-3-1-7-1",
+        "x": 861.66,
+        "y": 346.4981,
+        "lon": 32.299,
+        "lat": 59.999,
+        "role": "fit"
+      },
+      {
+        "name": "Belozersk",
+        "svgId": "path1565-2-8-9-3-1-7",
+        "x": 943.7988,
+        "y": 321.378,
+        "lon": 37.798,
+        "lat": 60.03,
+        "role": "fit"
+      },
+      {
+        "name": "Pskov",
+        "svgId": "path1565-2-8-9-3-1-7-1-7-3",
+        "x": 822.1855,
+        "y": 433.8205,
+        "lon": 28.335,
+        "lat": 57.82,
+        "role": "holdout"
+      }
+    ]
+  },
+  "1054-1132": {
+    "file": "1054-1132.svg",
+    "points": [
+      {
+        "name": "Kyiv",
+        "svgId": "path4318-12",
+        "x": 251.1852,
+        "y": 556.969,
+        "lon": 30.523,
+        "lat": 50.45,
+        "role": "fit"
+      },
+      {
+        "name": "Chernihiv",
+        "svgId": "path4318-12-8",
+        "x": 268.1096,
+        "y": 532.8517,
+        "lon": 31.3,
+        "lat": 51.498,
+        "role": "fit"
+      },
+      {
+        "name": "Pereiaslav",
+        "svgId": "path4318-18",
+        "x": 279.5335,
+        "y": 571.7779,
+        "lon": 31.459,
+        "lat": 50.065,
+        "role": "holdout"
+      },
+      {
+        "name": "Novgorod",
+        "svgId": "path4318-4",
+        "x": 193.4001,
+        "y": 314.8729,
+        "lon": 31.275,
+        "lat": 58.52,
+        "role": "fit"
+      },
+      {
+        "name": "Polotsk",
+        "svgId": "path4318-6",
+        "x": 180.8343,
+        "y": 419.8864,
+        "lon": 28.775,
+        "lat": 55.486,
+        "role": "fit"
+      },
+      {
+        "name": "Smolensk",
+        "svgId": "path4318",
+        "x": 244.8597,
+        "y": 427.6652,
+        "lon": 32.045,
+        "lat": 54.782,
+        "role": "fit"
+      },
+      {
+        "name": "Suzdal",
+        "svgId": "path4318-1",
+        "x": 359.4471,
+        "y": 332.8239,
+        "lon": 40.452,
+        "lat": 56.42,
+        "role": "holdout"
+      },
+      {
+        "name": "Rostov",
+        "svgId": "path4318-5",
+        "x": 338.2051,
+        "y": 316.0696,
+        "lon": 39.416,
+        "lat": 57.185,
+        "role": "fit"
+      },
+      {
+        "name": "Murom",
+        "svgId": "path4318-8",
+        "x": 419.8822,
+        "y": 361.5455,
+        "lon": 42.041,
+        "lat": 55.579,
+        "role": "fit"
+      },
+      {
+        "name": "Volodymyr",
+        "svgId": "path4318-83",
+        "x": 136.0993,
+        "y": 597.5876,
+        "lon": 24.326,
+        "lat": 50.848,
+        "role": "fit"
+      },
+      {
+        "name": "Halych",
+        "svgId": "path4318-64",
+        "x": 141.5997,
+        "y": 655.1305,
+        "lon": 24.725,
+        "lat": 49.124,
+        "role": "fit"
+      },
+      {
+        "name": "Old Ryazan",
+        "svgId": "path4318-0",
+        "x": 406.718,
+        "y": 387.874,
+        "lon": 40.579,
+        "lat": 54.403,
+        "role": "fit"
+      }
+    ]
+  },
+  "1237": {
+    "file": "1237.svg",
+    "points": [
+      {
+        "name": "Kyiv",
+        "svgId": "path3410",
+        "x": 1332.65,
+        "y": 3514.55,
+        "lon": 30.523,
+        "lat": 50.45,
+        "role": "fit"
+      },
+      {
+        "name": "Chernihiv",
+        "svgId": "path3398",
+        "x": 1459.95,
+        "y": 3294.45,
+        "lon": 31.3,
+        "lat": 51.498,
+        "role": "fit"
+      },
+      {
+        "name": "Pereiaslav",
+        "svgId": "path3404",
+        "x": 1452.85,
+        "y": 3552.85,
+        "lon": 31.459,
+        "lat": 50.065,
+        "role": "holdout"
+      },
+      {
+        "name": "Novgorod",
+        "svgId": "path3370",
+        "x": 1623.05,
+        "y": 2008.95,
+        "lon": 31.275,
+        "lat": 58.52,
+        "role": "fit"
+      },
+      {
+        "name": "Polotsk",
+        "svgId": "path3436",
+        "x": 1300.85,
+        "y": 2518.05,
+        "lon": 28.775,
+        "lat": 55.486,
+        "role": "fit"
+      },
+      {
+        "name": "Smolensk",
+        "svgId": "path3442",
+        "x": 1598.55,
+        "y": 2710.75,
+        "lon": 32.045,
+        "lat": 54.782,
+        "role": "fit"
+      },
+      {
+        "name": "Vladimir",
+        "svgId": "path3380",
+        "x": 2510.85,
+        "y": 2490.35,
+        "lon": 40.408,
+        "lat": 56.13,
+        "role": "fit"
+      },
+      {
+        "name": "Murom",
+        "svgId": "path3386",
+        "x": 2671.85,
+        "y": 2580.35,
+        "lon": 42.041,
+        "lat": 55.579,
+        "role": "holdout"
+      },
+      {
+        "name": "Old Ryazan",
+        "svgId": "path3392",
+        "x": 2535.45,
+        "y": 2826.65,
+        "lon": 40.579,
+        "lat": 54.403,
+        "role": "fit"
+      },
+      {
+        "name": "Volodymyr",
+        "svgId": "path3422",
+        "x": 659.95,
+        "y": 3312.15,
+        "lon": 24.326,
+        "lat": 50.848,
+        "role": "fit"
+      },
+      {
+        "name": "Halych",
+        "svgId": "path3428",
+        "x": 628.95,
+        "y": 3671.15,
+        "lon": 24.725,
+        "lat": 49.124,
+        "role": "fit"
+      },
+      {
+        "name": "Pskov",
+        "svgId": "path3594",
+        "x": 1298.0,
+        "y": 2111.0,
+        "lon": 28.335,
+        "lat": 57.82,
+        "role": "holdout"
+      },
+      {
+        "name": "Ladoga",
+        "svgId": "path3592",
+        "x": 1726.0,
+        "y": 1748.0,
+        "lon": 32.299,
+        "lat": 59.999,
+        "role": "fit"
+      },
+      {
+        "name": "Turiv",
+        "svgId": "path3416",
+        "x": 1065.45,
+        "y": 3183.85,
+        "lon": 27.736,
+        "lat": 52.069,
+        "role": "fit"
+      }
+    ]
+  },
+  "11c": {
+    "file": "11c.png",
+    "points": [
+      {
+        "name": "Novgorod",
+        "x": 777.955,
+        "y": 1016.215,
+        "lon": 31.275,
+        "lat": 58.52,
+        "role": "fit"
+      },
+      {
+        "name": "Polotsk",
+        "x": 604.675,
+        "y": 1411.51,
+        "lon": 28.775,
+        "lat": 55.486,
+        "role": "fit"
+      },
+      {
+        "name": "Smolensk",
+        "x": 835.715,
+        "y": 1501.76,
+        "lon": 32.045,
+        "lat": 54.782,
+        "role": "fit"
+      },
+      {
+        "name": "Rostov",
+        "x": 1360.97,
+        "y": 1193.105,
+        "lon": 39.416,
+        "lat": 57.185,
+        "role": "fit"
+      },
+      {
+        "name": "Suzdal",
+        "x": 1431.365,
+        "y": 1295.99,
+        "lon": 40.452,
+        "lat": 56.42,
+        "role": "fit"
+      },
+      {
+        "name": "Murom",
+        "x": 1543.275,
+        "y": 1404.29,
+        "lon": 42.041,
+        "lat": 55.579,
+        "role": "holdout"
+      },
+      {
+        "name": "Old Ryazan",
+        "x": 1434.975,
+        "y": 1555.91,
+        "lon": 40.579,
+        "lat": 54.403,
+        "role": "fit"
+      },
+      {
+        "name": "Kyiv",
+        "x": 727.415,
+        "y": 2010.77,
+        "lon": 30.523,
+        "lat": 50.45,
+        "role": "fit"
+      },
+      {
+        "name": "Chernihiv",
+        "x": 779.76,
+        "y": 1889.835,
+        "lon": 31.3,
+        "lat": 51.498,
+        "role": "fit"
+      },
+      {
+        "name": "Pereiaslav",
+        "x": 790.59,
+        "y": 2057.7,
+        "lon": 31.459,
+        "lat": 50.065,
+        "role": "holdout"
+      },
+      {
+        "name": "Volodymyr",
+        "x": 285.19,
+        "y": 1963.84,
+        "lon": 24.326,
+        "lat": 50.848,
+        "role": "fit"
+      }
+    ]
+  },
+  "1194": {
+    "file": "1194.png",
+    "points": [
+      {
+        "name": "Novgorod",
+        "x": 791.068,
+        "y": 1030.832,
+        "lon": 31.275,
+        "lat": 58.52,
+        "role": "fit"
+      },
+      {
+        "name": "Pskov",
+        "x": 584.902,
+        "y": 1127.043,
+        "lon": 28.335,
+        "lat": 57.82,
+        "role": "holdout"
+      },
+      {
+        "name": "Polotsk",
+        "x": 615.445,
+        "y": 1424.839,
+        "lon": 28.775,
+        "lat": 55.486,
+        "role": "fit"
+      },
+      {
+        "name": "Smolensk",
+        "x": 849.1,
+        "y": 1514.942,
+        "lon": 32.045,
+        "lat": 54.782,
+        "role": "fit"
+      },
+      {
+        "name": "Suzdal",
+        "x": 1444.692,
+        "y": 1310.302,
+        "lon": 40.452,
+        "lat": 56.42,
+        "role": "fit"
+      },
+      {
+        "name": "Vladimir",
+        "x": 1441.638,
+        "y": 1345.427,
+        "lon": 40.408,
+        "lat": 56.13,
+        "role": "fit"
+      },
+      {
+        "name": "Murom",
+        "x": 1559.229,
+        "y": 1435.529,
+        "lon": 42.041,
+        "lat": 55.579,
+        "role": "holdout"
+      },
+      {
+        "name": "Old Ryazan",
+        "x": 1446.219,
+        "y": 1568.392,
+        "lon": 40.579,
+        "lat": 54.403,
+        "role": "fit"
+      },
+      {
+        "name": "Kyiv",
+        "x": 739.145,
+        "y": 2025.013,
+        "lon": 30.523,
+        "lat": 50.45,
+        "role": "fit"
+      },
+      {
+        "name": "Chernihiv",
+        "x": 794.123,
+        "y": 1907.421,
+        "lon": 31.3,
+        "lat": 51.498,
+        "role": "fit"
+      },
+      {
+        "name": "Pereiaslav",
+        "x": 806.34,
+        "y": 2069.3,
+        "lon": 31.459,
+        "lat": 50.065,
+        "role": "holdout"
+      },
+      {
+        "name": "Volodymyr",
+        "x": 297.796,
+        "y": 1977.671,
+        "lon": 24.326,
+        "lat": 50.848,
+        "role": "fit"
+      },
+      {
+        "name": "Halych",
+        "x": 325.285,
+        "y": 2171.62,
+        "lon": 24.725,
+        "lat": 49.124,
+        "role": "fit"
+      }
+    ]
+  }
+}
