@@ -100,6 +100,7 @@ export function AppShell({ profile }: { profile: Profile }) {
   const materialTool = useRouterState({
     select: (s) => (s.location.search as { tool?: string }).tool ?? "atlas",
   });
+  const usefulMode = materialsMode && materialSection === "useful";
   const links = materialsMode
     ? [
         { to: "/app", icon: Home, label: t.tabHome, section: undefined },
@@ -244,7 +245,12 @@ export function AppShell({ profile }: { profile: Profile }) {
           alt=""
           className="app-leaf"
         />
-        <header className="relative z-10 flex items-center gap-3 px-7 pt-[18px] pb-2 max-md:px-4">
+        <header
+          className={cn(
+            "relative z-10 flex items-center gap-3 pt-[18px] pb-2",
+            usefulMode ? "px-[25px]" : "px-7 max-md:px-4",
+          )}
+        >
           <button
             type="button"
             className="grid size-10 place-items-center rounded-xl border border-hairline bg-surface text-ink md:hidden"
@@ -313,8 +319,13 @@ export function AppShell({ profile }: { profile: Profile }) {
             </div>
           </div>
         </header>
-        <main className="relative z-10 w-full px-7 pt-2 pb-10 max-md:px-4">
-          <div className="w-full max-w-[1080px]">
+        <main
+          className={cn(
+            "relative z-10 w-full pt-2 pb-10",
+            usefulMode ? "px-[25px]" : "px-7 max-md:px-4",
+          )}
+        >
+          <div className={cn("w-full", !usefulMode && "max-w-[1080px]")}>
             <Outlet />
           </div>
         </main>
