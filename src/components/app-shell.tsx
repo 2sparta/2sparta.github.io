@@ -32,6 +32,7 @@ import { usePrefs } from "@/lib/prefs";
 import type { Profile } from "@/lib/school/types";
 import { BrandMark, ThemeLangPill } from "./theme-lang";
 import { NotificationsNav } from "./notifications-bell";
+import { LearningToolsNav } from "./learning-tools-nav";
 
 const TEACHER_NAV = [
   { to: "/app", icon: Home, key: "tabHome" as const },
@@ -95,6 +96,9 @@ export function AppShell({ profile }: { profile: Profile }) {
   const materialsMode = pathname.replace(/\/+$/, "") === "/app/materials";
   const materialSection = useRouterState({
     select: (s) => (s.location.search as { section?: string }).section ?? "overview",
+  });
+  const materialTool = useRouterState({
+    select: (s) => (s.location.search as { tool?: string }).tool ?? "atlas",
   });
   const links = materialsMode
     ? [
@@ -174,6 +178,16 @@ export function AppShell({ profile }: { profile: Profile }) {
             </p>
           )}
           {links.map((item) => {
+            if (item.section === "useful")
+              return (
+                <LearningToolsNav
+                  key="learning-tools"
+                  active={materialSection === "useful"}
+                  tool={materialTool}
+                  uk={lang === "uk"}
+                  onNavigate={() => setOpen(false)}
+                />
+              );
             const active = item.section
               ? materialsMode && materialSection === item.section
               : item.to === "/app"
