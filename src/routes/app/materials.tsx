@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,17 +26,31 @@ import { ArticleContent } from "@/components/article-content";
 import { MaterialEditor } from "@/components/material-editor";
 import { HistoricalAtlas } from "@/components/historical-atlas";
 import { clampAtlasYear, type AtlasView } from "@/lib/atlas/model";
+import { LEARNING_TOOLS, validateToolSearch, type LearningTool } from "@/lib/learning-tools";
+import type { PeriodicLayout } from "@/lib/periodic/model";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
 
 export type MaterialSection = "overview" | "videos" | "articles" | "links" | "useful";
+const PeriodicTable = lazy(() =>
+  import("@/components/periodic-table").then((module) => ({ default: module.PeriodicTable })),
+);
 export const Route = createFileRoute("/app/materials")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { section: MaterialSection; id?: string; year?: number; view?: AtlasView } => ({
+  ): {
+    section: MaterialSection;
+    id?: string;
+    year?: number;
+    view?: AtlasView;
+    tool?: LearningTool;
+    element?: number;
+    layout?: PeriodicLayout;
+  } => ({
     section: ["overview", "videos", "articles", "links", "useful"].includes(String(search.section))
       ? (search.section as MaterialSection)
       : "overview",
     ...(typeof search.id === "string" ? { id: search.id } : {}),
+    ...validateToolSearch(search),
     ...(search.year !== undefined ? { year: clampAtlasYear(Number(search.year)) } : {}),
     ...(["rus", "europe", "world", "byzantium", "franks", "mongols", "hordes", "mughals"].includes(
       String(search.view),
@@ -47,7 +61,7 @@ export const Route = createFileRoute("/app/materials")({
   component: Page,
 });
 function Page() {
-  const { section, id, year, view } = Route.useSearch();
+  const { section, id, year, view, tool = "atlas", element, layout } = Route.useSearch();
   const navigate = Route.useNavigate();
   const uk = usePrefs((s) => s.lang) === "uk";
   if (section === "useful")
@@ -60,17 +74,56 @@ function Page() {
           <h1 className="font-display text-3xl font-extrabold">{uk ? "Корисне" : "Tools"}</h1>
           <p className="mt-2 text-sm text-muted">
             {uk
-              ? "Інтерактивні інструменти для навчання. Наразі доступна історична мапа."
-              : "Interactive learning tools. The historical map is available now."}
+              ? "Інтерактивні інструменти для історії та природничих наук."
+              : "Interactive tools for history and science."}
           </p>
+          <nav
+            aria-label={uk ? "Інструменти" : "Learning tools"}
+            className="mt-4 flex flex-wrap gap-2"
+          >
+            {LEARNING_TOOLS.map((item) => (
+              <Link
+                key={item.id}
+                to="/app/materials"
+                search={
+                  item.id === "atlas"
+                    ? { section: "useful", tool: item.id, year, view }
+                    : { section: "useful", tool: item.id, element, layout }
+                }
+                aria-current={tool === item.id ? "page" : undefined}
+                className={`rounded-xl border px-4 py-2 text-sm font-bold ${tool === item.id ? "border-forest-mid bg-forest-mid text-canvas" : "border-hairline bg-surface"}`}
+              >
+                {uk ? item.uk : item.en}
+              </Link>
+            ))}
+          </nav>
         </div>
-        <HistoricalAtlas
-          year={year ?? 1000}
-          view={view ?? "rus"}
-          onChange={(year, view) =>
-            void navigate({ search: { section: "useful", year, view }, replace: true })
-          }
-        />
+        {tool === "periodic" ? (
+          <Suspense fallback={<Panel>Завантаження періодичної таблиці…</Panel>}>
+            <PeriodicTable
+              number={element ?? 4}
+              layout={layout ?? "compact"}
+              onChange={(element, layout) =>
+                void navigate({
+                  search: { section: "useful", tool: "periodic", element, layout },
+                  replace: true,
+                  resetScroll: false,
+                })
+              }
+            />
+          </Suspense>
+        ) : (
+          <HistoricalAtlas
+            year={year ?? 1000}
+            view={view ?? "rus"}
+            onChange={(year, view) =>
+              void navigate({
+                search: { section: "useful", tool: "atlas", year, view },
+                replace: true,
+              })
+            }
+          />
+        )}
       </div>
     );
   // Reset filters and editors when switching material tabs.
@@ -279,8 +332,8 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                   icon: Compass,
                   title: uk ? "Корисне" : "Tools",
                   description: uk
-                    ? "Історична мапа світу й Русі-України"
-                    : "Historical map of the world and Rus’-Ukraine",
+                    ? "Історична мапа та періодична таблиця"
+                    : "Historical map and periodic table",
                 },
               ].map((tab) => (
                 <Link
