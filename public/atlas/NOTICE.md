@@ -20,3 +20,6 @@ Historical descriptions, source references, settlement/reference markers and chr
 ## Detailed Byzantine extension (395–1453)
 
 The overview license does not relicense the user-supplied Lucius maps. See `byzantium/NOTICE.md` and `byzantium/manifest.json` for the separate source, copyrights, conic georeferencing, segmentation and raster provenance. Other countries have no configured geometry before 500 or after 1400. No temporal interpolation.
+
+## Neutral regions (2026-10-13)
+All records named `Unspecified` are omitted from the 11 overview layers. Their areas show the neutral Natural Earth land underneath, without a fabricated polity, border, tooltip or selector entry. All named overview geometries and original feature IDs are retained. A whitespace-only 700 label falls back to its documented subject `Bega`. See manifest.json for counts and checksums.

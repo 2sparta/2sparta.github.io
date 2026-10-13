@@ -8,13 +8,16 @@ export const BYZANTINE_YEARS = [
   1025, 1045, 1059, 1081, 1118, 1143, 1155, 1180, 1203, 1205, 1230, 1254, 1262, 1328, 1340, 1354,
   1400, 1403, 1445, 1453,
 ] as const;
-export type AtlasView = "rus" | "europe" | "world" | "byzantium";
+export type AtlasView = "rus" | "europe" | "world" | "byzantium" | "franks";
 export type HistoricalProperties = {
   name: string;
   subject: string;
   precision: number;
   detailed?: boolean;
   sourceYear?: number;
+  sourceId?: string;
+  region?: "franks";
+  color?: string;
 };
 export type HistoricalFeature = Feature<Geometry, HistoricalProperties>;
 export type HistoricalCollection = FeatureCollection<Geometry, HistoricalProperties>;
@@ -32,6 +35,7 @@ export type AtlasPlace = {
   sources: string[];
   europe?: boolean;
   byzantine?: boolean;
+  frankish?: boolean;
   capital?: boolean;
 };
 export type AtlasEvent = {
@@ -62,16 +66,39 @@ export function isCoarseByzantine(name: string) {
     name,
   );
 }
+export const FRANKISH_YEARS = [481, 511, 561, 614, 768, 814, 843, 870, 881, 888] as const;
+export function frankishSnapshot(year: number) {
+  if (year < 481 || year > 900) return undefined;
+  return [...FRANKISH_YEARS].reverse().find((y) => y <= year);
+}
+export function isUnknownRegion(name: string) {
+  return !name.trim() || /^unspecified$/i.test(name.trim());
+}
+export function isCoarseFrankish(name: string) {
+  return /^(Franks|Frankish Kingdom|Carolingian Empire)$/.test(name);
+}
 export function combineHistoricalLayers(
   overview: HistoricalCollection | undefined,
   detailed: HistoricalCollection | undefined,
+  frankish?: HistoricalCollection,
 ): HistoricalCollection | undefined {
-  if (!detailed) return overview;
+  const clean = overview?.features.filter((f) => !isUnknownRegion(f.properties.name));
+  if (!detailed && !frankish)
+    return clean?.length === overview?.features.length
+      ? overview
+      : clean
+        ? { type: "FeatureCollection", features: clean }
+        : undefined;
   return {
     type: "FeatureCollection",
     features: [
-      ...(overview?.features ?? []).filter((f) => !isCoarseByzantine(f.properties.name)),
-      ...detailed.features,
+      ...(clean ?? []).filter(
+        (f) =>
+          !(detailed && isCoarseByzantine(f.properties.name)) &&
+          !(frankish && isCoarseFrankish(f.properties.name)),
+      ),
+      ...(detailed?.features ?? []),
+      ...(frankish?.features ?? []),
     ],
   };
 }
@@ -120,6 +147,24 @@ export function historicalName(name: string, uk = true) {
     "Roman Empire": "Римська імперія",
     "Frankish Kingdom": "Франкське королівство",
     Franks: "Франки",
+    "Frankish realms": "Франкські володіння",
+    "Carolingian Empire": "Каролінзька імперія",
+    "Frankish dependent territories": "Залежні території франків",
+    "Kingdom of Orleans": "Орлеанське королівство",
+    "Kingdom of Paris": "Паризьке королівство",
+    "Kingdom of Reims": "Реймське королівство",
+    "Kingdom of Soissons": "Суассонське королівство",
+    "West Francia": "Західна Франкія",
+    "Middle Francia": "Середня Франкія",
+    "East Francia": "Східна Франкія",
+    "Kingdom of Italy": "Італійське королівство",
+    "Charles III's realms": "Володіння Карла III — Італія й східні землі",
+    "Papal States": "Папська держава",
+    "Disputed Aquitaine": "Аквітанія — спірні володіння",
+    "West Francia — Louis III": "Західна Франкія — Людовик III",
+    "West Francia — Carloman II": "Західна Франкія — Карломан II",
+    "Lower Burgundy": "Нижня Бургундія",
+    "Upper Burgundy": "Верхня Бургундія",
     "Holy Roman Empire": "Священна Римська імперія",
     "Kingdom of Poland": "Польське королівство",
     Poland: "Польща",
@@ -133,7 +178,6 @@ export function historicalName(name: string, uk = true) {
     "Avar Khaganate": "Аварський каганат",
     Sclaveni: "Склавини",
     Antes: "Анти",
-    Unspecified: "Не уточнено в джерелі",
   };
   return uk ? (names[name] ?? name) : name;
 }

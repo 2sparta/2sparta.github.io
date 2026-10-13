@@ -1,0 +1,770 @@
+{
+  "growth": {
+    "file": "Frankish_Empire_481_to_814-fr.svg",
+    "points": [
+      {
+        "name": "Nantes",
+        "svgId": "path11648",
+        "x": 537.849341,
+        "y": 732.264907,
+        "lon": -1.5536,
+        "lat": 47.2184,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Paris",
+        "svgId": "use11656",
+        "x": 765.849341,
+        "y": 626.264907,
+        "lon": 2.3522,
+        "lat": 48.8566,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Cologne",
+        "svgId": "use11664",
+        "x": 1001.849341,
+        "y": 444.264907,
+        "lon": 6.9603,
+        "lat": 50.9375,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Salzburg",
+        "svgId": "use11674",
+        "x": 1351.849341,
+        "y": 686.264907,
+        "lon": 13.055,
+        "lat": 47.8095,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Venice",
+        "svgId": "use11676",
+        "x": 1333.849341,
+        "y": 878.264907,
+        "lon": 12.3155,
+        "lat": 45.4408,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Rome",
+        "svgId": "use11686",
+        "x": 1371.849341,
+        "y": 1174.264907,
+        "lon": 12.4964,
+        "lat": 41.9028,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Toulouse",
+        "svgId": "use11694",
+        "x": 695.849341,
+        "y": 1044.264907,
+        "lon": 1.4442,
+        "lat": 43.6047,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Barcelona",
+        "svgId": "use11696",
+        "x": 745.849341,
+        "y": 1218.264907,
+        "lon": 2.1734,
+        "lat": 41.3851,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Bordeaux",
+        "svgId": "use11692",
+        "x": 587.849341,
+        "y": 942.264907,
+        "lon": -0.5792,
+        "lat": 44.8378,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Fulda",
+        "svgId": "use11670",
+        "x": 1151.849341,
+        "y": 482.264907,
+        "lon": 9.6754,
+        "lat": 50.5558,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Tours",
+        "svgId": "use11654",
+        "x": 669.849341,
+        "y": 734.264907,
+        "lon": 0.6848,
+        "lat": 47.3941,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Reims",
+        "svgId": "use11658",
+        "x": 859.849341,
+        "y": 588.264907,
+        "lon": 4.0317,
+        "lat": 49.2583,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Strasbourg",
+        "svgId": "use11668",
+        "x": 1049.849341,
+        "y": 640.264907,
+        "lon": 7.7521,
+        "lat": 48.5734,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Pavia",
+        "svgId": "use11680",
+        "x": 1141.849341,
+        "y": 912.264907,
+        "lon": 9.1582,
+        "lat": 45.1847,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Lyon",
+        "svgId": "use11690",
+        "x": 897.849341,
+        "y": 872.264907,
+        "lon": 4.8357,
+        "lat": 45.764,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Geneva",
+        "svgId": "use11688",
+        "x": 969.849341,
+        "y": 832.264907,
+        "lon": 6.1432,
+        "lat": 46.2044,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Aachen",
+        "svgId": "use11797",
+        "x": 965.849341,
+        "y": 466.264907,
+        "lon": 6.0839,
+        "lat": 50.7753,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Regensburg",
+        "svgId": "use11672",
+        "x": 1295.849341,
+        "y": 598.264907,
+        "lon": 12.1016,
+        "lat": 49.0134,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      }
+    ]
+  },
+  "merovingian": {
+    "file": "Le_royaume_des_Francs_en_561.svg",
+    "points": [
+      {
+        "name": "Vannes",
+        "svgId": "path6567",
+        "x": 97.923846,
+        "y": 325.226734,
+        "lon": -2.7608,
+        "lat": 47.6582,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Thérouanne",
+        "svgId": "path6519",
+        "x": 289.352416,
+        "y": 144.798158,
+        "lon": 2.2567,
+        "lat": 50.636,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Cologne",
+        "svgId": "path4086",
+        "x": 458.552787,
+        "y": 116.382807,
+        "lon": 6.9603,
+        "lat": 50.9375,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Strasbourg",
+        "svgId": "path6669-9",
+        "x": 500.189946,
+        "y": 254.654084,
+        "lon": 7.7521,
+        "lat": 48.5734,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Nice",
+        "svgId": "path3611-9",
+        "x": 510.491346,
+        "y": 564.633234,
+        "lon": 7.262,
+        "lat": 43.7102,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Bordeaux",
+        "svgId": "path4136",
+        "x": 179.558409,
+        "y": 490.422187,
+        "lon": -0.5792,
+        "lat": 44.8378,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Orléans",
+        "svgId": "path6495",
+        "x": 281.995276,
+        "y": 316.941014,
+        "lon": 1.9093,
+        "lat": 47.9029,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Geneva",
+        "svgId": "path6687",
+        "x": 465.267636,
+        "y": 415.669944,
+        "lon": 6.1432,
+        "lat": 46.2044,
+        "role": "fit",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Reims",
+        "svgId": "path4076",
+        "x": 359.537537,
+        "y": 227.519897,
+        "lon": 4.0317,
+        "lat": 49.2583,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Lyon",
+        "svgId": "path4116",
+        "x": 390.558407,
+        "y": 437.993617,
+        "lon": 4.8357,
+        "lat": 45.764,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Poitiers",
+        "svgId": "path6489",
+        "x": 219.852416,
+        "y": 395.655304,
+        "lon": 0.3404,
+        "lat": 46.5802,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Angers",
+        "svgId": "path6543-0",
+        "x": 204.991356,
+        "y": 341.133224,
+        "lon": -0.5518,
+        "lat": 47.4784,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Metz",
+        "svgId": "path6471",
+        "x": 437.709556,
+        "y": 224.655304,
+        "lon": 6.1757,
+        "lat": 49.1193,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Coutances",
+        "svgId": "path6555",
+        "x": 158.638126,
+        "y": 243.155304,
+        "lon": -1.4429,
+        "lat": 49.0453,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      },
+      {
+        "name": "Arles",
+        "svgId": "path4166",
+        "x": 390.844127,
+        "y": 571.136467,
+        "lon": 4.6278,
+        "lat": 43.6766,
+        "role": "holdout",
+        "kind": "source city marker; modern reference city centre"
+      }
+    ]
+  },
+  "late": {
+    "files": [
+      "Carolingian_empire_843.svg",
+      "Carolingian_empire_870.svg",
+      "Carolingian_empire_881.svg",
+      "Carolingian_empire_888.svg"
+    ],
+    "warning": "Exact SVG endpoint coordinates; approximate visually reviewed geographic coast landmarks with published uncertainty, not a declared source CRS.",
+    "points": [
+      {
+        "name": "Cap de la Hague",
+        "role": "fit",
+        "x": 137.15615999999994,
+        "y": 297.3647999999997,
+        "svgPath": "path2561",
+        "segment": 299,
+        "endpoint": "end",
+        "lon": -1.942,
+        "lat": 49.725,
+        "geographicUncertaintyKm": 4,
+        "otherPairVertex": {
+          "segment": 347,
+          "endpoint": "end",
+          "x": 137.15431000000038,
+          "y": 297.3652999999999
+        },
+        "naturalEarthReference": {
+          "lon": -1.8564,
+          "lat": 49.6838,
+          "distanceFromNamedApproxKm": 7.69
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Cap Gris-Nez",
+        "role": "fit",
+        "x": 336.31665000000004,
+        "y": 232.06466999999998,
+        "svgPath": "path2561",
+        "segment": 486,
+        "endpoint": "end",
+        "lon": 1.584,
+        "lat": 50.869,
+        "geographicUncertaintyKm": 3,
+        "otherPairVertex": {
+          "segment": 455,
+          "endpoint": "end",
+          "x": 336.3164200000004,
+          "y": 232.06451999999996
+        },
+        "naturalEarthReference": {
+          "lon": 1.6723,
+          "lat": 50.885,
+          "distanceFromNamedApproxKm": 6.46
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Loire mouth near Saint-Nazaire",
+        "role": "fit",
+        "x": 88.16984199999997,
+        "y": 482.3645000000034,
+        "svgPath": "path2561",
+        "segment": 1692,
+        "endpoint": "end",
+        "lon": -2.17,
+        "lat": 47.267,
+        "geographicUncertaintyKm": 8,
+        "otherPairVertex": {
+          "segment": 1304,
+          "endpoint": "end",
+          "x": 88.169922,
+          "y": 482.36503000000005
+        },
+        "naturalEarthReference": {
+          "lon": -2.1083,
+          "lat": 47.2629,
+          "distanceFromNamedApproxKm": 4.69
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Arcachon Bay mouth / Cap Ferret",
+        "role": "fit",
+        "x": 105.85941999999999,
+        "y": 689.1723900000015,
+        "svgPath": "path2561",
+        "segment": 1464,
+        "endpoint": "end",
+        "lon": -1.247,
+        "lat": 44.623,
+        "geographicUncertaintyKm": 6,
+        "otherPairVertex": {
+          "segment": 1205,
+          "endpoint": "end",
+          "x": 105.85937999999997,
+          "y": 689.1738100000002
+        },
+        "naturalEarthReference": {
+          "lon": -1.2452,
+          "lat": 44.6667,
+          "distanceFromNamedApproxKm": 4.86
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "La Rochelle / eastern Île de Ré coast",
+        "role": "holdout",
+        "x": 114.94922000000001,
+        "y": 575.2031299999999,
+        "svgPath": "path2561",
+        "segment": 1810,
+        "endpoint": "end",
+        "lon": -1.215,
+        "lat": 46.17,
+        "geographicUncertaintyKm": 12,
+        "otherPairVertex": {
+          "segment": 1393,
+          "endpoint": "end",
+          "x": 114.94921999999998,
+          "y": 575.2031299999999
+        },
+        "naturalEarthReference": {
+          "lon": -1.1463,
+          "lat": 46.3114,
+          "distanceFromNamedApproxKm": 16.59
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Western Scheldt / Zeeland delta mouth",
+        "role": "holdout",
+        "x": 432.21180000000027,
+        "y": 219.61817000000025,
+        "svgPath": "path2561",
+        "segment": 610,
+        "endpoint": "end",
+        "lon": 3.44,
+        "lat": 51.4,
+        "geographicUncertaintyKm": 15,
+        "otherPairVertex": {
+          "segment": 513,
+          "endpoint": "end",
+          "x": 431.9765700000005,
+          "y": 222.36530000000022
+        },
+        "naturalEarthReference": {
+          "lon": 3.4258,
+          "lat": 51.3935,
+          "distanceFromNamedApproxKm": 1.22
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Texel eastern coast / Wadden inlet",
+        "role": "holdout",
+        "x": 520.1451600000004,
+        "y": 91.4658460000002,
+        "svgPath": "path2561",
+        "segment": 692,
+        "endpoint": "end",
+        "lon": 4.915,
+        "lat": 53.042,
+        "geographicUncertaintyKm": 15,
+        "otherPairVertex": {
+          "segment": 620,
+          "endpoint": "end",
+          "x": 517.4356000000004,
+          "y": 93.20729000000016
+        },
+        "naturalEarthReference": {
+          "lon": 4.8861,
+          "lat": 53.0707,
+          "distanceFromNamedApproxKm": 3.74
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Dollart/Emden inlet",
+        "role": "fit",
+        "x": 606.4010400000004,
+        "y": 77.49714600000004,
+        "svgPath": "path2561",
+        "segment": 820,
+        "endpoint": "end",
+        "lon": 7.16,
+        "lat": 53.33,
+        "geographicUncertaintyKm": 10,
+        "otherPairVertex": {
+          "segment": 764,
+          "endpoint": "end",
+          "x": 605.0410700000007,
+          "y": 80.06473200000009
+        },
+        "naturalEarthReference": {
+          "lon": 7.1973,
+          "lat": 53.2823,
+          "distanceFromNamedApproxKm": 5.86
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Elbe mouth near Cuxhaven",
+        "role": "fit",
+        "x": 700.7096500000009,
+        "y": 39.651534000000034,
+        "svgPath": "path2561",
+        "segment": 924,
+        "endpoint": "end",
+        "lon": 8.706,
+        "lat": 53.871,
+        "geographicUncertaintyKm": 8,
+        "otherPairVertex": {
+          "segment": 30,
+          "endpoint": "end",
+          "x": 700.7089800000005,
+          "y": 39.650369999999995
+        },
+        "naturalEarthReference": {
+          "lon": 8.6189,
+          "lat": 53.875,
+          "distanceFromNamedApproxKm": 5.75
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Elbe estuary near Stade",
+        "role": "holdout",
+        "x": 727.3445600000006,
+        "y": 70.36642400000004,
+        "svgPath": "path2561",
+        "segment": 900,
+        "endpoint": "end",
+        "lon": 9.485,
+        "lat": 53.604,
+        "geographicUncertaintyKm": 15,
+        "otherPairVertex": {
+          "segment": 16,
+          "endpoint": "end",
+          "x": 727.3437500000003,
+          "y": 70.365213
+        },
+        "naturalEarthReference": {
+          "lon": 9.5854,
+          "lat": 53.6005,
+          "distanceFromNamedApproxKm": 6.66
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Wismar Bay southeastern shore",
+        "role": "fit",
+        "x": 816.5765699999998,
+        "y": 47.90245,
+        "svgPath": "path2561",
+        "segment": 1040,
+        "endpoint": "end",
+        "lon": 11.446,
+        "lat": 53.902,
+        "geographicUncertaintyKm": 10,
+        "otherPairVertex": {
+          "segment": 862,
+          "endpoint": "end",
+          "x": 816.5763999999997,
+          "y": 47.902322999999996
+        },
+        "naturalEarthReference": {
+          "lon": 11.3996,
+          "lat": 53.9446,
+          "distanceFromNamedApproxKm": 5.64
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Western Corsica / Cap Rosso coast",
+        "role": "holdout",
+        "x": 634.3731000000001,
+        "y": 939.5625100000002,
+        "svgPath": "path2561",
+        "segment": 2724,
+        "endpoint": "end",
+        "lon": 8.534,
+        "lat": 42.374,
+        "geographicUncertaintyKm": 8,
+        "otherPairVertex": {
+          "segment": 2264,
+          "endpoint": "end",
+          "x": 634.3730600000001,
+          "y": 939.5625900000003
+        },
+        "naturalEarthReference": {
+          "lon": 8.5656,
+          "lat": 42.3577,
+          "distanceFromNamedApproxKm": 3.17
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Cap Corse northern tip",
+        "role": "fit",
+        "x": 680.1171900000002,
+        "y": 888.8671999999999,
+        "svgPath": "path2561",
+        "segment": 2663,
+        "endpoint": "start",
+        "lon": 9.358,
+        "lat": 43.028,
+        "geographicUncertaintyKm": 3,
+        "otherPairVertex": {
+          "segment": 2203,
+          "endpoint": "start",
+          "x": 680.1171500000002,
+          "y": 888.8672800000002
+        },
+        "naturalEarthReference": {
+          "lon": 9.3632,
+          "lat": 43.0174,
+          "distanceFromNamedApproxKm": 1.25
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Cap Pertusato / southern Corsica tip",
+        "role": "fit",
+        "x": 666.1641100000002,
+        "y": 1009.3672,
+        "svgPath": "path2561",
+        "segment": 2692,
+        "endpoint": "end",
+        "lon": 9.185,
+        "lat": 41.367,
+        "geographicUncertaintyKm": 4,
+        "otherPairVertex": {
+          "segment": 2232,
+          "endpoint": "end",
+          "x": 666.1640700000002,
+          "y": 1009.3673000000001
+        },
+        "naturalEarthReference": {
+          "lon": 9.1861,
+          "lat": 41.3849,
+          "distanceFromNamedApproxKm": 1.99
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Genoa / Ligurian gulf northern apex",
+        "role": "fit",
+        "x": 672.10742,
+        "y": 780.3632899999999,
+        "svgPath": "path2561",
+        "segment": 2211,
+        "endpoint": "start",
+        "lon": 8.93,
+        "lat": 44.407,
+        "geographicUncertaintyKm": 5,
+        "otherPairVertex": {
+          "segment": 1804,
+          "endpoint": "end",
+          "x": 672.1347900000003,
+          "y": 778.1173200000002
+        },
+        "naturalEarthReference": {
+          "lon": 8.7658,
+          "lat": 44.4223,
+          "distanceFromNamedApproxKm": 13.19
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Gulf of Trieste northeastern coast",
+        "role": "fit",
+        "x": 926.0154399999998,
+        "y": 689.0528899999998,
+        "svgPath": "path2561",
+        "segment": 2137,
+        "endpoint": "end",
+        "lon": 13.765,
+        "lat": 45.65,
+        "geographicUncertaintyKm": 8,
+        "otherPairVertex": {
+          "segment": 1423,
+          "endpoint": "end",
+          "x": 927.7207000000001,
+          "y": 690.6172
+        },
+        "naturalEarthReference": {
+          "lon": 13.7833,
+          "lat": 45.6272,
+          "distanceFromNamedApproxKm": 2.91
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      },
+      {
+        "name": "Sanremo / western Ligurian coastline bend",
+        "role": "fit",
+        "x": 608.68945,
+        "y": 816.91017,
+        "svgPath": "path2561",
+        "segment": 2223,
+        "endpoint": "end",
+        "lon": 7.775,
+        "lat": 43.816,
+        "geographicUncertaintyKm": 12,
+        "otherPairVertex": {
+          "segment": 1817,
+          "endpoint": "end",
+          "x": 606.1933800000004,
+          "y": 816.0763000000002
+        },
+        "naturalEarthReference": {
+          "lon": 8.005,
+          "lat": 43.8768,
+          "distanceFromNamedApproxKm": 19.69
+        },
+        "method": "Exact source SVG segment endpoint; geographic landmark identification approximate, visually reviewed; naturalEarthReference is nearest modern 50m land vertex, not independent historical evidence."
+      }
+    ],
+    "notes": [
+      "Western Brittany/Brest/Pointe du Raz are clipped out of the source viewport; Loire mouth substitutes an eastern-Brittany anchor.",
+      "SVG coordinates are exact path vertices. Geographic anchors are approximate and uncertainty reflects generalized coastline and visual identification.",
+      "Five holdout points were not designated for fitting; Zeeland/Den Helder/Szczecin are ambiguous and should receive low validation weight.",
+      "No geographic CRS is declared; fit projection empirically and retain validation residuals.",
+      "Later visual correction: initial Gironde query was actually Arcachon mouth; initial Kiel query was Wismar Bay; initial Nice query was near Sanremo. Exact SVG positions retained, geographic names corrected.",
+      "Ambiguous southern Baltic candidate excluded rather than used to distort fit; replaced heldout point by west Corsica cape."
+    ],
+    "sharedCoast": "843/888 path2561 and 870/881 path4271-2: median nearest-vertex distance 0.0011 source units; common geographic fit, localized differences up to a few pixels."
+  }
+}
