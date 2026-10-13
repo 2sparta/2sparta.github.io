@@ -13,6 +13,18 @@ import {
 } from "@/lib/atlas/model";
 
 export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
+  mongols: [
+    [10, 15],
+    [65, 140],
+  ],
+  hordes: [
+    [35, 20],
+    [62, 105],
+  ],
+  mughals: [
+    [5, 60],
+    [38, 97],
+  ],
   franks: [
     [39, -7],
     [55, 19],
@@ -95,6 +107,9 @@ export function HistoricalMapCanvas({
         );
         instance.attributionControl.addAttribution(
           '<a href="/atlas/rus/NOTICE.md" target="_blank" rel="noopener noreferrer">Русь: Unochepassava94, Koryakov Yuri, Das Steinerne Herz, Redx360, Hellerick, Mnohohrishnyi · CC BY-SA / CC0</a>',
+        );
+        instance.attributionControl.addAttribution(
+          '<a href="/atlas/mongols/NOTICE.md" target="_blank" rel="noopener noreferrer">Монголи / Моголи: Cattette, Gabagool, Elvonudinium, Avantiputra7, Joppen · CC BY / BY-SA</a>',
         );
         instance.createPane("atlas-original").style.zIndex = "410";
         instance.getPane("atlas-original")!.style.pointerEvents = "none";
@@ -182,23 +197,30 @@ export function HistoricalMapCanvas({
         style: (feature) => {
           const p = feature!.properties;
           return {
-            color:
-              feature!.id === selected
+            color: p.invaded
+              ? "#c52d27"
+              : feature!.id === selected
                 ? "#8e173b"
                 : p.region === "franks"
                   ? "#606f85"
                   : p.detailed
                     ? "#a56177"
                     : "#9aa5b0",
-            weight: feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
+            weight: p.invaded ? 2.3 : feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
             fillColor: p.color ?? polityColor(p.subject),
             fillOpacity: feature!.id === selected ? 0.9 : p.detailed ? 1 : 0.23,
-            dashArray: p.precision === 1 ? "4 3" : undefined,
+            dashArray: p.invaded ? "6 3" : p.precision === 1 ? "4 3" : undefined,
           };
         },
         onEachFeature: (feature, layer) => {
           const label = document.createElement("span");
-          label.textContent = historicalName(feature.properties.name, uk);
+          label.textContent =
+            historicalName(feature.properties.name, uk) +
+            (feature.properties.invaded
+              ? uk
+                ? " · головний осередок розорено"
+                : " · main centre sacked"
+              : "");
           layer.bindTooltip(label, { sticky: true });
           layer.on("click", () => onPolity(feature as HistoricalFeature));
         },
@@ -261,9 +283,26 @@ export function HistoricalMapCanvas({
         : L.circleMarker([place.lat, place.lng], {
             pane: "atlas-markers",
             radius: active ? 9 : isCity ? 4.5 : 7,
-            color: active ? "#122f27" : isCity ? "#222222" : "#984b33",
+            color: active
+              ? "#122f27"
+              : place.campaign === "sack"
+                ? "#c52d27"
+                : place.campaign === "battle"
+                  ? "#b96a11"
+                  : isCity
+                    ? "#222222"
+                    : "#984b33",
             weight: active ? 3 : 1.5,
-            fillColor: place.byzantine ? "#e33130" : isCity ? "#222222" : "#c87c54",
+            fillColor:
+              place.campaign === "sack"
+                ? "#c52d27"
+                : place.campaign === "battle"
+                  ? "#d89535"
+                  : place.byzantine
+                    ? "#e33130"
+                    : isCity
+                      ? "#222222"
+                      : "#c87c54",
             fillOpacity: isCity ? 1 : 0.3,
             dashArray: isCity ? undefined : "3 3",
           });
@@ -272,6 +311,7 @@ export function HistoricalMapCanvas({
       marker.bindTooltip(label, {
         permanent:
           active ||
+          (Boolean(place.campaign) && zoom >= 4.5) ||
           place.capital ||
           (isCity &&
             view === "rus" &&

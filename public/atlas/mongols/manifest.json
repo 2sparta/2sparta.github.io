@@ -1,0 +1,192 @@
+{
+  "method": "Direct SVG and raster colour contours; manual Mughal raster boundary tracing, no invented annual interpolation.",
+  "registration": {
+    "expansion": {
+      "model": "asia-lambert",
+      "crs": "+proj=lcc +lat_1=20 +lat_2=60 +lon_0=90 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          11.840360850643716,
+          -1.5466355103758707
+        ],
+        [
+          -1.4684444934839789,
+          -12.081761597207226
+        ],
+        [
+          666.9063488789267,
+          910.6092106508573
+        ]
+      ],
+      "fitRmsSourceUnits": 1.659,
+      "holdoutRmsSourceUnits": 1.949,
+      "holdoutMaxSourceUnits": 1.966,
+      "fittingPoints": 9,
+      "heldOutPoints": 2,
+      "holdouts": [
+        {
+          "name": "Lhasa",
+          "residualSourceUnits": 1.932
+        },
+        {
+          "name": "Hangzhou",
+          "residualSourceUnits": 1.966
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    },
+    "divisions": {
+      "model": "winkel",
+      "crs": "+proj=wintri +lon_0=90 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          13.837437896257976,
+          -0.2522488978040412
+        ],
+        [
+          -2.721462875502649,
+          -16.14605802470038
+        ],
+        [
+          1134.308678992423,
+          1066.524670742683
+        ]
+      ],
+      "fitRmsSourceUnits": 18.679,
+      "holdoutRmsSourceUnits": 22.123,
+      "holdoutMaxSourceUnits": 23.567,
+      "fittingPoints": 6,
+      "heldOutPoints": 2,
+      "holdouts": [
+        {
+          "name": "Bab el Mandeb",
+          "residualSourceUnits": 20.578
+        },
+        {
+          "name": "Sri Lanka tip",
+          "residualSourceUnits": 23.567
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    },
+    "mughals": {
+      "model": "equirectangular",
+      "crs": "+proj=eqc +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          20.307100129575378,
+          -0.08430746402374428
+        ],
+        [
+          -0.4534116809026614,
+          -20.991673198710426
+        ],
+        [
+          -1334.1287568952312,
+          899.0754415924788
+        ]
+      ],
+      "fitRmsSourceUnits": 2.82,
+      "holdoutRmsSourceUnits": 3.99,
+      "holdoutMaxSourceUnits": 4.775,
+      "fittingPoints": 10,
+      "heldOutPoints": 2,
+      "holdouts": [
+        {
+          "name": "Ahmedabad",
+          "residualSourceUnits": 4.775
+        },
+        {
+          "name": "Bidar",
+          "residualSourceUnits": 3.006
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate."
+    }
+  },
+  "basemapInputs": [
+    {
+      "year": 1500,
+      "commit": "da7a4b735ecef70aebdc9c73e409d8a2500d50f3",
+      "sha256": "d01ffc9b80629787f13d2b1c2f881f005bc0164433548e30f5c058ddee0bfc7b"
+    },
+    {
+      "year": 1600,
+      "commit": "da7a4b735ecef70aebdc9c73e409d8a2500d50f3",
+      "sha256": "7285c07eeedfda9048de5354ea1744d327b07614085e9696c5802bb54c86849c"
+    },
+    {
+      "year": 1700,
+      "commit": "da7a4b735ecef70aebdc9c73e409d8a2500d50f3",
+      "sha256": "eb73d6b00e98205fb2082de050c35e4d698224b17849628d82584610186b88a4"
+    }
+  ],
+  "originals": [
+    {
+      "file": "expansion.svg",
+      "title": "Expansion of the Mongol Empire.svg",
+      "author": "Cattette",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "mongol-expansion",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Expansion_of_the_Mongol_Empire.svg",
+      "sha256": "4adc90daca18352e0cf8a52b4bd47cbadfb39f191b99a73d8125abd2b63ea53e",
+      "preview": "atlas/mongols/originals/expansion.webp",
+      "previewSha256": "e388b65fc1e66ccb66395664db0889cb312661648f5d38d43a66918b796eab8c"
+    },
+    {
+      "file": "divisions.png",
+      "title": "MongolEmpireDivisions1300.png",
+      "author": "Gabagool; Ecthelion83 and Commons contributors",
+      "license": "CC BY 3.0",
+      "sourceId": "mongol-divisions",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:MongolEmpireDivisions1300.png",
+      "sha256": "79ccc82aa33b94824547b6cd13582952e34866b16269080423bc12e5cac4f188",
+      "preview": "atlas/mongols/originals/divisions.webp",
+      "previewSha256": "25a71fd6280285da688c69e11a369ea3d8e78b040086e464119b7c9ee0391b34"
+    },
+    {
+      "file": "successors.svg",
+      "title": "Northern Yuan and Golden Horde.svg",
+      "author": "Elvonudinium",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "mongol-successors",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Northern_Yuan_and_Golden_Horde.svg",
+      "sha256": "4e6b202d4e608551b835d3bb6aadbcde6939b3ba0a033b5ef95f67c126ed9494",
+      "preview": "atlas/mongols/originals/successors.webp",
+      "previewSha256": "951ae363bdd520a8850a9f78f939782c16df87cd5ad05bf9602070dd895c2243"
+    },
+    {
+      "file": "mughal-1530.png",
+      "title": "Mughal Empire, 1530.png",
+      "author": "Avantiputra7",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "mughal-1530",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Mughal_Empire,_1530.png",
+      "sha256": "abdc132be448f0b66d4cec6fd6d8a6f27bb05ed1c40bb63bb63b9c8924e29b1f",
+      "preview": "atlas/mongols/originals/mughal-1530.webp",
+      "previewSha256": "489ef5d52e4f8b019ca50913a6c9303c6040d4a7b900cca21c607da195b3914a"
+    },
+    {
+      "file": "mughal-akbar.png",
+      "title": "Mughal Empire, 1605.png",
+      "author": "Avantiputra7",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "mughal-1605",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Mughal_Empire,_1605.png",
+      "sha256": "399eae5f0717a00b127ce1c6e77b8c703a72d4b646e2b0122a077e2c20255cd2",
+      "preview": "atlas/mongols/originals/mughal-akbar.webp",
+      "previewSha256": "bc6dfe2e5f79caa1746e1974a8c4f3dd0a0162109beb3b9f0e2d8e77bf4d5655"
+    },
+    {
+      "file": "mughal-1707.png",
+      "title": "Mughal Empire, 1707.png",
+      "author": "Avantiputra7",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "mughal-1707",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Mughal_Empire,_1707.png",
+      "sha256": "a5da831acc04b4613d0d5ffcc25917c38c99581e559328126a6c8939d4d1b9b2",
+      "preview": "atlas/mongols/originals/mughal-1707.webp",
+      "previewSha256": "47c6c25e4a86d1667a4af25456971b86fbb952ff2cc839e94812fabfbe169010"
+    }
+  ]
+}

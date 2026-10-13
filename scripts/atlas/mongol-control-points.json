@@ -1,0 +1,262 @@
+{
+  "expansion": {
+    "points": [
+      {
+        "name": "Beijing",
+        "x": 843.2249,
+        "y": 293.9524,
+        "lon": 116.4,
+        "lat": 39.9,
+        "role": "fit"
+      },
+      {
+        "name": "Delhi",
+        "x": 476.1529,
+        "y": 516.0773,
+        "lon": 77.2,
+        "lat": 28.6,
+        "role": "fit"
+      },
+      {
+        "name": "Lahore",
+        "x": 446.1018,
+        "y": 478.1884,
+        "lon": 74.34,
+        "lat": 31.55,
+        "role": "fit"
+      },
+      {
+        "name": "Bukhara",
+        "x": 354.4433,
+        "y": 364.3071,
+        "lon": 64.42,
+        "lat": 39.77,
+        "role": "fit"
+      },
+      {
+        "name": "Samarkand",
+        "x": 379.6285,
+        "y": 368.6034,
+        "lon": 66.96,
+        "lat": 39.65,
+        "role": "fit"
+      },
+      {
+        "name": "Balkh",
+        "x": 373.4063,
+        "y": 405.3441,
+        "lon": 66.9,
+        "lat": 36.76,
+        "role": "fit"
+      },
+      {
+        "name": "Merv",
+        "x": 329.1019,
+        "y": 385.6404,
+        "lon": 62.18,
+        "lat": 37.66,
+        "role": "fit"
+      },
+      {
+        "name": "Baghdad",
+        "x": 140.147,
+        "y": 381.5664,
+        "lon": 44.37,
+        "lat": 33.32,
+        "role": "fit"
+      },
+      {
+        "name": "Sarai",
+        "x": 231.9248,
+        "y": 229.9367,
+        "lon": 47.18,
+        "lat": 47.18,
+        "role": "fit"
+      },
+      {
+        "name": "Lhasa",
+        "x": 630.6203,
+        "y": 493.1971,
+        "lon": 91.13,
+        "lat": 29.65,
+        "role": "holdout"
+      },
+      {
+        "name": "Hangzhou",
+        "x": 929.7639,
+        "y": 386.77,
+        "lon": 120.16,
+        "lat": 30.25,
+        "role": "holdout"
+      }
+    ]
+  },
+  "divisions": {
+    "points": [
+      {
+        "name": "Crimea tip",
+        "x": 240,
+        "y": 257,
+        "lon": 34,
+        "lat": 44.4,
+        "role": "fit"
+      },
+      {
+        "name": "Aral",
+        "x": 559,
+        "y": 257,
+        "lon": 59.6,
+        "lat": 45.2,
+        "role": "fit"
+      },
+      {
+        "name": "India tip",
+        "x": 906,
+        "y": 911,
+        "lon": 77.55,
+        "lat": 8.1,
+        "role": "fit"
+      },
+      {
+        "name": "Hainan",
+        "x": 1387,
+        "y": 717,
+        "lon": 109.7,
+        "lat": 19.1,
+        "role": "fit"
+      },
+      {
+        "name": "Suez",
+        "x": 203,
+        "y": 530,
+        "lon": 32.55,
+        "lat": 29.97,
+        "role": "fit"
+      },
+      {
+        "name": "Hormuz",
+        "x": 557,
+        "y": 623,
+        "lon": 56.3,
+        "lat": 26.6,
+        "role": "fit"
+      },
+      {
+        "name": "Bab el Mandeb",
+        "x": 392,
+        "y": 868,
+        "lon": 43.3,
+        "lat": 12.6,
+        "role": "holdout"
+      },
+      {
+        "name": "Sri Lanka tip",
+        "x": 967,
+        "y": 940,
+        "lon": 80.6,
+        "lat": 5.9,
+        "role": "holdout"
+      }
+    ]
+  },
+  "mughals": {
+    "points": [
+      {
+        "name": "Kabul",
+        "x": 213,
+        "y": 90,
+        "lon": 69.17,
+        "lat": 34.53,
+        "role": "fit"
+      },
+      {
+        "name": "Peshawar",
+        "x": 269,
+        "y": 103,
+        "lon": 71.58,
+        "lat": 34.02,
+        "role": "fit"
+      },
+      {
+        "name": "Kandahar",
+        "x": 131,
+        "y": 159,
+        "lon": 65.71,
+        "lat": 31.62,
+        "role": "fit"
+      },
+      {
+        "name": "Lahore",
+        "x": 333,
+        "y": 158,
+        "lon": 74.34,
+        "lat": 31.55,
+        "role": "fit"
+      },
+      {
+        "name": "Multan",
+        "x": 267,
+        "y": 190,
+        "lon": 71.52,
+        "lat": 30.2,
+        "role": "fit"
+      },
+      {
+        "name": "Delhi",
+        "x": 398,
+        "y": 228,
+        "lon": 77.22,
+        "lat": 28.61,
+        "role": "fit"
+      },
+      {
+        "name": "Agra",
+        "x": 415,
+        "y": 261,
+        "lon": 78.01,
+        "lat": 27.18,
+        "role": "fit"
+      },
+      {
+        "name": "Ajmer",
+        "x": 340,
+        "y": 276,
+        "lon": 74.64,
+        "lat": 26.45,
+        "role": "fit"
+      },
+      {
+        "name": "Dhaka",
+        "x": 693,
+        "y": 337,
+        "lon": 90.41,
+        "lat": 23.81,
+        "role": "fit"
+      },
+      {
+        "name": "Cuttack",
+        "x": 601,
+        "y": 417,
+        "lon": 85.88,
+        "lat": 20.46,
+        "role": "fit"
+      },
+      {
+        "name": "Ahmedabad",
+        "x": 294,
+        "y": 353,
+        "lon": 72.58,
+        "lat": 23.02,
+        "role": "holdout"
+      },
+      {
+        "name": "Bidar",
+        "x": 407,
+        "y": 474,
+        "lon": 77.52,
+        "lat": 17.91,
+        "role": "holdout"
+      }
+    ]
+  }
+}

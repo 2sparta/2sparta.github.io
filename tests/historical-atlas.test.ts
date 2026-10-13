@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import {
+  type HistoricalFeature,
   activePlaces,
   ATLAS_YEARS,
   FRANKISH_YEARS,
@@ -189,7 +190,7 @@ test("Rus data rejects duplicate dates, future sources and incorrect regions", (
 
 test("Rus history, markers and complete periods resolve their source references", () => {
   const ids = new Set(ATLAS_SOURCES.map((s) => s.id));
-  for (let y = ATLAS_MIN_YEAR; y <= ATLAS_MAX_YEAR; y++)
+  for (let y = ATLAS_MIN_YEAR; y <= 1453; y++)
     assert.equal(RUS_PERIODS.filter((p) => y >= p.from && y <= p.to).length, 1);
   for (const item of [...RUS_PERIODS, ...RUS_EVENTS, ...RUS_PLACES]) {
     assert.ok(item.sources.length);
@@ -204,7 +205,7 @@ test("years are bounded and nearest snapshots are explicit, never interpolated",
   assert.equal(clampAtlasYear(NaN), 1000);
   assert.equal(clampAtlasYear(300), 395);
   assert.equal(clampAtlasYear(499), 499);
-  assert.equal(clampAtlasYear(2000), 1453);
+  assert.equal(clampAtlasYear(2000), 1858);
   assert.equal(nearestSnapshot(988), 1000);
   assert.equal(nearestSnapshot(1240), 1279);
   assert.equal(nearestSnapshot(550), 500);
@@ -528,4 +529,130 @@ test("Frankish city controls, partitions and disputed Aquitaine remain correctly
   assert.deepEqual(namesAt(881, [-0.579, 44.838]), ["West Francia — Carloman II"]);
   assert.deepEqual(namesAt(888, [6.143, 46.204]), ["Upper Burgundy"]);
   for (const year of FRANKISH_YEARS) assert.deepEqual(namesAt(year, [4, 42]), []); // Open Mediterranean.
+});
+
+// Boundary cases protect against showing future conquests or extinct maximum realms.
+import {
+  MONGOL_YEARS,
+  MONGOL_CAMPAIGN,
+  MONGOL_EVENTS,
+  MONGOL_PLACES,
+  validateMongolData,
+  mongolCollectionAt,
+  mongolFrameAt,
+  mongolPeriod,
+  campaignThrough,
+  campaignPlaces,
+  markInvadedRus,
+} from "../src/lib/atlas/mongols.ts";
+const mongolData = validateMongolData(
+  JSON.parse(readFileSync(new URL("../public/atlas/mongols/frames.json", import.meta.url), "utf8")),
+);
+test("Mongol and Mughal source frames validate and never arrive from the future", () => {
+  assert.deepEqual(
+    mongolData.frames.map((f) => f.year),
+    MONGOL_YEARS,
+  );
+  for (let y = 395; y <= 1858; y++) {
+    const c = mongolCollectionAt(mongolData, y);
+    for (const f of c?.features ?? []) {
+      assert.ok(f.properties.sourceYear! <= y);
+      assert.ok(f.properties.validTo! >= y);
+    }
+    assert.ok(mongolPeriod(y, "mongols"));
+    assert.ok(mongolPeriod(y, "mughals"));
+  }
+  assert.equal(mongolCollectionAt(mongolData, 1205), undefined);
+  assert.equal(mongolFrameAt(mongolData, 1526, "mughals"), undefined);
+  assert.equal(
+    mongolCollectionAt(mongolData, 1540)?.features.some(
+      (f) => f.properties.name === "Mughal Empire",
+    ),
+    false,
+  );
+  assert.equal(
+    mongolCollectionAt(mongolData, 1708)?.features.some(
+      (f) => f.properties.name === "Mughal Empire",
+    ),
+    false,
+  );
+  assert.equal(
+    mongolCollectionAt(mongolData, 1368)?.features.some(
+      (f) => f.properties.name === "Yuan dynasty",
+    ),
+    false,
+  );
+  assert.equal(
+    mongolCollectionAt(mongolData, 1335)?.features.some((f) => f.properties.name === "Ilkhanate"),
+    false,
+  );
+  assert.equal(
+    mongolCollectionAt(mongolData, 1502)?.features.some((f) => f.properties.name === "Great Horde"),
+    false,
+  );
+});
+test("Rus invasion stages show no future sack and retain surviving principalities", () => {
+  assert.equal(
+    campaignThrough(1239, "pereiaslav").some((p) => p.id === "chernihiv"),
+    false,
+  );
+  assert.equal(
+    campaignThrough(1239).some((p) => p.id === "kyiv"),
+    false,
+  );
+  assert.equal(
+    campaignThrough(1240, "kyiv").some((p) => p.id === "kyiv"),
+    true,
+  );
+  assert.equal(
+    campaignThrough(1240).some((p) => p.id === "halych"),
+    false,
+  );
+  assert.equal(
+    MONGOL_CAMPAIGN.some((p) => p.id === "novgorod"),
+    false,
+  );
+  const source = JSON.parse(
+    readFileSync(new URL("../public/atlas/rus/frames.json", import.meta.url), "utf8"),
+  ).frames.find((f: { year: number }) => f.year === 1237).collection;
+  const invaded = markInvadedRus(source, 1240, "kyiv")!;
+  assert.equal(invaded.features.length, source.features.length);
+  assert.ok(
+    invaded.features.find((f) => f.properties.name === "Principality of Kyiv")?.properties.invaded,
+  );
+  assert.deepEqual(
+    invaded.features.map((f) => f.geometry),
+    source.features.map((f: HistoricalFeature) => f.geometry),
+  );
+  assert.deepEqual(campaignPlaces(1243), []);
+});
+test("All Mongol history and source references resolve and markers expire", () => {
+  const ids = new Set(ATLAS_SOURCES.map((s) => s.id));
+  for (const item of [...MONGOL_EVENTS, ...MONGOL_PLACES])
+    for (const id of item.sources) assert.ok(ids.has(id), id);
+  assert.equal(activePlaces(MONGOL_PLACES, 1858).length, 0);
+  assert.ok(MONGOL_EVENTS.some((e) => e.year === 1858));
+  const broken = structuredClone(mongolData);
+  broken.frames[0].collection.features[0].properties.validTo = 1205;
+  assert.throws(() => validateMongolData(broken));
+});
+test("Mongol replacement preserves every unrelated overview feature", () => {
+  const affected =
+    /^(Mongol Empire|Mongol Empire.*|Chagatai Khanate|Ilkhanate|Khanate of the Golden Horde|Golden Horde|Blue Horde|White Horde|Timurid Empire|China \(Yuan Dynasty\))$/;
+  for (const year of [1200, 1279, 1300, 1400]) {
+    const overview = validateHistoricalCollection(
+      JSON.parse(
+        readFileSync(new URL(`../public/atlas/world-${year}.geojson`, import.meta.url), "utf8"),
+      ),
+    );
+    const mongols = mongolCollectionAt(mongolData, year);
+    const combined = combineHistoricalLayers(overview, undefined, undefined, undefined, mongols)!;
+    for (const f of overview.features.filter(
+      (f) => !isUnknownRegion(f.properties.name) && !(mongols && affected.test(f.properties.name)),
+    ))
+      assert.deepEqual(
+        combined.features.find((x) => x.id === f.id),
+        f,
+      );
+  }
 });

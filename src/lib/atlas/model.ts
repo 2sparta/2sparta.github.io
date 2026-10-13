@@ -2,13 +2,14 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 export const ATLAS_YEARS = [500, 600, 700, 800, 900, 1000, 1100, 1200, 1279, 1300, 1400] as const;
 export const ATLAS_MIN_YEAR = 395;
-export const ATLAS_MAX_YEAR = 1453;
+export const ATLAS_MAX_YEAR = 1858;
 export const BYZANTINE_YEARS = [
   395, 450, 476, 565, 592, 622, 630, 641, 668, 717, 775, 813, 842, 867, 927, 959, 969, 975, 1000,
   1025, 1045, 1059, 1081, 1118, 1143, 1155, 1180, 1203, 1205, 1230, 1254, 1262, 1328, 1340, 1354,
   1400, 1403, 1445, 1453,
 ] as const;
-export type AtlasView = "rus" | "europe" | "world" | "byzantium" | "franks";
+export type AtlasView =
+  "rus" | "europe" | "world" | "byzantium" | "franks" | "mongols" | "hordes" | "mughals";
 export type HistoricalProperties = {
   name: string;
   subject: string;
@@ -16,7 +17,9 @@ export type HistoricalProperties = {
   detailed?: boolean;
   sourceYear?: number;
   sourceId?: string;
-  region?: "franks" | "rus";
+  region?: "franks" | "rus" | "mongols";
+  validTo?: number;
+  invaded?: boolean;
   color?: string;
 };
 export type HistoricalFeature = Feature<Geometry, HistoricalProperties>;
@@ -38,6 +41,8 @@ export type AtlasPlace = {
   frankish?: boolean;
   rus?: boolean;
   capital?: boolean;
+  mongol?: boolean;
+  campaign?: "battle" | "sack" | "withdrawal";
 };
 export type AtlasEvent = {
   year: number;
@@ -94,9 +99,10 @@ export function combineHistoricalLayers(
   detailed: HistoricalCollection | undefined,
   frankish?: HistoricalCollection,
   rus?: HistoricalCollection,
+  mongols?: HistoricalCollection,
 ): HistoricalCollection | undefined {
   const clean = overview?.features.filter((f) => !isUnknownRegion(f.properties.name));
-  if (!detailed && !frankish && !rus)
+  if (!detailed && !frankish && !rus && !mongols)
     return clean?.length === overview?.features.length
       ? overview
       : clean
@@ -109,11 +115,18 @@ export function combineHistoricalLayers(
         (f) =>
           !(detailed && isCoarseByzantine(f.properties.name)) &&
           !(frankish && isCoarseFrankish(f.properties.name)) &&
-          !(rus && isCoarseRus(f.properties.name)),
+          !(rus && isCoarseRus(f.properties.name)) &&
+          !(
+            mongols &&
+            /^(Mongol Empire|Mongol Empire.*|Chagatai Khanate|Ilkhanate|Khanate of the Golden Horde|Golden Horde|Blue Horde|White Horde|Timurid Empire|China \(Yuan Dynasty\))$/.test(
+              f.properties.name,
+            )
+          ),
       ),
       ...(detailed?.features ?? []),
       ...(frankish?.features ?? []),
       ...(rus?.features ?? []),
+      ...(mongols?.features ?? []),
     ],
   };
 }
@@ -173,6 +186,17 @@ export function historicalName(name: string, uk = true) {
     Khazars: "Хозари",
     Pechenegs: "Печеніги",
     "Golden Horde": "Золота Орда",
+    "Mongol Empire": "Монгольська імперія",
+    "Mongol successor realms — combined extent": "Монгольські улуси — сукупна територія",
+    "Chagatai Khanate": "Чагатайський улус",
+    "Yuan dynasty": "Династія Юань",
+    Ilkhanate: "Ільханат",
+    "Great Horde": "Велика Орда",
+    "Crimean Khanate": "Кримське ханство",
+    "Sibir Khanate": "Сибірське ханство",
+    "Eastern Chagatai realms": "Східні чагатайські володіння",
+    "Nogai Horde": "Ногайська Орда",
+    "Mughal Empire": "Імперія Великих Моголів",
     "Poland-Lithuania": "Польща і ВКЛ (узагальнена геометрія)",
     "Byzantine Empire": "Візантійська імперія",
     "Eastern Roman Empire": "Східна Римська імперія",
