@@ -229,3 +229,12 @@ html[data-theme="dark"] .app-leaf {
     animation: none !important;
   }
 }
+
+/* Atlas geometry handles are keyboard-focusable Leaflet markers. */
+.atlas-edit-vertex { display:grid; place-items:center; border:2px solid white; border-radius:50%; background:#177cbe; color:white; font:700 10px sans-serif; box-shadow:0 0 0 1px #134e79; cursor:move; }
+.atlas-edit-midpoint { display:grid; place-items:center; border:1px solid #145c41; border-radius:50%; background:#e9fff2; color:#145c41; font:700 14px sans-serif; cursor:pointer; }
+.atlas-map.atlas-drawing, .atlas-map.atlas-drawing .leaflet-interactive { cursor:crosshair; }
+.atlas-edit-vertex:focus-visible,.atlas-edit-midpoint:focus-visible { outline:3px solid #d79d2c; outline-offset:2px; }
+.atlas-hatch-swatch { display:inline-block; width:24px; height:15px; border:1px dashed #a65839; background:repeating-linear-gradient(135deg,transparent 0 5px,#a65839 5px 7px); vertical-align:middle; }
+
+.atlas-editor button { max-width:100%; height:auto; min-height:44px; white-space:normal; }

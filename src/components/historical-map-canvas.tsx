@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection } from "geojson";
 import type * as Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { ensureAtlasHatch } from "@/lib/atlas/hatching";
+import { editRing, geometryParts, openRing, type TerritoryGeometry } from "@/lib/atlas/edits";
+import type { AtlasCanvasEdit } from "./atlas-editing-panel";
 import type { ByzantineFrame } from "@/lib/atlas/byzantine";
 import {
   historicalName,
@@ -59,6 +62,7 @@ export function HistoricalMapCanvas({
   onPlace,
   onPolity,
   sourceRaster,
+  edit,
 }: {
   historical?: HistoricalCollection;
   land?: FeatureCollection;
@@ -72,8 +76,13 @@ export function HistoricalMapCanvas({
   onPlace: (place: AtlasPlace) => void;
   onPolity: (feature: HistoricalFeature) => void;
   sourceRaster?: ByzantineFrame["raster"];
+  edit?: AtlasCanvasEdit;
 }) {
   const container = useRef<HTMLDivElement>(null);
+  const editRef = useRef(edit);
+  editRef.current = edit;
+  const hatchPrefix = useRef(`atlas-hatch-${Math.random().toString(36).slice(2)}`);
+  const [editViewport, setEditViewport] = useState(0);
   const [runtime, setRuntime] = useState<{ L: typeof Leaflet; map: Leaflet.Map } | null>(null);
   const [error, setError] = useState(false);
   const [zoom, setZoom] = useState(4);
@@ -114,6 +123,8 @@ export function HistoricalMapCanvas({
         instance.createPane("atlas-original").style.zIndex = "410";
         instance.getPane("atlas-original")!.style.pointerEvents = "none";
         instance.createPane("atlas-markers").style.zIndex = "430";
+        instance.createPane("atlas-custom").style.zIndex = "420";
+        instance.createPane("atlas-edit").style.zIndex = "450";
         L.control.scale({ imperial: false }).addTo(instance);
         setRuntime({ L, map: instance });
       })
@@ -187,44 +198,99 @@ export function HistoricalMapCanvas({
     if (!runtime) return;
     const { L, map } = runtime;
     const layers = L.layerGroup().addTo(map);
+    let customRenderer: Leaflet.SVG | undefined;
     if (land)
       L.geoJSON(land, {
         interactive: false,
         style: { color: "#79acd1", weight: 0.65, fillColor: "#ffffff", fillOpacity: 1 },
       }).addTo(layers);
     if (borders && historical)
-      L.geoJSON(historical, {
-        style: (feature) => {
-          const p = feature!.properties;
-          return {
-            color: p.invaded
-              ? "#c52d27"
-              : feature!.id === selected
-                ? "#8e173b"
-                : p.region === "franks"
-                  ? "#606f85"
-                  : p.detailed
-                    ? "#a56177"
-                    : "#9aa5b0",
-            weight: p.invaded ? 2.3 : feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
-            fillColor: p.color ?? polityColor(p.subject),
-            fillOpacity: feature!.id === selected ? 0.9 : p.detailed ? 1 : 0.23,
-            dashArray: p.invaded ? "6 3" : p.precision === 1 ? "4 3" : undefined,
-          };
+      L.geoJSON(
+        {
+          ...historical,
+          features: historical.features.filter(
+            (f) => !f.properties.custom && f.properties.control !== "relative",
+          ),
+        } as HistoricalCollection,
+        {
+          style: (feature) => {
+            const p = feature!.properties;
+            return {
+              color: p.invaded
+                ? "#c52d27"
+                : feature!.id === selected
+                  ? "#8e173b"
+                  : p.region === "franks"
+                    ? "#606f85"
+                    : p.detailed
+                      ? "#a56177"
+                      : "#9aa5b0",
+              weight: p.invaded ? 2.3 : feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
+              fillColor: p.color ?? polityColor(p.subject),
+              fillOpacity: feature!.id === selected ? 0.9 : p.detailed ? 1 : 0.23,
+              dashArray: p.invaded ? "6 3" : p.precision === 1 ? "4 3" : undefined,
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const label = document.createElement("span");
+            label.textContent =
+              historicalName(feature.properties.name, uk) +
+              (feature.properties.invaded
+                ? uk
+                  ? " · головний осередок розорено"
+                  : " · main centre sacked"
+                : "");
+            layer.bindTooltip(label, { sticky: true });
+            layer.on("click", () => onPolity(feature as HistoricalFeature));
+          },
         },
-        onEachFeature: (feature, layer) => {
-          const label = document.createElement("span");
-          label.textContent =
-            historicalName(feature.properties.name, uk) +
-            (feature.properties.invaded
-              ? uk
-                ? " · головний осередок розорено"
-                : " · main centre sacked"
-              : "");
-          layer.bindTooltip(label, { sticky: true });
-          layer.on("click", () => onPolity(feature as HistoricalFeature));
-        },
-      }).addTo(layers);
+      ).addTo(layers);
+    if (borders && historical) {
+      const custom = historical.features
+        .filter((f) => f.properties.custom || f.properties.control === "relative")
+        .sort(
+          (a, b) =>
+            Number(a.properties.control === "relative") -
+            Number(b.properties.control === "relative"),
+        );
+      if (custom.length) {
+        customRenderer = L.svg({ pane: "atlas-custom" });
+        L.geoJSON({ type: "FeatureCollection", features: custom } as HistoricalCollection, {
+          style: (feature) => {
+            const p = feature!.properties;
+            const color = p.color ?? polityColor(p.subject);
+            return {
+              renderer: customRenderer,
+              pane: "atlas-custom",
+              color: feature!.id === selected ? "#122f27" : color,
+              weight: feature!.id === selected ? 2.8 : 1.7,
+              dashArray: p.control === "relative" ? "5 3" : undefined,
+              fillColor:
+                p.control === "relative"
+                  ? `url(#${hatchPrefix.current}-${color.replace("#", "")})`
+                  : color,
+              fillOpacity: p.control === "relative" ? 1 : 0.7,
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const label = document.createElement("span");
+            label.textContent =
+              historicalName(feature.properties.name, uk) +
+              (feature.properties.control === "relative"
+                ? ` · ${feature.properties.relation ?? (uk ? "неповний контроль" : "partial control")}`
+                : "");
+            layer.bindTooltip(label, { sticky: true });
+            layer.on("click", () => onPolity(feature as HistoricalFeature));
+          },
+        }).addTo(layers);
+        const svg = map.getPane("atlas-custom")?.querySelector("svg");
+        if (svg)
+          for (const f of custom.filter((f) => f.properties.control === "relative")) {
+            const color = f.properties.color ?? polityColor(f.properties.subject);
+            ensureAtlasHatch(svg, `${hatchPrefix.current}-${color.replace("#", "")}`, color);
+          }
+      }
+    }
     if (riverLayer && rivers)
       L.geoJSON(rivers, {
         style: { color: "#1686ed", weight: 1.05, opacity: 0.8 },
@@ -273,6 +339,7 @@ export function HistoricalMapCanvas({
       const marker = place.capital
         ? L.marker([place.lat, place.lng], {
             pane: "atlas-markers",
+            interactive: !edit,
             icon: L.divIcon({
               className: "atlas-capital",
               html: "",
@@ -282,6 +349,7 @@ export function HistoricalMapCanvas({
           })
         : L.circleMarker([place.lat, place.lng], {
             pane: "atlas-markers",
+            interactive: !edit,
             radius: active ? 9 : isCity ? 4.5 : 7,
             color: active
               ? "#122f27"
@@ -325,6 +393,7 @@ export function HistoricalMapCanvas({
     }
     return () => {
       layers.remove();
+      customRenderer?.remove();
     };
   }, [
     runtime,
@@ -341,6 +410,7 @@ export function HistoricalMapCanvas({
     onPlace,
     onPolity,
     sourceRaster,
+    Boolean(edit),
   ]);
   useEffect(() => {
     if (!runtime || !selected) return;
@@ -356,6 +426,148 @@ export function HistoricalMapCanvas({
         });
     }
   }, [runtime, selected, places, historical]);
+  useEffect(() => {
+    if (!runtime) return;
+    const { L, map } = runtime;
+    const add = (event: Leaflet.LeafletMouseEvent) => {
+      const current = editRef.current;
+      if (!current || current.disabled || current.mode !== "draw") return;
+      const p = map.wrapLatLng(event.latlng);
+      const points = openRing(geometryParts(current.geometry)[current.part][current.ring]);
+      current.onGeometry(
+        editRing(current.geometry, current.part, current.ring, [...points, [p.lng, p.lat]]),
+      );
+    };
+    const moved = () => setEditViewport((v) => v + 1);
+    map.on("click", add);
+    map.on("moveend zoomend", moved);
+    return () => {
+      map.off("click", add);
+      map.off("moveend zoomend", moved);
+    };
+  }, [runtime]);
+  useEffect(() => {
+    if (!runtime || !edit) return;
+    const { L, map } = runtime;
+    const group = L.layerGroup().addTo(map);
+    const renderer = L.svg({ pane: "atlas-edit" });
+    const latlngs = (g: TerritoryGeometry): Leaflet.LatLngExpression[][][] =>
+      geometryParts(g)
+        .filter((p) => p[0].length >= 3)
+        .map((p) =>
+          p
+            .filter((r) => r.length >= 3)
+            .map((r) => r.map((c) => [c[1], c[0]] as Leaflet.LatLngExpression)),
+        );
+    const preview = L.polygon(latlngs(edit.geometry), {
+      renderer,
+      pane: "atlas-edit",
+      interactive: false,
+      color: "#0d654b",
+      weight: 2,
+      fillColor: edit.control === "relative" ? `url(#${hatchPrefix.current}-draft)` : edit.color,
+      fillOpacity: edit.control === "relative" ? 1 : 0.25,
+      dashArray: "6 3",
+    }).addTo(group);
+    const svg = map.getPane("atlas-edit")?.querySelector("svg");
+    if (svg && edit.control === "relative")
+      ensureAtlasHatch(svg, `${hatchPrefix.current}-draft`, edit.color);
+    const points = openRing(geometryParts(edit.geometry)[edit.part][edit.ring]);
+    const line = L.polyline(
+      points.map((p) => [p[1], p[0]]),
+      { renderer, pane: "atlas-edit", interactive: false, color: "#177cbe", weight: 2 },
+    ).addTo(group);
+    const bounds = map.getBounds().pad(0.05);
+    const visible = points
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => bounds.contains([p[1], p[0]]));
+    const center = map.getCenter();
+    visible.sort(
+      (a, b) =>
+        L.latLng(a.p[1], a.p[0]).distanceTo(center) - L.latLng(b.p[1], b.p[0]).distanceTo(center),
+    );
+    const handles = visible.slice(0, 500);
+    if (edit.vertex !== null && !handles.some((x) => x.i === edit.vertex) && points[edit.vertex])
+      handles.push({ p: points[edit.vertex], i: edit.vertex });
+    for (const { p, i } of handles) {
+      const marker = L.marker([p[1], p[0]], {
+        pane: "atlas-edit",
+        draggable: !edit.disabled,
+        autoPan: true,
+        icon: L.divIcon({
+          className: "atlas-edit-vertex",
+          html: String(i + 1),
+          iconSize: edit.vertex === i ? [26, 26] : [20, 20],
+          iconAnchor: edit.vertex === i ? [13, 13] : [10, 10],
+        }),
+      }).addTo(group);
+      marker.bindTooltip(`${uk ? "Точка" : "Vertex"} ${i + 1}`);
+      marker.on("click", (e: Leaflet.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(e.originalEvent);
+        editRef.current?.onSelectVertex(i);
+      });
+      marker.on("drag", () => {
+        const ps = structuredClone(points);
+        const loc = map.wrapLatLng(marker.getLatLng());
+        ps[i] = [loc.lng, loc.lat];
+        preview.setLatLngs(latlngs(editRing(edit.geometry, edit.part, edit.ring, ps)));
+        line.setLatLngs(ps.map((p) => [p[1], p[0]]));
+      });
+      marker.on("dragend", () => {
+        const current = editRef.current;
+        if (!current || current.disabled) return;
+        const ps = openRing(geometryParts(current.geometry)[current.part][current.ring]);
+        const loc = map.wrapLatLng(marker.getLatLng());
+        ps[i] = [loc.lng, loc.lat];
+        current.onGeometry(editRing(current.geometry, current.part, current.ring, ps));
+      });
+      if (points.length > 1) {
+        const next = points[(i + 1) % points.length];
+        const middle: Leaflet.LatLngExpression = [(p[1] + next[1]) / 2, (p[0] + next[0]) / 2];
+        const add = L.marker(middle, {
+          pane: "atlas-edit",
+          icon: L.divIcon({
+            className: "atlas-edit-midpoint",
+            html: "+",
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+          }),
+        }).addTo(group);
+        add.bindTooltip(uk ? "Вставити точку" : "Insert vertex");
+        add.on("click", (e: Leaflet.LeafletMouseEvent) => {
+          L.DomEvent.stopPropagation(e.originalEvent);
+          const current = editRef.current;
+          if (!current || current.disabled) return;
+          const ps = openRing(geometryParts(current.geometry)[current.part][current.ring]);
+          ps.splice(i + 1, 0, [(p[0] + next[0]) / 2, (p[1] + next[1]) / 2]);
+          current.onGeometry(editRing(current.geometry, current.part, current.ring, ps));
+        });
+      }
+    }
+    return () => {
+      group.remove();
+      renderer.remove();
+    };
+  }, [
+    runtime,
+    edit?.geometry,
+    edit?.part,
+    edit?.ring,
+    edit?.vertex,
+    edit?.control,
+    edit?.color,
+    edit?.disabled,
+    editViewport,
+    uk,
+  ]);
+  useEffect(() => {
+    if (!runtime) return;
+    const node = runtime.map.getContainer();
+    node.classList.toggle("atlas-drawing", edit?.mode === "draw" && !edit.disabled);
+    if (edit?.mode === "draw") runtime.map.doubleClickZoom.disable();
+    else runtime.map.doubleClickZoom.enable();
+    return () => node.classList.remove("atlas-drawing");
+  }, [runtime, edit?.mode, edit?.disabled]);
   return (
     <div className="relative isolate overflow-hidden rounded-2xl border border-hairline">
       <div
