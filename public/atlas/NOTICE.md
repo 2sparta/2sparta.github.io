@@ -16,3 +16,7 @@ https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2
 Land and selected river features are simplified/rounded by the same script. They show modern physical geography for orientation, not reconstructed medieval shorelines or river channels. No modern political boundaries are displayed.
 
 Historical descriptions, source references, settlement/reference markers and chronology are independently curated in src/lib/atlas/content.ts. They are summaries, not copied encyclopedia entries. Named regional circles mark reference locations, not surveyed territorial outlines. A settlement's first written mention is not asserted to be its foundation date. Historical names and uncertainty are preserved.
+
+## Detailed Byzantine extension (395–1453)
+
+The overview license does not relicense the user-supplied Lucius maps. See `byzantium/NOTICE.md` and `byzantium/manifest.json` for the separate source, copyrights, conic georeferencing, segmentation and raster provenance. Other countries have no configured geometry before 500 or after 1400. No temporal interpolation.

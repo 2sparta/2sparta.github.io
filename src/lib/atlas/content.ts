@@ -1,6 +1,8 @@
 import type { AtlasSource, AtlasPlace, AtlasEvent } from "./model";
+import { BYZANTINE_SOURCES } from "./byzantine.ts";
 
 export const ATLAS_SOURCES: AtlasSource[] = [
+  ...BYZANTINE_SOURCES,
   {
     id: "basemaps",
     title: "Historical Basemaps — André Ourednik",
@@ -1037,6 +1039,14 @@ export const ATLAS_EVENTS: AtlasEvent[] = [
 
 export const ATLAS_PERIODS = [
   {
+    from: 395,
+    to: 499,
+    title: "Східна Римська імперія та пізня античність",
+    description:
+      "Деталізовано східну частину імперії за картами Візантії. Інші країни для цього проміжку ще не налаштовані: нейтральний суходіл не означає відсутності держав чи населення.",
+    sources: ["lucius", "byz-early"],
+  },
+  {
     from: 500,
     to: 649,
     title: "Ранньослов’янські спільноти",
@@ -1114,5 +1124,13 @@ export const ATLAS_PERIODS = [
     description:
       "Зміни влади у руських землях відбувалися поступово; залежність і місцеві князівські структури потребують окремого пояснення.",
     sources: ["algirdas", "lviv", "lutsk", "blue-waters"],
+  },
+  {
+    from: 1401,
+    to: 1453,
+    title: "Пізня Візантія",
+    description:
+      "Додані зрізи Візантії 1403, 1445 та 1453 років. Кордони інших країн після 1400 року ще не налаштовані. Карта 1453 року показує візантійські володіння до захоплення Константинополя 29 травня.",
+    sources: ["lucius", "byz-1453"],
   },
 ];

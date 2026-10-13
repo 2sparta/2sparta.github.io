@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection } from "geojson";
 import type * as Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
+import type { ByzantineFrame } from "@/lib/atlas/byzantine";
 import {
   historicalName,
   polityColor,
@@ -12,6 +13,10 @@ import {
 } from "@/lib/atlas/model";
 
 export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
+  byzantium: [
+    [27, 9],
+    [47, 47],
+  ],
   rus: [
     [43, 21],
     [62, 51],
@@ -37,6 +42,7 @@ export function HistoricalMapCanvas({
   selected,
   onPlace,
   onPolity,
+  sourceRaster,
 }: {
   historical?: HistoricalCollection;
   land?: FeatureCollection;
@@ -49,11 +55,13 @@ export function HistoricalMapCanvas({
   selected?: string;
   onPlace: (place: AtlasPlace) => void;
   onPolity: (feature: HistoricalFeature) => void;
+  sourceRaster?: ByzantineFrame["raster"];
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [runtime, setRuntime] = useState<{ L: typeof Leaflet; map: Leaflet.Map } | null>(null);
   const [error, setError] = useState(false);
   const [zoom, setZoom] = useState(4);
+  const [rasterStatus, setRasterStatus] = useState<"loading" | "ready" | "error" | null>(null);
   useEffect(() => {
     let stopped = false;
     let instance: Leaflet.Map | undefined;
@@ -75,6 +83,12 @@ export function HistoricalMapCanvas({
         instance.attributionControl.addAttribution(
           '<a href="https://github.com/aourednik/historical-basemaps" target="_blank" rel="noopener noreferrer">Historical Basemaps (GPL-3.0)</a> · <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener noreferrer">Natural Earth</a>',
         );
+        instance.attributionControl.addAttribution(
+          '<a href="https://lucius-note.net/byzantium/" target="_blank" rel="noopener noreferrer">Візантія: ©Lucius</a>',
+        );
+        instance.createPane("atlas-original").style.zIndex = "410";
+        instance.getPane("atlas-original")!.style.pointerEvents = "none";
+        instance.createPane("atlas-markers").style.zIndex = "430";
         L.control.scale({ imperial: false }).addTo(instance);
         setRuntime({ L, map: instance });
       })
@@ -95,6 +109,27 @@ export function HistoricalMapCanvas({
       runtime.map.off("zoomend", update);
     };
   }, [runtime]);
+  useEffect(() => {
+    if (!runtime || !sourceRaster) {
+      setRasterStatus(null);
+      return;
+    }
+    setRasterStatus("loading");
+    const layer = runtime.L.imageOverlay(`/${sourceRaster.path}`, sourceRaster.bounds, {
+      pane: "atlas-original",
+      interactive: false,
+      opacity: 1,
+      alt: uk ? "Геоприв’язаний авторський шар Візантії" : "Georeferenced Byzantine source map",
+    });
+    layer.on("load", () => setRasterStatus("ready"));
+    layer.on("error", () => setRasterStatus("error"));
+    layer.addTo(runtime.map);
+    // Remove first: Leaflet's internal remove listener detaches map move/zoom handlers.
+    return () => {
+      layer.remove();
+      layer.off();
+    };
+  }, [runtime, sourceRaster, uk]);
   useEffect(() => {
     if (!runtime) return;
     const control = runtime.L.control
@@ -130,17 +165,17 @@ export function HistoricalMapCanvas({
     if (land)
       L.geoJSON(land, {
         interactive: false,
-        style: { color: "#c8bca0", weight: 0.7, fillColor: "#efe8d7", fillOpacity: 1 },
+        style: { color: "#79acd1", weight: 0.65, fillColor: "#ffffff", fillOpacity: 1 },
       }).addTo(layers);
     if (borders && historical)
       L.geoJSON(historical, {
         style: (feature) => {
           const p = feature!.properties;
           return {
-            color: feature!.id === selected ? "#163f33" : "#62574a",
-            weight: feature!.id === selected ? 2.5 : 0.8,
+            color: feature!.id === selected ? "#8e173b" : p.detailed ? "#a56177" : "#9aa5b0",
+            weight: feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
             fillColor: polityColor(p.subject),
-            fillOpacity: feature!.id === selected ? 0.65 : 0.38,
+            fillOpacity: feature!.id === selected ? 0.9 : p.detailed ? 1 : 0.23,
             dashArray: p.precision === 1 ? "4 3" : undefined,
           };
         },
@@ -153,7 +188,7 @@ export function HistoricalMapCanvas({
       }).addTo(layers);
     if (riverLayer && rivers)
       L.geoJSON(rivers, {
-        style: { color: "#477f9a", weight: 1.2, opacity: 0.8 },
+        style: { color: "#1686ed", weight: 1.05, opacity: 0.8 },
         onEachFeature: (feature, layer) => {
           const label = document.createElement("span");
           const name = feature.properties?.name ?? "";
@@ -171,22 +206,56 @@ export function HistoricalMapCanvas({
           layer.bindTooltip(label);
         },
       }).addTo(layers);
+    if (!sourceRaster && (view === "byzantium" || view === "europe")) {
+      for (const [lat, lng, name] of [
+        [42, 34, uk ? "Чорне море" : "Black Sea"],
+        [37, 24.5, uk ? "Егейське море" : "Aegean Sea"],
+        [33, 18, uk ? "Середземне море" : "Mediterranean Sea"],
+        [42.5, 15.5, uk ? "Адріатичне море" : "Adriatic Sea"],
+      ] as const) {
+        const label = document.createElement("span");
+        label.textContent = name;
+        L.marker([lat, lng], {
+          interactive: false,
+          keyboard: false,
+          pane: "atlas-markers",
+          icon: L.divIcon({
+            className: "atlas-sea-label",
+            html: label,
+            iconSize: [140, 20],
+            iconAnchor: [70, 10],
+          }),
+        }).addTo(layers);
+      }
+    }
     for (const place of places) {
       const isCity = place.type === "city";
       const active = place.id === selected;
-      const marker = L.circleMarker([place.lat, place.lng], {
-        radius: active ? 9 : isCity ? 4.5 : 7,
-        color: active ? "#122f27" : isCity ? "#59452d" : "#984b33",
-        weight: active ? 3 : 1.5,
-        fillColor: isCity ? "#e7c477" : "#c87c54",
-        fillOpacity: isCity ? 1 : 0.3,
-        dashArray: isCity ? undefined : "3 3",
-      });
+      const marker = place.capital
+        ? L.marker([place.lat, place.lng], {
+            pane: "atlas-markers",
+            icon: L.divIcon({
+              className: "atlas-capital",
+              html: "",
+              iconSize: [10, 10],
+              iconAnchor: [5, 5],
+            }),
+          })
+        : L.circleMarker([place.lat, place.lng], {
+            pane: "atlas-markers",
+            radius: active ? 9 : isCity ? 4.5 : 7,
+            color: active ? "#122f27" : isCity ? "#222222" : "#984b33",
+            weight: active ? 3 : 1.5,
+            fillColor: place.byzantine ? "#e33130" : isCity ? "#222222" : "#c87c54",
+            fillOpacity: isCity ? 1 : 0.3,
+            dashArray: isCity ? undefined : "3 3",
+          });
       const label = document.createElement("span");
       label.textContent = place.name;
       marker.bindTooltip(label, {
         permanent:
           active ||
+          place.capital ||
           (isCity &&
             view === "rus" &&
             (zoom >= 6 || ["kyiv-city", "halych-city"].includes(place.id))),
@@ -214,6 +283,7 @@ export function HistoricalMapCanvas({
     zoom,
     onPlace,
     onPolity,
+    sourceRaster,
   ]);
   useEffect(() => {
     if (!runtime || !selected) return;
@@ -241,6 +311,20 @@ export function HistoricalMapCanvas({
             : "Historical map. Arrow keys pan; plus and minus zoom."
         }
       />
+      {sourceRaster && rasterStatus !== "ready" && (
+        <p
+          role={rasterStatus === "error" ? "alert" : "status"}
+          className="absolute left-3 right-3 top-3 z-[500] rounded-xl bg-white/95 p-2 text-xs text-[#292929]"
+        >
+          {rasterStatus === "error"
+            ? uk
+              ? "Авторський шар не завантажено. Векторні контури доступні; вимкніть і ввімкніть шар, щоб повторити."
+              : "Source layer unavailable; vector contours remain. Toggle the layer to retry."
+            : uk
+              ? "Завантаження авторських деталей…"
+              : "Loading source details…"}
+        </p>
+      )}
       {!runtime && !error && (
         <p role="status" className="absolute inset-0 grid place-items-center bg-surface/90 text-sm">
           {uk ? "Відкриваємо мапу…" : "Opening map…"}

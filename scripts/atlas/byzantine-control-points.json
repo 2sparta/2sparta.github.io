@@ -1,0 +1,1759 @@
+{
+  "byzantine-map-395-en.png": {
+    "model": "conic6",
+    "parameters": [
+      2999.6844733685853,
+      -5513.451827980253,
+      0.7065982372167161,
+      0.004941581519684497,
+      12683.612437487653,
+      7100.7889694410915
+    ],
+    "centralMeridian": 20,
+    "training_rms_px": null,
+    "heldout_rms_px": 0.423656509442557,
+    "points": [
+      {
+        "lon": 12,
+        "lat": 56,
+        "x": 2462.194563847554,
+        "y": 205.2636848102793,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 56,
+        "x": 3311.2510169539682,
+        "y": 221.08921085239945,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 56,
+        "x": 4153.500640145478,
+        "y": 112.92442631286212,
+        "heldOut": true
+      },
+      {
+        "lon": -12,
+        "lat": 52,
+        "x": 629.4498379471174,
+        "y": 257.75357043750864,
+        "heldOut": false
+      },
+      {
+        "lon": 0,
+        "lat": 52,
+        "x": 1506.4080141520133,
+        "y": 543.8554845471936,
+        "heldOut": true
+      },
+      {
+        "lon": 12,
+        "lat": 52,
+        "x": 2415.858303893771,
+        "y": 698.147369549919,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 52,
+        "x": 3338.1545930078046,
+        "y": 716.5096092588356,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 52,
+        "x": 4253.004436786018,
+        "y": 598.2127235199569,
+        "heldOut": true
+      },
+      {
+        "lon": 48,
+        "lat": 52,
+        "x": 5140.581541809503,
+        "y": 346.91894962000515,
+        "heldOut": false
+      },
+      {
+        "lon": -12,
+        "lat": 48,
+        "x": 440.99780271711234,
+        "y": 716.5945379776522,
+        "heldOut": false
+      },
+      {
+        "lon": 0,
+        "lat": 48,
+        "x": 1387.7435022161787,
+        "y": 1025.1712974891288,
+        "heldOut": true
+      },
+      {
+        "lon": 12,
+        "lat": 48,
+        "x": 2369.415726342747,
+        "y": 1192.161965785931,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 48,
+        "x": 3365.037446760852,
+        "y": 1211.5484133934942,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 48,
+        "x": 4352.753309614089,
+        "y": 1084.6962776895798,
+        "heldOut": true
+      },
+      {
+        "lon": 48,
+        "lat": 48,
+        "x": 5310.7378599725635,
+        "y": 812.7405181536542,
+        "heldOut": false
+      },
+      {
+        "lon": -12,
+        "lat": 44,
+        "x": 252.72132437639175,
+        "y": 1175.0080615114784,
+        "heldOut": false
+      },
+      {
+        "lon": 0,
+        "lat": 44,
+        "x": 1268.8483476593442,
+        "y": 1507.422621299601,
+        "heldOut": true
+      },
+      {
+        "lon": 12,
+        "lat": 44,
+        "x": 2323.0265950971325,
+        "y": 1685.608048033715,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 44,
+        "x": 3391.8899587807473,
+        "y": 1706.0284846111308,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 44,
+        "x": 4452.197213168662,
+        "y": 1569.6924713319404,
+        "heldOut": true
+      },
+      {
+        "lon": 48,
+        "lat": 44,
+        "x": 5480.590923697514,
+        "y": 1277.7318944290882,
+        "heldOut": false
+      },
+      {
+        "lon": 0,
+        "lat": 40,
+        "x": 1150.1802638468412,
+        "y": 1988.7529221511422,
+        "heldOut": true
+      },
+      {
+        "lon": 12,
+        "lat": 40,
+        "x": 2276.668427245012,
+        "y": 2178.7247693988393,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 40,
+        "x": 3418.7957573449457,
+        "y": 2201.489809806142,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 40,
+        "x": 4551.899148559116,
+        "y": 2055.9471077120415,
+        "heldOut": true
+      },
+      {
+        "lon": 48,
+        "lat": 40,
+        "x": 5650.753309980149,
+        "y": 1743.5700751050845,
+        "heldOut": false
+      },
+      {
+        "lon": 0,
+        "lat": 36,
+        "x": 1031.5893075744227,
+        "y": 2469.770385541421,
+        "heldOut": true
+      },
+      {
+        "lon": 12,
+        "lat": 36,
+        "x": 2230.229923618003,
+        "y": 2672.696030875388,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 36,
+        "x": 3445.686719547116,
+        "y": 2696.677928332565,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 36,
+        "x": 4651.414144702251,
+        "y": 2541.2900258253476,
+        "heldOut": true
+      },
+      {
+        "lon": 48,
+        "lat": 36,
+        "x": 5821.055502118614,
+        "y": 2209.790989632841,
+        "heldOut": false
+      },
+      {
+        "lon": 0,
+        "lat": 32,
+        "x": 913.0028602360885,
+        "y": 2950.76956021809,
+        "heldOut": true
+      },
+      {
+        "lon": 12,
+        "lat": 32,
+        "x": 2183.878196554868,
+        "y": 3165.7442408886927,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 32,
+        "x": 3472.5945340349645,
+        "y": 3192.176376090618,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 32,
+        "x": 4750.907995208582,
+        "y": 3026.5298149081573,
+        "heldOut": true
+      },
+      {
+        "lon": 0,
+        "lat": 28,
+        "x": 794.4657326372762,
+        "y": 3431.5686888141354,
+        "heldOut": true
+      },
+      {
+        "lon": 12,
+        "lat": 28,
+        "x": 2137.4409088405146,
+        "y": 3659.7025685740573,
+        "heldOut": false
+      },
+      {
+        "lon": 24,
+        "lat": 28,
+        "x": 3499.4124080820575,
+        "y": 3686.0186005680516,
+        "heldOut": false
+      },
+      {
+        "lon": 36,
+        "lat": 28,
+        "x": 4850.62111685756,
+        "y": 3512.8390076020314,
+        "heldOut": true
+      }
+    ],
+    "method": "Meridian rays and parallel circles fitted to the printed graticule. Radial samples are shared with the ray fit; residual is an internal grid consistency check, not independent geographic validation."
+  },
+  "byzantine-theme-map-1025-en.png": {
+    "model": "affine equidistant-conic rho=a-b*(lat-40)radians; theta=n*(lon-28)radians",
+    "width": 6000,
+    "height": 4138,
+    "parameters": [
+      3150.6696063136374,
+      2698.030918207048,
+      -0.6618621799830119,
+      -4.609015225118317,
+      -0.05140601339255979,
+      -0.04511070559783775,
+      4.642584071086014,
+      2840.7254022101465,
+      2293.225717819331
+    ],
+    "training_rms_px": 0.8595689716238816,
+    "heldout_rms_px": 1.3164152305218766,
+    "points": [
+      {
+        "lon": 12.0,
+        "lat": 48.0,
+        "x": 512.351,
+        "y": 302.353,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.684,
+        "vertical_score": 120.08346897061557,
+        "horizontal_score": 112.63588096785386
+      },
+      {
+        "lon": 16.0,
+        "lat": 48.0,
+        "x": 1094.653,
+        "y": 403.872,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.451,
+        "vertical_score": 115.37854144536281,
+        "horizontal_score": 107.56266072477828
+      },
+      {
+        "lon": 20.0,
+        "lat": 48.0,
+        "x": 1680.639,
+        "y": 477.989,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.296,
+        "vertical_score": 116.39436802803209,
+        "horizontal_score": 92.5860648400394
+      },
+      {
+        "lon": 24.0,
+        "lat": 48.0,
+        "x": 2270.053,
+        "y": 524.897,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.385,
+        "vertical_score": 115.35481668413897,
+        "horizontal_score": 108.50087371846925
+      },
+      {
+        "lon": 28.0,
+        "lat": 48.0,
+        "x": 2861.212,
+        "y": 544.364,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.124,
+        "vertical_score": 115.4389314846122,
+        "horizontal_score": 99.45519646514808
+      },
+      {
+        "lon": 32.0,
+        "lat": 48.0,
+        "x": 3450.897,
+        "y": 536.4,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.128,
+        "vertical_score": 116.72847928087444,
+        "horizontal_score": 107.56781700702501
+      },
+      {
+        "lon": 36.0,
+        "lat": 48.0,
+        "x": 4040.054,
+        "y": 502.967,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 2.139,
+        "vertical_score": 115.27931884066683,
+        "horizontal_score": 107.51205688334619
+      },
+      {
+        "lon": 40.0,
+        "lat": 48.0,
+        "x": 4627.257,
+        "y": 436.326,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.904,
+        "vertical_score": 114.31538481035666,
+        "horizontal_score": 18.570562018787307
+      },
+      {
+        "lon": 16.0,
+        "lat": 44.0,
+        "x": 965.223,
+        "y": 1267.965,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.413,
+        "vertical_score": 117.29193292417189,
+        "horizontal_score": 98.8924315513377
+      },
+      {
+        "lon": 20.0,
+        "lat": 44.0,
+        "x": 1590.931,
+        "y": 1347.076,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.688,
+        "vertical_score": 108.54977489194799,
+        "horizontal_score": 106.19217783585084
+      },
+      {
+        "lon": 24.0,
+        "lat": 44.0,
+        "x": 2220.164,
+        "y": 1398.03,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.274,
+        "vertical_score": 116.85499074201729,
+        "horizontal_score": 103.35745671359669
+      },
+      {
+        "lon": 28.0,
+        "lat": 44.0,
+        "x": 2851.353,
+        "y": 1418.23,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.082,
+        "vertical_score": 107.19950451932198,
+        "horizontal_score": 84.64790138460604
+      },
+      {
+        "lon": 32.0,
+        "lat": 44.0,
+        "x": 3481.102,
+        "y": 1410.634,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.402,
+        "vertical_score": 116.67806704944586,
+        "horizontal_score": 109.77149655300488
+      },
+      {
+        "lon": 36.0,
+        "lat": 44.0,
+        "x": 4110.756,
+        "y": 1374.283,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.895,
+        "vertical_score": 116.75238855325563,
+        "horizontal_score": 103.8773437305082
+      },
+      {
+        "lon": 16.0,
+        "lat": 36.0,
+        "x": 706.476,
+        "y": 2998.738,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.619,
+        "vertical_score": 117.6612662043753,
+        "horizontal_score": 99.77277142302805
+      },
+      {
+        "lon": 20.0,
+        "lat": 36.0,
+        "x": 1411.262,
+        "y": 3087.648,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.328,
+        "vertical_score": 116.34959809612488,
+        "horizontal_score": 100.04405597001255
+      },
+      {
+        "lon": 28.0,
+        "lat": 36.0,
+        "x": 2831.123,
+        "y": 3167.149,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.551,
+        "vertical_score": 109.83718688805567,
+        "horizontal_score": 110.39482008572969
+      },
+      {
+        "lon": 32.0,
+        "lat": 36.0,
+        "x": 3541.996,
+        "y": 3158.68,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.58,
+        "vertical_score": 110.50988658440738,
+        "horizontal_score": 103.78388143805722
+      },
+      {
+        "lon": 20.0,
+        "lat": 32.0,
+        "x": 1321.502,
+        "y": 3957.231,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.497,
+        "vertical_score": 101.70766018584271,
+        "horizontal_score": 95.88494972045638
+      },
+      {
+        "lon": 24.0,
+        "lat": 32.0,
+        "x": 2071.015,
+        "y": 4017.072,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.488,
+        "vertical_score": 83.24218594087552,
+        "horizontal_score": 101.31847478339594
+      },
+      {
+        "lon": 28.0,
+        "lat": 32.0,
+        "x": 2821.255,
+        "y": 4041.913,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.271,
+        "vertical_score": 75.77994829094143,
+        "horizontal_score": 111.8683673781065
+      },
+      {
+        "lon": 32.0,
+        "lat": 32.0,
+        "x": 3574.229,
+        "y": 4032.761,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 1.873,
+        "vertical_score": 60.841965901167725,
+        "horizontal_score": 103.34007568544868
+      }
+    ],
+    "notes": "Pixel centres snapped to neutral-gray degree-graticule lines; discarded typography-confused intersections. Heldout values were excluded from final parameter estimation. Model is a fitted approximation, not an asserted author CRS."
+  },
+  "byzantine-map-1453-en.png": {
+    "model": "affine equidistant-conic rho=a-b*(lat-40)radians; theta=n*(lon-28)radians",
+    "width": 5728,
+    "height": 3953,
+    "parameters": [
+      5403.721045277578,
+      4626.987869686276,
+      0.6572122453037259,
+      2.956382221076031,
+      -0.032668437476062406,
+      0.031812735750195296,
+      2.9581664640929364,
+      2690.797740145334,
+      2223.2960067081426
+    ],
+    "training_rms_px": 0.549461621047194,
+    "heldout_rms_px": 1.088457376075185,
+    "points": [
+      {
+        "lon": 16.0,
+        "lat": 48.0,
+        "x": 783.052,
+        "y": 158.969,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.771,
+        "vertical_score": 107.4322586907299,
+        "horizontal_score": 113.09269118786703
+      },
+      {
+        "lon": 20.0,
+        "lat": 48.0,
+        "x": 1423.621,
+        "y": 239.584,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.495,
+        "vertical_score": 121.3637071578789,
+        "horizontal_score": 99.57771951917726
+      },
+      {
+        "lon": 24.0,
+        "lat": 48.0,
+        "x": 2067.321,
+        "y": 290.895,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.609,
+        "vertical_score": 120.95274323232857,
+        "horizontal_score": 117.67835012521532
+      },
+      {
+        "lon": 28.0,
+        "lat": 48.0,
+        "x": 2712.905,
+        "y": 312.325,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.013,
+        "vertical_score": 121.90085777592913,
+        "horizontal_score": 108.65395324638857
+      },
+      {
+        "lon": 32.0,
+        "lat": 48.0,
+        "x": 3356.899,
+        "y": 303.787,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.596,
+        "vertical_score": 122.39552892119596,
+        "horizontal_score": 114.35879934902317
+      },
+      {
+        "lon": 36.0,
+        "lat": 48.0,
+        "x": 4001.008,
+        "y": 266.856,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.447,
+        "vertical_score": 121.98650600068939,
+        "horizontal_score": 112.46212386572705
+      },
+      {
+        "lon": 16.0,
+        "lat": 44.0,
+        "x": 641.912,
+        "y": 1103.102,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.302,
+        "vertical_score": 119.26507608307189,
+        "horizontal_score": 116.14086839828856
+      },
+      {
+        "lon": 20.0,
+        "lat": 44.0,
+        "x": 1325.601,
+        "y": 1189.283,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.408,
+        "vertical_score": 116.88749097772136,
+        "horizontal_score": 113.14876153588455
+      },
+      {
+        "lon": 24.0,
+        "lat": 44.0,
+        "x": 2012.639,
+        "y": 1245.149,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.646,
+        "vertical_score": 119.80148320495213,
+        "horizontal_score": 110.56328081929192
+      },
+      {
+        "lon": 28.0,
+        "lat": 44.0,
+        "x": 2701.792,
+        "y": 1267.598,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.463,
+        "vertical_score": 116.24036022947487,
+        "horizontal_score": 93.39532228769707
+      },
+      {
+        "lon": 32.0,
+        "lat": 44.0,
+        "x": 3390.381,
+        "y": 1259.018,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.322,
+        "vertical_score": 122.60370187785902,
+        "horizontal_score": 115.43132689660982
+      },
+      {
+        "lon": 36.0,
+        "lat": 44.0,
+        "x": 4077.971,
+        "y": 1218.965,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.596,
+        "vertical_score": 122.17124909739903,
+        "horizontal_score": 108.1312146048032
+      },
+      {
+        "lon": 40.0,
+        "lat": 44.0,
+        "x": 4763.536,
+        "y": 1146.968,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.875,
+        "vertical_score": 119.55303773426922,
+        "horizontal_score": 113.25860290154168
+      },
+      {
+        "lon": 20.0,
+        "lat": 40.0,
+        "x": 1226.989,
+        "y": 2139.849,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.77,
+        "vertical_score": 107.6428894428546,
+        "horizontal_score": 111.04121963866925
+      },
+      {
+        "lon": 24.0,
+        "lat": 40.0,
+        "x": 1958.479,
+        "y": 2198.976,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.448,
+        "vertical_score": 116.63784548476747,
+        "horizontal_score": 115.44559841039984
+      },
+      {
+        "lon": 28.0,
+        "lat": 40.0,
+        "x": 2691.168,
+        "y": 2223.985,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.782,
+        "vertical_score": 115.11419293539628,
+        "horizontal_score": 116.44008971181444
+      },
+      {
+        "lon": 32.0,
+        "lat": 40.0,
+        "x": 3423.382,
+        "y": 2214.764,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.524,
+        "vertical_score": 118.93035059128049,
+        "horizontal_score": 114.86604620436934
+      },
+      {
+        "lon": 36.0,
+        "lat": 40.0,
+        "x": 4155.472,
+        "y": 2171.542,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.252,
+        "vertical_score": 121.31414562584884,
+        "horizontal_score": 113.90268663374263
+      },
+      {
+        "lon": 40.0,
+        "lat": 40.0,
+        "x": 4884.421,
+        "y": 2095.319,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.38,
+        "vertical_score": 120.48362209271048,
+        "horizontal_score": 108.75514378295271
+      },
+      {
+        "lon": 20.0,
+        "lat": 36.0,
+        "x": 1131.232,
+        "y": 3092.251,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 2.124,
+        "vertical_score": 46.842410244324036,
+        "horizontal_score": 104.93153020074772
+      },
+      {
+        "lon": 24.0,
+        "lat": 36.0,
+        "x": 1904.344,
+        "y": 3152.371,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.528,
+        "vertical_score": 119.3362245669046,
+        "horizontal_score": 115.23227257461882
+      },
+      {
+        "lon": 28.0,
+        "lat": 36.0,
+        "x": 2680.06,
+        "y": 3178.826,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.188,
+        "vertical_score": 116.25976131058981,
+        "horizontal_score": 113.2537203113269
+      },
+      {
+        "lon": 32.0,
+        "lat": 36.0,
+        "x": 3456.847,
+        "y": 3169.513,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.18,
+        "vertical_score": 117.8467680605865,
+        "horizontal_score": 111.62513160871694
+      },
+      {
+        "lon": 36.0,
+        "lat": 36.0,
+        "x": 4232.514,
+        "y": 3124.631,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.36,
+        "vertical_score": 115.35054656324206,
+        "horizontal_score": 114.83933580281061
+      },
+      {
+        "lon": 40.0,
+        "lat": 36.0,
+        "x": 5005.37,
+        "y": 3044.173,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.623,
+        "vertical_score": 120.93409401753382,
+        "horizontal_score": 100.57313646262831
+      }
+    ],
+    "notes": "Pixel centres snapped to neutral-gray degree-graticule lines; discarded typography-confused intersections. Heldout values were excluded from final parameter estimation. Model is a fitted approximation, not an asserted author CRS."
+  },
+  "byzantine-theme-map-717-en.png": {
+    "model": "affine equidistant-conic rho=a-b*(lat-40)radians; theta=n*(lon-28)radians",
+    "width": 6000,
+    "height": 4119,
+    "parameters": [
+      1.0883513295062823,
+      1.0,
+      0.706203866280304,
+      8998.760859667642,
+      937.2033475332388,
+      -934.7432510988532,
+      8999.116249485849,
+      3442.4217812615125,
+      2169.9511272269883
+    ],
+    "training_rms_px": 0.5620446962486825,
+    "heldout_rms_px": 0.8863280985158025,
+    "points": [
+      {
+        "lon": 0.0,
+        "lat": 48.0,
+        "x": 370.428,
+        "y": 709.633,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.62,
+        "vertical_score": 97.48237733389323,
+        "horizontal_score": 76.04246340628896
+      },
+      {
+        "lon": 8.0,
+        "lat": 48.0,
+        "x": 1201.951,
+        "y": 871.63,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.583,
+        "vertical_score": 94.51578370080281,
+        "horizontal_score": 84.99265631188618
+      },
+      {
+        "lon": 16.0,
+        "lat": 48.0,
+        "x": 2043.554,
+        "y": 951.315,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.439,
+        "vertical_score": 91.40667903250821,
+        "horizontal_score": 47.51740447517868
+      },
+      {
+        "lon": 24.0,
+        "lat": 48.0,
+        "x": 2890.58,
+        "y": 946.555,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.864,
+        "vertical_score": 97.21599079886352,
+        "horizontal_score": 81.19631184021847
+      },
+      {
+        "lon": 32.0,
+        "lat": 48.0,
+        "x": 3730.714,
+        "y": 859.281,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.516,
+        "vertical_score": 97.45464069872831,
+        "horizontal_score": 84.25997340838313
+      },
+      {
+        "lon": 40.0,
+        "lat": 48.0,
+        "x": 4559.768,
+        "y": 689.572,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.226,
+        "vertical_score": 97.0241437366735,
+        "horizontal_score": 83.57318417825044
+      },
+      {
+        "lon": 0.0,
+        "lat": 44.0,
+        "x": 219.04,
+        "y": 1324.732,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 1.666,
+        "vertical_score": 96.61166097117102,
+        "horizontal_score": 58.386499246097024
+      },
+      {
+        "lon": 8.0,
+        "lat": 44.0,
+        "x": 1111.967,
+        "y": 1497.119,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.479,
+        "vertical_score": 96.25427943995207,
+        "horizontal_score": 89.05487593141694
+      },
+      {
+        "lon": 16.0,
+        "lat": 44.0,
+        "x": 2015.943,
+        "y": 1582.088,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.187,
+        "vertical_score": 91.33975940249219,
+        "horizontal_score": 82.4365264215048
+      },
+      {
+        "lon": 24.0,
+        "lat": 44.0,
+        "x": 2924.807,
+        "y": 1577.209,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.727,
+        "vertical_score": 95.30490699495158,
+        "horizontal_score": 80.52062926455159
+      },
+      {
+        "lon": 32.0,
+        "lat": 44.0,
+        "x": 3827.035,
+        "y": 1483.486,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.521,
+        "vertical_score": 96.22520801568538,
+        "horizontal_score": 90.86525112987957
+      },
+      {
+        "lon": 40.0,
+        "lat": 44.0,
+        "x": 4717.25,
+        "y": 1301.661,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.35,
+        "vertical_score": 97.6614347475618,
+        "horizontal_score": 94.32106026863036
+      },
+      {
+        "lon": 8.0,
+        "lat": 36.0,
+        "x": 931.527,
+        "y": 2747.917,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.677,
+        "vertical_score": 97.54047288566274,
+        "horizontal_score": 92.79542282724462
+      },
+      {
+        "lon": 16.0,
+        "lat": 36.0,
+        "x": 1959.722,
+        "y": 2843.593,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.536,
+        "vertical_score": 97.65915969178177,
+        "horizontal_score": 91.64687669230074
+      },
+      {
+        "lon": 24.0,
+        "lat": 36.0,
+        "x": 2993.764,
+        "y": 2838.557,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.92,
+        "vertical_score": 92.95726945422331,
+        "horizontal_score": 87.41905930992435
+      },
+      {
+        "lon": 32.0,
+        "lat": 36.0,
+        "x": 4020.283,
+        "y": 2732.572,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.402,
+        "vertical_score": 91.3757412649917,
+        "horizontal_score": 91.50142903743671
+      },
+      {
+        "lon": 40.0,
+        "lat": 36.0,
+        "x": 5031.505,
+        "y": 2525.023,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.403,
+        "vertical_score": 90.66559934249588,
+        "horizontal_score": 75.24697263554523
+      },
+      {
+        "lon": 8.0,
+        "lat": 32.0,
+        "x": 841.684,
+        "y": 3372.442,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.293,
+        "vertical_score": 97.98417296762707,
+        "horizontal_score": 93.15765288720499
+      },
+      {
+        "lon": 16.0,
+        "lat": 32.0,
+        "x": 1931.58,
+        "y": 3475.042,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.678,
+        "vertical_score": 96.306398123061,
+        "horizontal_score": 91.04256753647232
+      },
+      {
+        "lon": 24.0,
+        "lat": 32.0,
+        "x": 3028.02,
+        "y": 3469.737,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.734,
+        "vertical_score": 96.7695077669689,
+        "horizontal_score": 76.0859621364692
+      },
+      {
+        "lon": 32.0,
+        "lat": 32.0,
+        "x": 4116.554,
+        "y": 3356.453,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.09,
+        "vertical_score": 94.7456760697874,
+        "horizontal_score": 89.2422967075216
+      },
+      {
+        "lon": 40.0,
+        "lat": 32.0,
+        "x": 5188.76,
+        "y": 3136.225,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.597,
+        "vertical_score": 97.70764598939277,
+        "horizontal_score": 92.68338243555469
+      },
+      {
+        "lon": 16.0,
+        "lat": 40.0,
+        "x": 1987.846,
+        "y": 2212.554,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.409,
+        "vertical_score": 91.66185149187811,
+        "horizontal_score": 94.69025312614895
+      },
+      {
+        "lon": 32.0,
+        "lat": 40.0,
+        "x": 3923.787,
+        "y": 2107.242,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.674,
+        "vertical_score": 88.45928802914213,
+        "horizontal_score": 93.9481839787378
+      }
+    ]
+  },
+  "byzantine-map-622-en.png": {
+    "model": "affine equidistant-conic rho=a-b*(lat-40)radians; theta=n*(lon-28)radians",
+    "width": 6000,
+    "height": 4111,
+    "parameters": [
+      1.086270436414169,
+      1.0,
+      0.7075601647257918,
+      7392.5613912197,
+      772.1577027227878,
+      -766.785281291724,
+      7390.569096113606,
+      3832.2218467976404,
+      2084.9622491584905
+    ],
+    "training_rms_px": 0.5720902369001148,
+    "heldout_rms_px": 0.7532937012602807,
+    "points": [
+      {
+        "lon": 0.0,
+        "lat": 52.0,
+        "x": 1433.067,
+        "y": 381.442,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.411,
+        "vertical_score": 86.24708084178154,
+        "horizontal_score": 64.91245435703281,
+        "original_index": 0
+      },
+      {
+        "lon": 8.0,
+        "lat": 52.0,
+        "x": 2065.614,
+        "y": 503.816,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 1.069,
+        "vertical_score": 96.10991792066977,
+        "horizontal_score": 66.5617817017569,
+        "original_index": 1
+      },
+      {
+        "lon": 16.0,
+        "lat": 52.0,
+        "x": 2705.89,
+        "y": 565.659,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.351,
+        "vertical_score": 97.21663342863616,
+        "horizontal_score": 67.04084172403746,
+        "original_index": 2
+      },
+      {
+        "lon": 24.0,
+        "lat": 52.0,
+        "x": 3350.364,
+        "y": 562.668,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.805,
+        "vertical_score": 91.32659137965324,
+        "horizontal_score": 69.25925211320424,
+        "original_index": 3
+      },
+      {
+        "lon": 32.0,
+        "lat": 52.0,
+        "x": 3989.136,
+        "y": 495.224,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.968,
+        "vertical_score": 99.58378128957767,
+        "horizontal_score": 65.24391711456866,
+        "original_index": 4
+      },
+      {
+        "lon": 40.0,
+        "lat": 52.0,
+        "x": 4620.104,
+        "y": 366.26,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.531,
+        "vertical_score": 102.70247591972779,
+        "horizontal_score": 75.30648685463764,
+        "original_index": 5
+      },
+      {
+        "lon": 0.0,
+        "lat": 48.0,
+        "x": 1309.141,
+        "y": 884.618,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.374,
+        "vertical_score": 100.08419119886346,
+        "horizontal_score": 71.74430634215747,
+        "original_index": 6
+      },
+      {
+        "lon": 8.0,
+        "lat": 48.0,
+        "x": 1991.788,
+        "y": 1017.94,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.54,
+        "vertical_score": 85.29183012107941,
+        "horizontal_score": 64.82646215441396,
+        "original_index": 7
+      },
+      {
+        "lon": 16.0,
+        "lat": 48.0,
+        "x": 2683.089,
+        "y": 1083.544,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.04,
+        "vertical_score": 93.35638300457535,
+        "horizontal_score": 68.66504855367322,
+        "original_index": 8
+      },
+      {
+        "lon": 24.0,
+        "lat": 48.0,
+        "x": 3378.496,
+        "y": 1081.163,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.967,
+        "vertical_score": 96.91556817552322,
+        "horizontal_score": 59.21337658444991,
+        "original_index": 9
+      },
+      {
+        "lon": 32.0,
+        "lat": 48.0,
+        "x": 4068.603,
+        "y": 1008.038,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.781,
+        "vertical_score": 91.63234227598022,
+        "horizontal_score": 62.999058038706835,
+        "original_index": 10
+      },
+      {
+        "lon": 40.0,
+        "lat": 48.0,
+        "x": 4749.481,
+        "y": 869.623,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.471,
+        "vertical_score": 100.76223571799999,
+        "horizontal_score": 82.58779846103434,
+        "original_index": 11
+      },
+      {
+        "lon": 0.0,
+        "lat": 36.0,
+        "x": 936.477,
+        "y": 2395.715,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.188,
+        "vertical_score": 69.9680793195725,
+        "horizontal_score": 28.457835470186456,
+        "original_index": 12
+      },
+      {
+        "lon": 8.0,
+        "lat": 36.0,
+        "x": 1769.62,
+        "y": 2558.162,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.205,
+        "vertical_score": 34.819861526380855,
+        "horizontal_score": 35.75008255215054,
+        "original_index": 13
+      },
+      {
+        "lon": 16.0,
+        "lat": 36.0,
+        "x": 2614.173,
+        "y": 2637.433,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.788,
+        "vertical_score": 42.17871522000006,
+        "horizontal_score": 32.8118378102947,
+        "original_index": 14
+      },
+      {
+        "lon": 24.0,
+        "lat": 36.0,
+        "x": 3463.258,
+        "y": 2634.221,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.22,
+        "vertical_score": 36.1791503042363,
+        "horizontal_score": 35.895637635910546,
+        "original_index": 15
+      },
+      {
+        "lon": 0.0,
+        "lat": 32.0,
+        "x": 812.375,
+        "y": 2899.608,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.392,
+        "vertical_score": 102.25011622467764,
+        "horizontal_score": 84.09734649157602,
+        "original_index": 18
+      },
+      {
+        "lon": 8.0,
+        "lat": 32.0,
+        "x": 1695.926,
+        "y": 3071.371,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.45,
+        "vertical_score": 100.61640881036979,
+        "horizontal_score": 79.9589889851898,
+        "original_index": 19
+      },
+      {
+        "lon": 16.0,
+        "lat": 32.0,
+        "x": 2590.851,
+        "y": 3155.773,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.948,
+        "vertical_score": 42.97959855296453,
+        "horizontal_score": 32.46936758591268,
+        "original_index": 20
+      },
+      {
+        "lon": 24.0,
+        "lat": 32.0,
+        "x": 3491.391,
+        "y": 3152.738,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.495,
+        "vertical_score": 50.58801775438163,
+        "horizontal_score": 42.328984416104184,
+        "original_index": 21
+      }
+    ],
+    "rejected_detections": [
+      {
+        "lon": 32.0,
+        "lat": 36.0,
+        "x": 4294.916,
+        "y": 2548.692,
+        "heldout": false,
+        "rejected": true,
+        "error_px": 12.21,
+        "vertical_score": 8.102141754406539,
+        "horizontal_score": 34.52935881209673,
+        "original_index": 16
+      },
+      {
+        "lon": 40.0,
+        "lat": 36.0,
+        "x": 4843.268,
+        "y": 2446.085,
+        "heldout": true,
+        "rejected": true,
+        "error_px": 303.004,
+        "vertical_score": 12.481910809992025,
+        "horizontal_score": 63.876473702839334,
+        "original_index": 17
+      },
+      {
+        "lon": 32.0,
+        "lat": 32.0,
+        "x": 4292.328,
+        "y": 3072.653,
+        "heldout": false,
+        "rejected": true,
+        "error_px": 94.866,
+        "vertical_score": 5.17688410482125,
+        "horizontal_score": 35.058632376963,
+        "original_index": 22
+      },
+      {
+        "lon": 40.0,
+        "lat": 32.0,
+        "x": 4837.405,
+        "y": 2980.295,
+        "heldout": true,
+        "rejected": true,
+        "error_px": 442.05,
+        "vertical_score": 18.564917871093456,
+        "horizontal_score": 76.68557658795278,
+        "original_index": 23
+      }
+    ],
+    "heldout_max_px": 1.0686775566328826,
+    "method": "Neutral-gray graticule intersection detection with a full \u00b1170 px offset search. Measurements failing either long-line score >20 are excluded. Five clean intersections distributed across all four latitude levels are held out before final fitting. RMS describes pixel registration only, not historical accuracy."
+  },
+  "byzantine-theme-map-813-en.png": {
+    "model": "affine equidistant-conic rho=a-b*(lat-40)radians; theta=n*(lon-28)radians",
+    "width": 6000,
+    "height": 4118,
+    "parameters": [
+      1.0846047961333771,
+      1.0,
+      0.7072836473510441,
+      10350.72995242753,
+      1078.3069732029294,
+      -1072.3049044987358,
+      10330.468992595523,
+      3132.692908330686,
+      2253.1062219796927
+    ],
+    "training_rms_px": 0.7851142666647997,
+    "heldout_rms_px": 1.1358873907910896,
+    "points": [
+      {
+        "lon": 12.0,
+        "lat": 48.0,
+        "x": 1042.156,
+        "y": 820.527,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.121,
+        "vertical_score": 119.89120454201691,
+        "horizontal_score": 94.57703879881441,
+        "original_index": 0
+      },
+      {
+        "lon": 20.0,
+        "lat": 48.0,
+        "x": 2012.821,
+        "y": 863.813,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.77,
+        "vertical_score": 121.57118888089649,
+        "horizontal_score": 85.93924642979658,
+        "original_index": 1
+      },
+      {
+        "lon": 24.0,
+        "lat": 48.0,
+        "x": 2498.671,
+        "y": 848.822,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.558,
+        "vertical_score": 121.2266363411109,
+        "horizontal_score": 79.95790784831564,
+        "original_index": 2
+      },
+      {
+        "lon": 28.0,
+        "lat": 48.0,
+        "x": 2982.691,
+        "y": 810.74,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.56,
+        "vertical_score": 123.0791203699785,
+        "horizontal_score": 89.53760664220101,
+        "original_index": 3
+      },
+      {
+        "lon": 32.0,
+        "lat": 48.0,
+        "x": 3463.166,
+        "y": 748.318,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.688,
+        "vertical_score": 121.10902715030149,
+        "horizontal_score": 99.12013873084538,
+        "original_index": 4
+      },
+      {
+        "lon": 40.0,
+        "lat": 48.0,
+        "x": 4414.626,
+        "y": 554.544,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.311,
+        "vertical_score": 123.429776282756,
+        "horizontal_score": 98.71254497608176,
+        "original_index": 5
+      },
+      {
+        "lon": 12.0,
+        "lat": 44.0,
+        "x": 974.452,
+        "y": 1541.523,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.536,
+        "vertical_score": 117.13235778750447,
+        "horizontal_score": 88.62698436092852,
+        "original_index": 6
+      },
+      {
+        "lon": 20.0,
+        "lat": 44.0,
+        "x": 2016.848,
+        "y": 1587.741,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.54,
+        "vertical_score": 121.43386765095056,
+        "horizontal_score": 90.1526600925007,
+        "original_index": 7
+      },
+      {
+        "lon": 24.0,
+        "lat": 44.0,
+        "x": 2538.161,
+        "y": 1572.626,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.567,
+        "vertical_score": 122.08150763642385,
+        "horizontal_score": 98.73822919945952,
+        "original_index": 8
+      },
+      {
+        "lon": 28.0,
+        "lat": 44.0,
+        "x": 3057.604,
+        "y": 1531.83,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.205,
+        "vertical_score": 95.50866488593064,
+        "horizontal_score": 81.80800208668559,
+        "original_index": 9
+      },
+      {
+        "lon": 32.0,
+        "lat": 44.0,
+        "x": 3573.919,
+        "y": 1465.121,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 0.673,
+        "vertical_score": 72.08975608251743,
+        "horizontal_score": 60.480109335339705,
+        "original_index": 10
+      },
+      {
+        "lon": 40.0,
+        "lat": 44.0,
+        "x": 4595.183,
+        "y": 1256.23,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.588,
+        "vertical_score": 114.05186638946483,
+        "horizontal_score": 78.85341241067636,
+        "original_index": 11
+      },
+      {
+        "lon": 12.0,
+        "lat": 36.0,
+        "x": 838.375,
+        "y": 2985.327,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.641,
+        "vertical_score": 72.66761999038155,
+        "horizontal_score": 64.24997126238111,
+        "original_index": 12
+      },
+      {
+        "lon": 20.0,
+        "lat": 36.0,
+        "x": 2024.418,
+        "y": 3038.096,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.648,
+        "vertical_score": 72.38566985882872,
+        "horizontal_score": 63.88093851722721,
+        "original_index": 13
+      },
+      {
+        "lon": 24.0,
+        "lat": 36.0,
+        "x": 2617.157,
+        "y": 3020.485,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.617,
+        "vertical_score": 66.07279536368107,
+        "horizontal_score": 64.62424647284641,
+        "original_index": 14
+      },
+      {
+        "lon": 28.0,
+        "lat": 36.0,
+        "x": 3207.974,
+        "y": 2974.451,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.142,
+        "vertical_score": 61.835240115745385,
+        "horizontal_score": 61.212720029445464,
+        "original_index": 15
+      },
+      {
+        "lon": 32.0,
+        "lat": 36.0,
+        "x": 3795.019,
+        "y": 2899.344,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.387,
+        "vertical_score": 62.68027267514519,
+        "horizontal_score": 66.62212575947053,
+        "original_index": 16
+      },
+      {
+        "lon": 40.0,
+        "lat": 36.0,
+        "x": 4956.231,
+        "y": 2661.28,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 1.719,
+        "vertical_score": 114.06958588964173,
+        "horizontal_score": 112.72594950706261,
+        "original_index": 17
+      },
+      {
+        "lon": 12.0,
+        "lat": 32.0,
+        "x": 770.109,
+        "y": 3706.774,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.031,
+        "vertical_score": 86.82879781863505,
+        "horizontal_score": 123.97743896269125,
+        "original_index": 18
+      },
+      {
+        "lon": 20.0,
+        "lat": 32.0,
+        "x": 2028.452,
+        "y": 3763.524,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.016,
+        "vertical_score": 81.42986552738694,
+        "horizontal_score": 83.37437878767233,
+        "original_index": 19
+      },
+      {
+        "lon": 24.0,
+        "lat": 32.0,
+        "x": 2656.744,
+        "y": 3746.06,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 1.289,
+        "vertical_score": 95.15029449055052,
+        "horizontal_score": 97.11490390494505,
+        "original_index": 20
+      },
+      {
+        "lon": 28.0,
+        "lat": 32.0,
+        "x": 3282.808,
+        "y": 3694.782,
+        "heldout": false,
+        "rejected": false,
+        "error_px": 0.855,
+        "vertical_score": 77.09704091882003,
+        "horizontal_score": 70.22324594508629,
+        "original_index": 21
+      },
+      {
+        "lon": 32.0,
+        "lat": 32.0,
+        "x": 3905.623,
+        "y": 3615.18,
+        "heldout": true,
+        "rejected": false,
+        "error_px": 1.471,
+        "vertical_score": 77.37248460590455,
+        "horizontal_score": 59.05269965226147,
+        "original_index": 22
+      }
+    ],
+    "rejected_detections": [
+      {
+        "lon": 40.0,
+        "lat": 32.0,
+        "x": 5118.639,
+        "y": 3367.772,
+        "heldout": true,
+        "rejected": true,
+        "error_px": 20.159,
+        "vertical_score": 11.533299624782039,
+        "horizontal_score": 116.94080868741533,
+        "original_index": 23
+      }
+    ],
+    "heldout_max_px": 1.7186344135600162,
+    "method": "Neutral-gray graticule intersection detection with a full \u00b1170 px offset search. Measurements failing either long-line score >20 are excluded. Five clean intersections distributed across all four latitude levels are held out before final fitting. RMS describes pixel registration only, not historical accuracy."
+  }
+}
