@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FeatureCollection } from "geojson";
-import * as Dialog from "@radix-ui/react-dialog";
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,7 +9,6 @@ import {
   MapPin,
   Search,
   Share2,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
@@ -20,7 +18,6 @@ import {
   BYZANTINE_PERIODS,
   BYZANTINE_PLACES,
   type ByzantineData,
-  type ByzantineFrame,
 } from "@/lib/atlas/byzantine";
 import {
   activePlaces,
@@ -45,7 +42,6 @@ import {
   FRANKISH_PERIODS,
   FRANKISH_PLACES,
   type FrankishData,
-  type FrankishFrame,
 } from "@/lib/atlas/frankish";
 import { FRANKISH_YEARS, frankishSnapshot } from "@/lib/atlas/model";
 import { RUS_YEARS, rusSnapshot } from "@/lib/atlas/model";
@@ -54,11 +50,8 @@ import {
   RUS_PERIODS,
   RUS_PLACES,
   validateRusData,
-  type RusFrame,
 } from "@/lib/atlas/rus";
 import {
-  MONGOL_YEARS,
-  MONGOL_CAMPAIGN,
   MONGOL_EVENTS,
   validateMongolData,
   mongolFrameAt,
@@ -67,7 +60,6 @@ import {
   mongolPeriod,
   campaignPlaces,
   markInvadedRus,
-  type MongolFrame,
 } from "@/lib/atlas/mongols";
 import { useMeQuery } from "./session-gate";
 import { AtlasEditingPanel, useAtlasEditor } from "./atlas-editing-panel";
@@ -107,135 +99,6 @@ function Sources({ ids }: { ids: string[] }) {
           </li>
         ))}
     </ul>
-  );
-}
-function SourceMapPreview({
-  frame,
-  uk,
-  owner,
-}: {
-  owner?: string;
-  frame: ByzantineFrame | FrankishFrame | RusFrame | MongolFrame;
-  uk: boolean;
-}) {
-  const localOriginal = "originalPath" in frame;
-  const rus = "note" in frame;
-  const frankish = localOriginal && !rus;
-  const imageUrl = localOriginal ? `/${frame.originalPath}` : frame.sourceUrl;
-  const author = localOriginal ? `${frame.author} · ${frame.license}` : "©Lucius";
-  const [scale, setScale] = useState(1);
-  const [failed, setFailed] = useState(false);
-  return (
-    <Dialog.Root
-      onOpenChange={(open) => {
-        if (open) {
-          setScale(1);
-          setFailed(false);
-        }
-      }}
-    >
-      <Dialog.Trigger asChild>
-        <PillButton type="button" tone="ghost">
-          {owner
-            ? `${uk ? "Карта-джерело" : "Source map"} · ${owner}`
-            : rus
-              ? uk
-                ? "Переглянути оригінал Русі"
-                : "View Rus original"
-              : frankish
-                ? uk
-                  ? "Переглянути оригінал франків"
-                  : "View Frankish original"
-                : uk
-                  ? "Переглянути оригінал"
-                  : "View original"}
-        </PillButton>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/75" />
-        <Dialog.Content
-          aria-describedby="atlas-source-description"
-          className="fixed left-1/2 top-1/2 z-[101] flex h-[90dvh] w-[96vw] max-w-7xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl bg-surface p-3 shadow-2xl outline-none sm:p-5"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Dialog.Title className="font-display text-lg font-extrabold">
-              {uk ? "Авторська мапа" : "Source map"} · {rus ? frame.sourceYear : frame.year} ·{" "}
-              {author}
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                aria-label={uk ? "Закрити оригінал" : "Close original"}
-                className="grid size-11 place-items-center rounded-full bg-surface-2"
-              >
-                <X className="size-5" />
-              </button>
-            </Dialog.Close>
-          </div>
-          <p id="atlas-source-description" className="mt-1 text-xs text-muted">
-            {uk
-              ? localOriginal
-                ? "Оригінальна карта з легендою. Збільшуйте й прокручуйте для перевірки князівств, анклавів і кольорових областей; локальна копія джерела."
-                : "Оригінальна проєкція та повна роздільність автора. Збільшуйте й прокручуйте, щоб читати міста, феми та легенду. Зображення завантажується із сайту автора."
-              : localOriginal
-                ? "Original map with legend, preserved locally. Zoom and scroll to check principalities, enclaves and color areas."
-                : "Original projection and full source resolution. Zoom and scroll to read settlements, themes and the legend; loaded from the author's site."}
-          </p>
-          <div className="my-3 flex flex-wrap items-center gap-2">
-            <PillButton
-              type="button"
-              tone="ghost"
-              disabled={scale <= 1}
-              onClick={() => setScale(Math.max(1, scale - 1))}
-            >
-              −
-            </PillButton>
-            <span className="text-xs font-bold">{scale * 100}%</span>
-            <PillButton
-              type="button"
-              tone="ghost"
-              disabled={scale >= 10}
-              onClick={() => setScale(Math.min(10, scale + 1))}
-            >
-              +
-            </PillButton>
-            <PillButton type="button" tone="ghost" onClick={() => setScale(1)}>
-              {uk ? "Вмістити" : "Fit"}
-            </PillButton>
-            <a
-              href={frame.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-auto text-xs underline"
-            >
-              {uk ? "Відкрити джерело" : "Open source"}
-            </a>
-          </div>
-          <div
-            tabIndex={0}
-            aria-label={uk ? "Перегляд мапи з прокручуванням" : "Scrollable source map"}
-            className="min-h-0 flex-1 overflow-auto rounded-xl border border-hairline bg-white"
-          >
-            {failed ? (
-              <p role="alert" className="p-5 text-sm">
-                {uk
-                  ? localOriginal
-                    ? "Оригінальну карту не завантажено. Векторні кордони доступні в атласі; джерело можна відкрити за посиланням."
-                    : "Сайт автора не надав зображення. Геоприв’язаний шар та векторні кордони доступні в атласі."
-                  : "Source image unavailable; vector boundaries remain available. Open the linked original source."}
-              </p>
-            ) : (
-              <img
-                src={imageUrl}
-                alt={`${rus ? (uk ? "Мапа Русі" : "Rus map") : frankish ? (uk ? "Франкська держава" : "Frankish realms") : uk ? "Мапа Візантії" : "Byzantine map"} ${rus ? frame.sourceYear : frame.year}, ${author}`}
-                onError={() => setFailed(true)}
-                style={{ width: `${scale * 100}%`, maxWidth: "none", height: "auto" }}
-              />
-            )}
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
   );
 }
 export function HistoricalAtlas({
@@ -308,14 +171,14 @@ export function HistoricalAtlas({
   const byzYear = byzantineSnapshot(year);
   const frYear = frankishSnapshot(year);
   const rusYear = rusSnapshot(year);
-  const [mongolDetail, setMongolDetail] = useState(true);
-  const [campaignStep, setCampaignStep] = useState("");
+  const mongolDetail = true;
+  const campaignStep = "";
   const newView = ["mongols", "hordes", "mughals"].includes(view);
   const invasion =
     year >= 1223 && year <= 1242 && (view === "rus" || view === "mongols" || view === "hordes");
-  const [rusDetail, setRusDetail] = useState(true);
-  const [frankishDetail, setFrankishDetail] = useState(true);
-  const [detailed, setDetailed] = useState(true);
+  const rusDetail = true;
+  const frankishDetail = true;
+  const detailed = true;
   const [originalLayer, setOriginalLayer] = useState(false);
   const [yearText, setYearText] = useState(String(year));
   const [search, setSearch] = useState("");
@@ -328,7 +191,6 @@ export function HistoricalAtlas({
   >(null);
   useEffect(() => {
     setYearText(String(year));
-    setCampaignStep("");
   }, [year]);
   useEffect(
     () => setSelection(null),
@@ -704,454 +566,6 @@ export function HistoricalAtlas({
             </p>
           ))}
         </div>
-        <div className="mt-4 rounded-2xl border border-amber-600/30 bg-amber-100/15 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-display font-extrabold">
-                {uk ? "Монголи, орди та Великі Моголи" : "Mongols, khanates and Mughals"}
-              </h3>
-              <p className="mt-1 text-xs text-muted">
-                1206–1858 ·{" "}
-                {uk
-                  ? "датовані карти, навала на Русь, історія наступників"
-                  : "source maps, Rus invasion, successor histories"}
-              </p>
-            </div>
-            <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
-              <input
-                type="checkbox"
-                checked={mongolDetail}
-                onChange={(e) => setMongolDetail(e.target.checked)}
-              />
-              {uk ? "Монгольські шари й події навали" : "Mongol layers and invasion"}
-            </label>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(
-              [
-                ["mongols", 1206, uk ? "Монгольська імперія" : "Mongol Empire"],
-                ["hordes", 1300, uk ? "Орди й ханства" : "Khanates"],
-                ["mughals", 1526, uk ? "Великі Моголи · Індія" : "Mughals · India"],
-              ] as const
-            ).map(([v, y, label]) => (
-              <PillButton
-                key={v}
-                type="button"
-                tone="ghost"
-                aria-pressed={view === v}
-                onClick={() => onChange(y, v)}
-              >
-                {label}
-              </PillButton>
-            ))}
-          </div>
-          <label className="mt-3 block text-xs font-bold">
-            {uk ? "Датована карта (рік джерела)" : "Dated source map"}
-            <select
-              className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
-              value={mongolFrame?.year ?? ""}
-              onChange={(e) => {
-                const y = Number(e.target.value);
-                onChange(y, y >= 1526 && y !== 1600 ? "mughals" : y >= 1300 ? "hordes" : "mongols");
-              }}
-            >
-              <option value="" disabled>
-                {uk
-                  ? "Немає територіального зрізу для цього року"
-                  : "No territorial frame for this year"}
-              </option>
-              {MONGOL_YEARS.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                  {[1500, 1600, 1700].includes(y) ? " · оглядова геометрія" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          {mongolFrame && <p className="mt-2 text-xs leading-5 text-muted">{mongolFrame.note}</p>}
-          {mongolFrame?.originalPath && (
-            <div className="mt-2">
-              <SourceMapPreview
-                frame={mongolFrame}
-                uk={uk}
-                owner={uk ? "Монголи / Моголи" : "Mongols / Mughals"}
-              />
-            </div>
-          )}
-          <p className="mt-3 text-xs leading-5 text-muted">
-            {uk
-              ? "Між датами показано документований зріз лише в межах указаного періоду. Пунктирні полігони приблизні; після розпаду старі межі прибираються. Якщо точної пізнішої карти немає, показані осередки й історичні події. Великі Моголи — окрема тимуридська держава в Індії. Схему всіх пізніх ханств перевіряйте в джерелі нижче: вона поєднує різні дати XV–XVI ст."
-              : "Source boundaries are approximate and expire after major territorial changes. Where no later polygon is documented, centres and events remain. India’s Mughals are a separate Timurid state."}
-          </p>
-          <a
-            className="mt-2 inline-block text-xs underline"
-            href="/atlas/mongols/originals/successors.webp"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {uk
-              ? "Схема наступників Орди й Північної Юань · Elvonudinium · CC BY-SA 4.0"
-              : "Successor scheme · Elvonudinium · CC BY-SA 4.0"}
-          </a>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {[
-              1206, 1219, 1223, 1236, 1237, 1238, 1239, 1240, 1241, 1242, 1258, 1260, 1271, 1279,
-              1300, 1335, 1347, 1359, 1368, 1370, 1395, 1441, 1465, 1475, 1480, 1502, 1514, 1526,
-              1540, 1552, 1556, 1598, 1605, 1635, 1680, 1707, 1739, 1783, 1803, 1857, 1858,
-            ].map((y) => (
-              <button
-                type="button"
-                key={y}
-                aria-pressed={year === y}
-                className={`min-h-9 rounded-full px-3 text-xs font-bold ${year === y ? "bg-forest text-paper" : "bg-surface"}`}
-                onClick={() =>
-                  onChange(
-                    y,
-                    y >= 1526 && ![1552, 1598, 1635, 1680, 1783].includes(y)
-                      ? "mughals"
-                      : y >= 1300
-                        ? "hordes"
-                        : "mongols",
-                  )
-                }
-              >
-                {y}
-              </button>
-            ))}
-          </div>
-          {invasion && mongolDetail && (
-            <div className="mt-4 rounded-xl border border-terracotta/30 bg-surface p-3">
-              <h4 className="font-bold">
-                {uk ? "Навала на Русь · етапи захоплень" : "Invasion of Rus · campaign stages"}
-              </h4>
-              <label className="mt-2 block text-xs font-bold">
-                {uk ? "Етап у вибраному році" : "Stage in selected year"}
-                <select
-                  className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
-                  value={campaignStep}
-                  onChange={(e) => setCampaignStep(e.target.value)}
-                >
-                  <option value="">
-                    {uk ? "Усі засвідчені події цього року" : "All documented events in this year"}
-                  </option>
-                  {MONGOL_CAMPAIGN.filter((x) => x.year === year).map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="mt-2 text-xs text-muted">
-                {uk
-                  ? "Червоні позначки — захоплені й розорені міста; помаранчеві — битви. Червоний пунктир князівства означає розорення його головного осередку, а не знищення всіх поселень чи точний кордон окупації. Натисніть позначку для подробиць."
-                  : "Red: sacked settlements; orange: battles. A red principality outline marks its principal centre being sacked, not a surveyed occupation boundary or the disappearance of every settlement."}
-              </p>
-              <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto">
-                {campaignMarkers.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="min-h-10 rounded-xl bg-surface-2 px-3 text-left text-xs font-bold"
-                    onClick={() => choosePlace(p)}
-                  >
-                    {p.dateLabel}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {mongolDetail && year >= 1206 && mongols.isPending && (
-            <p role="status" className="mt-2 text-xs">
-              {uk ? "Завантаження монгольських карт…" : "Loading Mongol maps…"}
-            </p>
-          )}
-          {mongols.isError && mongolDetail && (
-            <div role="alert" className="mt-2 text-sm">
-              {uk ? "Монгольські карти не завантажилися." : "Mongol maps failed to load."}
-              <PillButton type="button" tone="ghost" onClick={() => void mongols.refetch()}>
-                {uk ? "Повторити" : "Retry"}
-              </PillButton>
-            </div>
-          )}
-        </div>
-        <div className="mt-4 rounded-2xl border border-[#bb8a9b]/40 bg-[#f3cbda]/15 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-display font-extrabold">
-                {uk ? "Детальна Візантія" : "Detailed Byzantium"}
-              </h3>
-              <p className="mt-1 text-xs text-muted">
-                {uk
-                  ? "39 авторських зрізів · острови, анклави та держави-наступниці"
-                  : "39 source snapshots · islands, enclaves and successor states"}
-              </p>
-            </div>
-            <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
-              <input
-                type="checkbox"
-                checked={detailed}
-                onChange={(e) => {
-                  setDetailed(e.target.checked);
-                  if (!e.target.checked) setOriginalLayer(false);
-                }}
-              />
-              {uk ? "Детальні кордони Візантії" : "Detailed Byzantine borders"}
-            </label>
-          </div>
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <PillButton
-              type="button"
-              tone="ghost"
-              aria-label={uk ? "Попередній зріз Візантії" : "Previous Byzantine snapshot"}
-              disabled={byzYear === BYZANTINE_YEARS[0]}
-              onClick={() => onChange(BYZANTINE_YEARS[BYZANTINE_YEARS.indexOf(byzYear) - 1], view)}
-            >
-              <ChevronLeft className="size-4" />
-            </PillButton>
-            <label className="min-w-40 flex-1 text-xs font-bold">
-              {uk ? "Авторський зріз Візантії" : "Byzantine source snapshot"}
-              <select
-                className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
-                value={byzYear}
-                onChange={(e) => onChange(Number(e.target.value), view)}
-              >
-                {BYZANTINE_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                    {y === 1453 ? (uk ? " · до 29 травня" : " · before 29 May") : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <PillButton
-              type="button"
-              tone="ghost"
-              aria-label={uk ? "Наступний зріз Візантії" : "Next Byzantine snapshot"}
-              disabled={byzYear === BYZANTINE_YEARS.at(-1)}
-              onClick={() => onChange(BYZANTINE_YEARS[BYZANTINE_YEARS.indexOf(byzYear) + 1], view)}
-            >
-              <ChevronRight className="size-4" />
-            </PillButton>
-            {byzFrame && <SourceMapPreview key={byzFrame.year} frame={byzFrame} uk={uk} />}
-          </div>
-          <label className="mt-3 flex min-h-10 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={originalLayer}
-              disabled={!detailed || !borders || !byzFrame}
-              onChange={(e) => setOriginalLayer(e.target.checked)}
-            />
-            {uk
-              ? "Авторський шар: міста, феми й підписи"
-              : "Source layer: towns, themes and labels"}
-          </label>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            {uk
-              ? `Показано останній відомий авторський зріз ${byzYear}, що не пізніше обраного року. Контури перенесені через градусну сітку. Авторський шар відтворює весь регіон джерела й закриває в ньому оглядову мапу; феми й підписи збережені як зображення, а не окремі інтерактивні одиниці.`
-              : `Last documented source frame at or before the event year: ${byzYear}. Source raster covers the overview within its region; themes and labels are preserved as imagery, not individually selectable units.`}
-          </p>
-        </div>
-        <div className="mt-4 rounded-2xl border border-[#8caa86]/40 bg-[#def0d0]/20 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-display font-extrabold">
-                {uk ? "Детальна Франкська держава" : "Detailed Frankish realms"}
-              </h3>
-              <p className="mt-1 text-xs text-muted">
-                {uk
-                  ? "481–900 · 10 картографічних зрізів · поділи, анклави й держави-наступниці"
-                  : "481–900 · 10 source snapshots · partitions, enclaves and successor kingdoms"}
-              </p>
-            </div>
-            <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
-              <input
-                type="checkbox"
-                checked={frankishDetail}
-                onChange={(e) => setFrankishDetail(e.target.checked)}
-              />
-              {uk ? "Детальні кордони франків" : "Detailed Frankish borders"}
-            </label>
-          </div>
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <PillButton
-              type="button"
-              tone="ghost"
-              aria-label={uk ? "Попередній зріз франків" : "Previous Frankish snapshot"}
-              disabled={frYear === undefined || frYear === FRANKISH_YEARS[0]}
-              onClick={() =>
-                frYear !== undefined &&
-                onChange(FRANKISH_YEARS[FRANKISH_YEARS.indexOf(frYear) - 1], view)
-              }
-            >
-              <ChevronLeft className="size-4" />
-            </PillButton>
-            <label className="min-w-40 flex-1 text-xs font-bold">
-              {uk ? "Картографічний зріз франків" : "Frankish source snapshot"}
-              <select
-                className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
-                value={frYear ?? ""}
-                onChange={(e) => onChange(Number(e.target.value), view)}
-              >
-                <option value="" disabled>
-                  {uk ? "Поза періодом 481–900" : "Outside 481–900"}
-                </option>
-                {FRANKISH_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <PillButton
-              type="button"
-              tone="ghost"
-              aria-label={uk ? "Наступний зріз франків" : "Next Frankish snapshot"}
-              disabled={frYear === undefined || frYear === FRANKISH_YEARS.at(-1)}
-              onClick={() =>
-                frYear !== undefined &&
-                onChange(FRANKISH_YEARS[FRANKISH_YEARS.indexOf(frYear) + 1], view)
-              }
-            >
-              <ChevronRight className="size-4" />
-            </PillButton>
-            {frFrame && frYear !== undefined && (
-              <SourceMapPreview key={`fr-${frYear}`} frame={frFrame} uk={uk} />
-            )}
-          </div>
-          <p className="mt-3 text-xs leading-5 text-muted">
-            {frYear === undefined
-              ? uk
-                ? "Детальні франкські території показуються лише в 481–900 роках."
-                : "Detailed Frankish territory is shown only in 481–900."
-              : uk
-                ? `Показано карту ${frYear} року. Між датами зберігається останній доступний зріз, без вигаданих річних кордонів. 481 — традиційний початок правління Хлодвіга; імператорська коронація — 800. Зрізи 511 і 768 відображають сукупні володіння, без внутрішнього спадкового поділу. Для 888–900 використано карту 888 року. Карти IX століття прив’язані за береговими орієнтирами, тому локальне суміщення менш певне, ніж за градусною сіткою Візантії.`
-                : `Showing source map ${frYear}, the last available frame at or before the chosen year. 481 is Clovis’s traditional accession; imperial coronation: 800. Maps 511 and 768 show combined territory, not internal partitions. Years 888–900 use the 888 map.`}
-          </p>
-          {frankish.isError && frankishDetail && frYear !== undefined && (
-            <div role="alert" className="mt-2 text-sm">
-              <p>
-                {uk ? "Не вдалося завантажити франкські карти." : "Frankish maps failed to load."}
-              </p>
-              <PillButton type="button" tone="ghost" onClick={() => void frankish.refetch()}>
-                {uk ? "Спробувати ще раз" : "Retry"}
-              </PillButton>
-            </div>
-          )}
-        </div>
-        <div className="mt-4 rounded-2xl border border-terracotta/30 bg-terracotta/5 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-display font-extrabold">
-                {uk ? "Детальна Русь" : "Detailed Rus"}
-              </h3>
-              <p className="mt-1 text-xs text-muted">
-                {uk
-                  ? "882–1240 · 6 картографічних зрізів + завершення 1240 · князівства й залежні території"
-                  : "882–1240 · 6 source frames + the 1240 endpoint · principalities and dependent territories"}
-              </p>
-            </div>
-            <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
-              <input
-                type="checkbox"
-                checked={rusDetail}
-                onChange={(e) => setRusDetail(e.target.checked)}
-              />
-              {uk ? "Детальні кордони Русі" : "Detailed Rus borders"}
-            </label>
-          </div>
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <PillButton
-              type="button"
-              tone="ghost"
-              aria-label={uk ? "Попередній зріз Русі" : "Previous Rus snapshot"}
-              disabled={rusYear === undefined || rusYear === RUS_YEARS[0]}
-              onClick={() =>
-                rusYear !== undefined && onChange(RUS_YEARS[RUS_YEARS.indexOf(rusYear) - 1], view)
-              }
-            >
-              <ChevronLeft className="size-4" />
-            </PillButton>
-            <label className="min-w-40 flex-1 text-xs font-bold">
-              {uk ? "Картографічний зріз Русі" : "Rus source snapshot"}
-              <select
-                className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
-                value={rusYear ?? ""}
-                onChange={(e) => onChange(Number(e.target.value), view)}
-              >
-                <option value="" disabled>
-                  {uk ? "Поза періодом 882–1240" : "Outside 882–1240"}
-                </option>
-                {RUS_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                    {y === 1132
-                      ? uk
-                        ? " · схема 1054–1132"
-                        : " · period map 1054–1132"
-                      : y === 1240
-                        ? uk
-                          ? " · падіння Києва; карта 1237"
-                          : " · fall of Kyiv; 1237 map"
-                        : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <PillButton
-              type="button"
-              tone="ghost"
-              aria-label={uk ? "Наступний зріз Русі" : "Next Rus snapshot"}
-              disabled={rusYear === undefined || rusYear === RUS_YEARS.at(-1)}
-              onClick={() =>
-                rusYear !== undefined && onChange(RUS_YEARS[RUS_YEARS.indexOf(rusYear) + 1], view)
-              }
-            >
-              <ChevronRight className="size-4" />
-            </PillButton>
-            {rusYear !== undefined && rusFrame && (
-              <SourceMapPreview key={`rus-${rusYear}`} frame={rusFrame} uk={uk} />
-            )}
-          </div>
-          <p className="mt-3 text-xs leading-5 text-muted">
-            {uk
-              ? "Русь засвідчена до 882 року; 882 — літописна дата утвердження Олега в Києві. Між картами показано останній доступний зріз, а не вигадані щорічні межі. 1240 завершує києвоцентричний період: князівства й Галицько-Волинська держава продовжили існування. Геоприв’язка приблизна; дрібні уділи, штрихування залежності й різночасові лінії перевіряйте в оригіналах."
-              : "Rus is attested before 882; 882 is the chronicle date of Oleh’s accession in Kyiv. Between maps the last available frame is retained. 1240 ends the Kyiv-centred period, while principalities and Galicia-Volhynia continued. Registration is approximate; consult originals for appanages, dependencies and lines from different dates."}
-          </p>
-          {rusDetail && rusYear !== undefined && rusFrame && (
-            <p className="mt-2 text-xs leading-5 text-terracotta">
-              {uk
-                ? rusFrame.note
-                : `Source date: ${rusFrame.sourceYear}. ${rusYear === 1240 ? "The 1237 pre-invasion map is retained for the 1240 endpoint; this is not a post-conquest map." : "A period reconstruction; see the original legend. Internal appanages may be grouped."}`}
-            </p>
-          )}
-          <div
-            className="mt-3 flex flex-wrap gap-1.5"
-            aria-label={uk ? "Ключові роки Русі" : "Key Rus dates"}
-          >
-            {[
-              860, 882, 912, 945, 965, 972, 980, 988, 1015, 1019, 1036, 1054, 1097, 1113, 1125,
-              1132, 1136, 1169, 1194, 1199, 1223, 1237, 1239, 1240,
-            ].map((y) => (
-              <button
-                key={y}
-                type="button"
-                aria-pressed={year === y}
-                onClick={() => onChange(y, "rus")}
-                className={`min-h-9 rounded-full px-3 text-xs font-bold ${year === y ? "bg-terracotta text-white" : "bg-surface text-ink"}`}
-              >
-                {y}
-              </button>
-            ))}
-          </div>
-          {rus.isError && rusDetail && rusYear !== undefined && (
-            <div role="alert" className="mt-2 text-sm">
-              <p>{uk ? "Не вдалося завантажити карти Русі." : "Rus maps failed to load."}</p>
-              <PillButton type="button" tone="ghost" onClick={() => void rus.refetch()}>
-                {uk ? "Спробувати ще раз" : "Retry"}
-              </PillButton>
-            </div>
-          )}
-        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {(
             [
@@ -1199,7 +613,12 @@ export function HistoricalAtlas({
             </label>
           ))}
         </div>
-        {(data.isError || physical.isError || (detailed && byzantine.isError)) && (
+        {(data.isError ||
+          physical.isError ||
+          (detailed && byzantine.isError) ||
+          (frankishDetail && frankish.isError) ||
+          (rusDetail && rus.isError) ||
+          (mongolDetail && mongols.isError)) && (
           <div
             role="alert"
             className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-terracotta/10 p-3 text-sm"
@@ -1214,6 +633,9 @@ export function HistoricalAtlas({
                 if (snapshot !== undefined) void data.refetch();
                 void physical.refetch();
                 if (detailed) void byzantine.refetch();
+                if (frankishDetail) void frankish.refetch();
+                if (rusDetail) void rus.refetch();
+                if (mongolDetail) void mongols.refetch();
               }}
             >
               {uk ? "Повторити" : "Retry"}
