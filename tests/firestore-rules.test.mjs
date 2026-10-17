@@ -58,6 +58,44 @@ try {
   const parent = env.authenticatedContext("parent-a").firestore();
   const outsider = env.authenticatedContext("outsider").firestore();
   const anon = env.unauthenticatedContext().firestore();
+  // Self-assessment: the only student-writable mark is their pending lesson submission.
+  const assessment = { schoolId: "school-a", rosterId: "roster-a", authorId: "student-a", lessonId: "lesson-a", subjectId: "math", lessonTitle: "Algebra", lessonDate: "2026-01-01", value: "10", status: "pending", submittedAt: 1 };
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await Promise.all([
+      setDoc(doc(db, "gradingSettings", "school-a"), { schoolId: "school-a", allowSelfAssessment: true }),
+      setDoc(doc(db, "students", "roster-a"), { schoolId: "school-a", classId: "class-a", authUid: "student-a" }),
+      setDoc(doc(db, "lessons", "lesson-a"), { schoolId: "school-a", subjectId: "math", title: "Algebra", lessonDate: "2026-01-01", classIds: ["class-a"], publishAt: null }),
+      setDoc(doc(db, "lessons", "other-class"), { schoolId: "school-a", subjectId: "math", title: "Algebra", lessonDate: "2026-01-01", classIds: ["class-b"], publishAt: null }),
+      setDoc(doc(db, "lessons", "unpublished"), { schoolId: "school-a", subjectId: "math", title: "Algebra", lessonDate: "2026-01-01", classIds: ["class-a"], publishAt: "2099-01-01T00:00:00.000Z" }),
+    ]);
+  });
+  await assertFails(updateDoc(doc(other, "students", "roster-a"), { authUid: "student-b", linkedUserId: "student-b" }));
+  await assertFails(updateDoc(doc(student, "students", "roster-a"), { classId: "class-b" }));
+  await assertFails(updateDoc(doc(student, "lessons", "other-class"), { classIds: ["class-a"] }));
+  const selfRef = doc(student, "selfAssessments", "lesson-a_roster-a");
+  await assertFails(setDoc(doc(student, "gradingSettings", "school-a"), { schoolId: "school-a", allowSelfAssessment: false, updatedBy: "student-a" }));
+  await assertSucceeds(setDoc(selfRef, assessment));
+  await assertSucceeds(updateDoc(selfRef, { value: "11", submittedAt: 2 }));
+  await assertFails(updateDoc(selfRef, { value: "13" }));
+  await assertFails(updateDoc(selfRef, { value: "Н" }));
+  await assertFails(updateDoc(selfRef, { kind: "homework" }));
+  await assertFails(updateDoc(selfRef, { authorId: "student-b" }));
+  await assertFails(setDoc(doc(other, "selfAssessments", "lesson-a_roster-a"), assessment));
+  await assertFails(setDoc(doc(parent, "selfAssessments", "lesson-a_roster-a"), assessment));
+  await assertFails(getDoc(doc(other, "selfAssessments", "lesson-a_roster-a")));
+  await assertFails(setDoc(doc(student, "selfAssessments", "other-class_roster-a"), { ...assessment, lessonId: "other-class" }));
+  await assertFails(setDoc(doc(student, "selfAssessments", "unpublished_roster-a"), { ...assessment, lessonId: "unpublished" }));
+  await assertFails(setDoc(doc(student, "grades", "forged-final"), { schoolId: "school-a", kind: "final", value: "12" }));
+  await assertSucceeds(updateDoc(doc(teacher, "selfAssessments", "lesson-a_roster-a"), { status: "reviewed", reviewedValue: "10", reviewedBy: "teacher-a", reviewedAt: 3 }));
+  await assertFails(updateDoc(selfRef, { value: "12" }));
+  await assertSucceeds(setDoc(doc(teacher, "gradingSettings", "school-a"), { schoolId: "school-a", allowSelfAssessment: false, updatedBy: "teacher-a", updatedAt: 4 }));
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "selfAssessments", "lesson-a_roster-a"), assessment);
+  });
+  await assertFails(updateDoc(selfRef, { value: "9" }));
+  await assertSucceeds(setDoc(doc(teacher, "grades", "official"), { schoolId: "school-a", kind: "lesson", value: "10" }));
+  await assertFails(updateDoc(doc(student, "grades", "official"), { value: "12" }));
   await assertSucceeds(getDoc(doc(student, "materials", "draft")));
   await assertFails(getDoc(doc(other, "materials", "draft")));
   await assertSucceeds(getDoc(doc(other, "materials", "published")));
@@ -139,7 +177,7 @@ try {
   );
   await assertFails(getDoc(doc(outsider, "officeAssignments", "school-a")));
   console.log(
-    "PASS: 24 Firestore checks: drafts, authorship, school isolation, URL/type validation, revisions, office lock permissions.",
+    "PASS: Firestore checks: pending lesson self-assessment, review locks, identities/classes, disabled permission, official grade writes, materials, and office locks.",
   );
 } finally {
   await env.cleanup();

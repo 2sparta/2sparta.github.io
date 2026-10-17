@@ -2,14 +2,14 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 export const ATLAS_YEARS = [500, 600, 700, 800, 900, 1000, 1100, 1200, 1279, 1300, 1400] as const;
 export const ATLAS_MIN_YEAR = 395;
-export const ATLAS_MAX_YEAR = 1858;
+export const ATLAS_MAX_YEAR = 1994;
 export const BYZANTINE_YEARS = [
   395, 450, 476, 565, 592, 622, 630, 641, 668, 717, 775, 813, 842, 867, 927, 959, 969, 975, 1000,
   1025, 1045, 1059, 1081, 1118, 1143, 1155, 1180, 1203, 1205, 1230, 1254, 1262, 1328, 1340, 1354,
   1400, 1403, 1445, 1453,
 ] as const;
 export type AtlasView =
-  "rus" | "europe" | "world" | "byzantium" | "franks" | "mongols" | "hordes" | "mughals";
+  "rus" | "europe" | "world" | "byzantium" | "franks" | "mongols" | "hordes" | "mughals" | "france";
 export type HistoricalProperties = {
   name: string;
   subject: string;
@@ -17,7 +17,7 @@ export type HistoricalProperties = {
   detailed?: boolean;
   sourceYear?: number;
   sourceId?: string;
-  region?: "franks" | "rus" | "mongols";
+  region?: "franks" | "rus" | "mongols" | "france";
   validTo?: number;
   invaded?: boolean;
   custom?: boolean;
@@ -45,6 +45,7 @@ export type AtlasPlace = {
   europe?: boolean;
   byzantine?: boolean;
   frankish?: boolean;
+  french?: boolean;
   rus?: boolean;
   capital?: boolean;
   mongol?: boolean;

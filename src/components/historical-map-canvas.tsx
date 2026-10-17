@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import type { FeatureCollection } from "geojson";
+import type { FeatureCollection, Position } from "geojson";
 import type * as Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ensureAtlasHatch } from "@/lib/atlas/hatching";
-import { editRing, geometryParts, openRing, type TerritoryGeometry } from "@/lib/atlas/edits";
+import {
+  editRing,
+  geometryParts,
+  matchesAtlasTarget,
+  openRing,
+  type TerritoryGeometry,
+} from "@/lib/atlas/edits";
 import type { AtlasCanvasEdit } from "./atlas-editing-panel";
 import type { ByzantineFrame } from "@/lib/atlas/byzantine";
 import {
@@ -27,6 +33,10 @@ export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
   mughals: [
     [5, 60],
     [38, 97],
+  ],
+  france: [
+    [40, -6],
+    [52, 11],
   ],
   franks: [
     [39, -7],
@@ -80,6 +90,7 @@ export function HistoricalMapCanvas({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const editRef = useRef(edit);
+  const snapRef = useRef<(p: Position) => Position>((p) => p);
   editRef.current = edit;
   const hatchPrefix = useRef(`atlas-hatch-${Math.random().toString(36).slice(2)}`);
   const [editViewport, setEditViewport] = useState(0);
@@ -427,6 +438,68 @@ export function HistoricalMapCanvas({
     }
   }, [runtime, selected, places, historical]);
   useEffect(() => {
+    snapRef.current = (p) => p;
+    if (!runtime || !edit?.snap || !historical) return;
+    const { L, map } = runtime;
+    const group = L.layerGroup().addTo(map);
+    const grid = new Map<string, { point: Position; x: number; y: number }[]>();
+    const bounds = map.getBounds().pad(0.1);
+    let shown = 0;
+    const seen = new Set<string>();
+    for (const f of historical.features) {
+      if (
+        !["Polygon", "MultiPolygon"].includes(f.geometry.type) ||
+        String(f.id) === `manual-${edit.id}` ||
+        (edit.target && matchesAtlasTarget(f, edit.target))
+      )
+        continue;
+      for (const part of geometryParts(f.geometry as TerritoryGeometry))
+        for (const ring of part)
+          for (const p of openRing(ring)) {
+            if (!bounds.contains([p[1], p[0]])) continue;
+            const key = p.join(",");
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const screen = map.latLngToContainerPoint([p[1], p[0]]);
+            const cell = `${Math.floor(screen.x / 12)},${Math.floor(screen.y / 12)}`;
+            const bucket = grid.get(cell) ?? [];
+            bucket.push({ point: p, x: screen.x, y: screen.y });
+            grid.set(cell, bucket);
+            if (shown++ < 1500)
+              L.circleMarker([p[1], p[0]], {
+                pane: "atlas-edit",
+                radius: 3,
+                interactive: false,
+                color: "#bd6715",
+                weight: 1,
+                fillColor: "#f8b64d",
+                fillOpacity: 0.8,
+              }).addTo(group);
+          }
+    }
+    snapRef.current = (p) => {
+      const screen = map.latLngToContainerPoint([p[1], p[0]]);
+      const cx = Math.floor(screen.x / 12),
+        cy = Math.floor(screen.y / 12);
+      let best = p,
+        distance = 12 * 12;
+      for (let x = cx - 1; x <= cx + 1; x++)
+        for (let y = cy - 1; y <= cy + 1; y++)
+          for (const candidate of grid.get(`${x},${y}`) ?? []) {
+            const d = (screen.x - candidate.x) ** 2 + (screen.y - candidate.y) ** 2;
+            if (d <= distance) {
+              best = candidate.point;
+              distance = d;
+            }
+          }
+      return [...best];
+    };
+    return () => {
+      group.remove();
+      snapRef.current = (p) => p;
+    };
+  }, [runtime, historical, edit?.id, edit?.snap, editViewport]);
+  useEffect(() => {
     if (!runtime) return;
     const { L, map } = runtime;
     const add = (event: Leaflet.LeafletMouseEvent) => {
@@ -435,7 +508,10 @@ export function HistoricalMapCanvas({
       const p = map.wrapLatLng(event.latlng);
       const points = openRing(geometryParts(current.geometry)[current.part][current.ring]);
       current.onGeometry(
-        editRing(current.geometry, current.part, current.ring, [...points, [p.lng, p.lat]]),
+        editRing(current.geometry, current.part, current.ring, [
+          ...points,
+          snapRef.current([p.lng, p.lat]),
+        ]),
       );
     };
     const moved = () => setEditViewport((v) => v + 1);
@@ -509,7 +585,7 @@ export function HistoricalMapCanvas({
       marker.on("drag", () => {
         const ps = structuredClone(points);
         const loc = map.wrapLatLng(marker.getLatLng());
-        ps[i] = [loc.lng, loc.lat];
+        ps[i] = snapRef.current([loc.lng, loc.lat]);
         preview.setLatLngs(latlngs(editRing(edit.geometry, edit.part, edit.ring, ps)));
         line.setLatLngs(ps.map((p) => [p[1], p[0]]));
       });
@@ -518,7 +594,8 @@ export function HistoricalMapCanvas({
         if (!current || current.disabled) return;
         const ps = openRing(geometryParts(current.geometry)[current.part][current.ring]);
         const loc = map.wrapLatLng(marker.getLatLng());
-        ps[i] = [loc.lng, loc.lat];
+        ps[i] = snapRef.current([loc.lng, loc.lat]);
+        marker.setLatLng([ps[i][1], ps[i][0]]);
         current.onGeometry(editRing(current.geometry, current.part, current.ring, ps));
       });
       if (points.length > 1) {

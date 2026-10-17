@@ -156,7 +156,7 @@ export function validateAtlasEdit(raw: unknown): AtlasEdit {
   let target: AtlasEdit["target"];
   if (x.target) {
     target = { name: str(x.target.name, 200, true), region: str(x.target.region, 30) };
-    if (!["", "rus", "franks", "mongols"].includes(target.region))
+    if (!["", "rus", "franks", "mongols", "france"].includes(target.region))
       throw new Error("INVALID_ATLAS_EDIT");
   }
   if (x.operation !== "add" && !target) throw new Error("EDIT_TARGET_REQUIRED");
@@ -227,6 +227,9 @@ export function parseAtlasEdits(raw: unknown): AtlasEdit[] {
     throw e instanceof Error ? e : new Error("INVALID_ATLAS_DATA");
   }
 }
+export function matchesAtlasTarget(f: HistoricalFeature, target: NonNullable<AtlasEdit["target"]>) {
+  return target.name === f.properties.name && target.region === (f.properties.region ?? "");
+}
 export function applyAtlasEdits(
   base: HistoricalCollection | undefined,
   entries: AtlasEdit[],
@@ -235,13 +238,7 @@ export function applyAtlasEdits(
   const active = entries.filter((e) => year >= e.from && year <= e.to);
   if (!active.length) return base;
   const features = (base?.features ?? []).filter(
-    (f) =>
-      !active.some(
-        (e) =>
-          e.operation !== "add" &&
-          e.target!.name === f.properties.name &&
-          e.target!.region === (f.properties.region ?? ""),
-      ),
+    (f) => !active.some((e) => e.operation !== "add" && matchesAtlasTarget(f, e.target!)),
   );
   for (const e of active) {
     if (e.operation === "hide") continue;

@@ -25,9 +25,13 @@ import {
   type AtlasEdit,
   type TerritoryGeometry,
 } from "@/lib/atlas/edits";
+import { borderMoves, saveSharedBorders, type BorderMove } from "@/lib/atlas/borders";
 import { ATLAS_SOURCES } from "@/lib/atlas/content";
 export type AtlasCanvasEdit = {
   disabled?: boolean;
+  snap?: boolean;
+  target?: AtlasEdit["target"];
+  id?: string;
   geometry: TerritoryGeometry;
   color: string;
   control: AtlasEdit["control"];
@@ -44,12 +48,15 @@ type Session = {
   part: number;
   ring: number;
   vertex: number | null;
-  past: TerritoryGeometry[];
-  future: TerritoryGeometry[];
+  moves: BorderMove[];
+  snap: boolean;
+  past: { geometry: TerritoryGeometry; moves: BorderMove[] }[];
+  future: { geometry: TerritoryGeometry; moves: BorderMove[] }[];
 };
 type Action =
   | { type: "start"; entry: AtlasEdit }
   | { type: "cancel" }
+  | { type: "snap"; value: boolean }
   | { type: "fields"; fields: Partial<AtlasEdit> }
   | { type: "geometry"; geometry: TerritoryGeometry }
   | { type: "undo" | "redo" }
@@ -61,6 +68,8 @@ const empty: Session = {
   part: 0,
   ring: 0,
   vertex: null,
+  moves: [],
+  snap: true,
   past: [],
   future: [],
 };
@@ -77,6 +86,7 @@ function withGeometry(s: Session, g: TerritoryGeometry): Session {
 }
 function reduce(s: Session, a: Action): Session {
   if (a.type === "cancel") return empty;
+  if (a.type === "snap") return { ...s, snap: a.value };
   if (a.type === "start")
     return {
       ...empty,
@@ -88,23 +98,30 @@ function reduce(s: Session, a: Action): Session {
   if (a.type === "geometry")
     return {
       ...withGeometry(s, a.geometry),
-      past: [...s.past.slice(-29), s.draft.geometry],
+      moves: [...s.moves, ...borderMoves(s.draft.geometry, a.geometry)],
+      past: [...s.past.slice(-29), { geometry: s.draft.geometry, moves: s.moves }],
       future: [],
     };
   if (a.type === "undo") {
     const g = s.past.at(-1);
     return g
       ? {
-          ...withGeometry(s, g),
+          ...withGeometry(s, g.geometry),
+          moves: g.moves,
           past: s.past.slice(0, -1),
-          future: [s.draft.geometry, ...s.future],
+          future: [{ geometry: s.draft.geometry, moves: s.moves }, ...s.future],
         }
       : s;
   }
   if (a.type === "redo") {
     const g = s.future[0];
     return g
-      ? { ...withGeometry(s, g), past: [...s.past, s.draft.geometry], future: s.future.slice(1) }
+      ? {
+          ...withGeometry(s, g.geometry),
+          moves: g.moves,
+          past: [...s.past, { geometry: s.draft.geometry, moves: s.moves }],
+          future: s.future.slice(1),
+        }
       : s;
   }
   if (a.type === "mode") return { ...s, mode: a.mode, vertex: null };
@@ -137,6 +154,9 @@ export function useAtlasEditor() {
     canvas: s.draft
       ? {
           geometry: s.draft.geometry,
+          snap: s.snap,
+          target: s.draft.target,
+          id: s.draft.id,
           color: s.draft.color,
           control: s.draft.control,
           mode: s.mode,
@@ -224,7 +244,7 @@ export function AtlasEditingPanel({
   const save = async () => {
     if (!draft) return;
     try {
-      const next = validateAtlasEdits([...entries.filter((e) => e.id !== draft.id), draft]);
+      const next = validateAtlasEdits(saveSharedBorders(entries, draft, base, editor.moves));
       setLocalError("");
       if (await onSave(next)) editor.dispatch({ type: "cancel" });
     } catch (e) {
@@ -593,6 +613,19 @@ export function AtlasEditingPanel({
                   {uk ? "Видалити цей контур" : "Remove this ring"}
                 </PillButton>
               </div>
+              <label className="flex min-h-11 items-center gap-2 text-sm font-bold">
+                <input
+                  type="checkbox"
+                  checked={editor.snap}
+                  onChange={(e) => editor.dispatch({ type: "snap", value: e.target.checked })}
+                />
+                {uk ? "Прив’язувати до точок інших країн" : "Snap to other countries’ vertices"}
+              </label>
+              <p className="text-xs text-muted">
+                {uk
+                  ? "Помаранчеві точки — межі сусідів. Наблизьте синю точку до помаранчевої (до 12 пікселів), щоб з’єднати їх. Спільні точки сусідніх країн переміщуються разом під час збереження. Для суцільного спільного кордону з’єднайте всі його проміжні точки."
+                  : "Orange points are neighbouring borders. Move a blue point within 12 pixels to join them. Shared vertices move together on save. Match every intermediate vertex for a continuous common border."}
+              </p>
               <p className="text-xs text-muted">
                 {points.length}{" "}
                 {uk
