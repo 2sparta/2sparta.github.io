@@ -1,3 +1,6 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getGradingSettings, setGradingSettings } from "@/lib/school/server";
 import { createFileRoute } from "@tanstack/react-router";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
@@ -11,6 +14,22 @@ function Page() {
   const t = STRINGS[lang];
   const me = useMeQuery();
   const p = me.data?.profile;
+
+  const qc = useQueryClient();
+  const grading = useQuery({
+    queryKey: ["grading-settings", p?.schoolId, p?.userId],
+    queryFn: getGradingSettings,
+    enabled: p?.role === "teacher",
+  });
+  const save = useMutation({
+    mutationFn: (allowSelfAssessment: boolean) =>
+      setGradingSettings({ data: { allowSelfAssessment } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["grading-settings"] });
+    },
+    onError: () =>
+      toast.error(lang === "uk" ? "Не вдалося зберегти налаштування" : "Could not save settings"),
+  });
 
   return (
     <div>
@@ -59,6 +78,31 @@ function Page() {
             </button>
           </div>
         </div>
+        {p?.role === "teacher" && (
+          <div className="mt-6 border-t border-hairline pt-4">
+            <label className="flex min-h-11 items-center gap-3 text-sm font-bold">
+              <input
+                type="checkbox"
+                checked={grading.data?.allowSelfAssessment ?? false}
+                disabled={grading.isPending || grading.isError || save.isPending}
+                onChange={(e) => save.mutate(e.target.checked)}
+              />
+              {lang === "uk"
+                ? "Дозволити учням виставляти собі оцінки за урок"
+                : "Allow students to assess their own lessons"}
+            </label>
+            <Hint>
+              {lang === "uk"
+                ? "Спільне налаштування школи. Оцінки 1–12 очікують перевірки вчителем; домашні та підсумкові оцінки виставляє вчитель."
+                : "School-wide setting. Marks (1–12) await teacher review; homework and final grades are set by teachers."}
+            </Hint>
+            {grading.isError && (
+              <p role="alert">
+                {lang === "uk" ? "Не вдалося завантажити налаштування" : "Could not load settings"}
+              </p>
+            )}
+          </div>
+        )}
       </Panel>
     </div>
   );

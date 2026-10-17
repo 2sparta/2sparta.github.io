@@ -3,6 +3,7 @@ import { FRANKISH_SOURCES } from "./frankish.ts";
 import { BYZANTINE_SOURCES } from "./byzantine.ts";
 import { RUS_SOURCES } from "./rus.ts";
 
+import { FRANCE_SOURCES } from "./france.ts";
 import { MONGOL_SOURCES } from "./mongols.ts";
 
 export const ATLAS_SOURCES: AtlasSource[] = [
@@ -16,6 +17,7 @@ export const ATLAS_SOURCES: AtlasSource[] = [
   ...FRANKISH_SOURCES,
   ...RUS_SOURCES,
   ...MONGOL_SOURCES,
+  ...FRANCE_SOURCES,
   {
     id: "basemaps",
     title: "Historical Basemaps — André Ourednik",

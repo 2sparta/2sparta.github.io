@@ -1,3 +1,4 @@
+import { SelfAssessmentPanel } from "@/components/self-assessment";
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -88,6 +89,7 @@ function GradesPage() {
 
   return (
     <div>
+      <SelfAssessmentPanel uk={lang === "uk"} />
       <Panel>
         <PanelTitle>{isTeacher ? t.tabGrades : t.gradesHeading}</PanelTitle>
         <Hint>{isTeacher ? t.teacherGradesHint : t.gradesHint}</Hint>

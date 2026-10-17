@@ -8,6 +8,7 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   where,
@@ -39,6 +40,8 @@ import type {
   SchoolClass,
   Subject,
 } from "./types";
+
+import { canAssessLesson, selfGradeValue, type SelfAssessment } from "./self-assessment";
 
 type Bag = DocumentData;
 
@@ -1245,6 +1248,128 @@ export async function toggleHomeworkDone(input?: { data?: { lessonId: string; do
   return { ok: true };
 }
 
+export async function getGradingSettings() {
+  const p = await requireProfile();
+  const snap = await getDoc(doc(db(), "gradingSettings", p.schoolId!));
+  return { allowSelfAssessment: snap.data()?.allowSelfAssessment === true };
+}
+export async function setGradingSettings(input: { data: { allowSelfAssessment: boolean } }) {
+  const p = await requireTeacher();
+  await setDoc(doc(db(), "gradingSettings", p.schoolId!), {
+    schoolId: p.schoolId,
+    allowSelfAssessment: input.data.allowSelfAssessment === true,
+    updatedBy: p.userId,
+    updatedAt: Date.now(),
+  });
+  return { ok: true };
+}
+export async function listSelfAssessments() {
+  const p = await requireProfile();
+  if (p.role === "parent" || (p.role !== "teacher" && !p.rosterId)) return [] as SelfAssessment[];
+  const constraints = [where("schoolId", "==", p.schoolId!)];
+  if (p.role !== "teacher") constraints.push(where("authorId", "==", p.userId));
+  const snap = await getDocs(query(collection(db(), "selfAssessments"), ...constraints));
+  return snap.docs
+    .map((d) => ({ ...d.data(), id: d.id }) as SelfAssessment)
+    .sort((a, b) => b.lessonDate.localeCompare(a.lessonDate));
+}
+export async function setSelfAssessment(input: { data: { lessonId: string; value: string } }) {
+  const p = await requireProfile();
+  if (p.role !== "student" || !p.rosterId) throw new Error("STUDENT_REQUIRED");
+  const value = selfGradeValue(input.data.value);
+  const lessonId = input.data.lessonId;
+  // Never replace an official grade, including legacy documents with random IDs.
+  const official = await listGrades();
+  if (official.grades.some((g) => g.lessonId === lessonId && g.kind === "lesson"))
+    throw new Error("GRADE_LOCKED");
+  const ref = doc(db(), "selfAssessments", `${lessonId}_${p.rosterId}`);
+  await runTransaction(db(), async (tx) => {
+    const settings = await tx.get(doc(db(), "gradingSettings", p.schoolId!));
+    const lesson = await tx.get(doc(db(), "lessons", lessonId));
+    const roster = await tx.get(doc(db(), "students", p.rosterId!));
+    const previous = await tx.get(ref);
+    if (!settings.data()?.allowSelfAssessment) throw new Error("SELF_ASSESSMENT_DISABLED");
+    const student = roster.data();
+    if (
+      !student ||
+      student.schoolId !== p.schoolId ||
+      (student.authUid !== p.userId && student.linkedUserId !== p.userId)
+    )
+      throw new Error("STUDENT_REQUIRED");
+    if (
+      !lesson.exists() ||
+      !canAssessLesson(
+        lesson.data(),
+        { schoolId: p.schoolId, classId: student.classId },
+        kyivToday(),
+      )
+    )
+      throw new Error("LESSON_UNAVAILABLE");
+    if (previous.exists() && previous.data().status !== "pending") throw new Error("GRADE_LOCKED");
+    const l = lesson.data();
+    tx.set(ref, {
+      schoolId: p.schoolId,
+      rosterId: p.rosterId,
+      authorId: p.userId,
+      lessonId,
+      subjectId: l.subjectId,
+      lessonTitle: s(l.title),
+      lessonDate: s(l.lessonDate),
+      value,
+      status: "pending",
+      submittedAt: Date.now(),
+    });
+  });
+  return { ok: true };
+}
+export async function reviewSelfAssessment(input: { data: { id: string; value: string } }) {
+  const p = await requireTeacher();
+  const value = selfGradeValue(input.data.value);
+  const ref = doc(db(), "selfAssessments", input.data.id);
+  const snapshot = await getDoc(ref);
+  if (!snapshot.exists() || snapshot.data().schoolId !== p.schoolId) throw new Error("Not found");
+  const assessment = snapshot.data();
+  const subject = await assertSubject(p, s(assessment.subjectId));
+  const rows = await bySchool("grades", p.schoolId!);
+  const existing = rows.find(
+    (g) =>
+      g.rosterId === assessment.rosterId &&
+      g.lessonId === assessment.lessonId &&
+      (g.kind || "lesson") === "lesson",
+  );
+  const gradeRef = doc(db(), "grades", existing ? s(existing.id) : `self_${input.data.id}`);
+  await runTransaction(db(), async (tx) => {
+    const current = await tx.get(ref);
+    if (
+      !current.exists() ||
+      current.data().status !== "pending" ||
+      current.data().submittedAt !== assessment.submittedAt
+    )
+      throw new Error("ASSESSMENT_CHANGED");
+    tx.set(gradeRef, {
+      schoolId: p.schoolId,
+      rosterId: assessment.rosterId,
+      subjectId: assessment.subjectId,
+      subjectName: s(subject.data().name),
+      lessonId: assessment.lessonId,
+      kind: "lesson",
+      value,
+      comment: "",
+      finalPeriod: null,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      reviewedBy: p.userId,
+      selfAssessmentId: input.data.id,
+    });
+    tx.update(ref, {
+      status: "reviewed",
+      reviewedBy: p.userId,
+      reviewedAt: Date.now(),
+      reviewedValue: value,
+    });
+  });
+  return { ok: true };
+}
+
 export async function listGrades(input?: { data?: { rosterId?: string } }) {
   const p = await requireProfile();
   const rosterId = p.role === "student" || p.role === "parent" ? p.rosterId : dataOf(input)?.rosterId;
@@ -1277,6 +1402,8 @@ export async function setGrade(input?: {
   const data = dataOf(input);
   if (!data?.rosterId || !data.subjectId) throw new Error("Missing");
   await assertSubject(p, data.subjectId);
+  const roster = await getDoc(doc(db(), "students", data.rosterId));
+  if (!roster.exists() || roster.data().schoolId !== p.schoolId) throw new Error("Not found");
   const rows = await bySchool("grades", p.schoolId!);
   const lessonId = data.lessonId || "";
   const period = data.finalPeriod || "";

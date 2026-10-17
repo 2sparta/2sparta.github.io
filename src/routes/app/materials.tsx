@@ -52,7 +52,7 @@ export const Route = createFileRoute("/app/materials")({
     ...(typeof search.id === "string" ? { id: search.id } : {}),
     ...validateToolSearch(search),
     ...(search.year !== undefined ? { year: clampAtlasYear(Number(search.year)) } : {}),
-    ...(["rus", "europe", "world", "byzantium", "franks", "mongols", "hordes", "mughals"].includes(
+    ...(["rus", "europe", "world", "byzantium", "franks", "mongols", "hordes", "mughals", "france"].includes(
       String(search.view),
     )
       ? { view: search.view as AtlasView }

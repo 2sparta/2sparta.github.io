@@ -205,7 +205,7 @@ test("years are bounded and nearest snapshots are explicit, never interpolated",
   assert.equal(clampAtlasYear(NaN), 1000);
   assert.equal(clampAtlasYear(300), 395);
   assert.equal(clampAtlasYear(499), 499);
-  assert.equal(clampAtlasYear(2000), 1858);
+  assert.equal(clampAtlasYear(2000), 1994);
   assert.equal(nearestSnapshot(988), 1000);
   assert.equal(nearestSnapshot(1240), 1279);
   assert.equal(nearestSnapshot(550), 500);

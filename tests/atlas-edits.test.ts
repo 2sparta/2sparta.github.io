@@ -274,3 +274,55 @@ test("Overlapping multipart pieces and collinear outlines cannot be published", 
     /INVALID_TOPOLOGY/,
   );
 });
+
+test("Moving a common border node updates both countries and preserves neighbour periods", async () => {
+  const { borderMoves, saveSharedBorders } = await import("../src/lib/atlas/borders.ts");
+  const original = newAtlasEdit(1240, base);
+  original.to = 1260;
+  const neighbor = {
+    ...newAtlasEdit(1230, base, true),
+    name: "Neighbour",
+    subject: "Neighbour",
+    to: 1270,
+    geometry: structuredClone(original.geometry),
+  };
+  const changed = structuredClone(original);
+  changed.geometry = editRing(changed.geometry, 0, 0, [
+    [28.1, 49],
+    [32, 49],
+    [32, 52],
+    [28, 52],
+  ]);
+  const features = applyAtlasEdits(
+    { type: "FeatureCollection", features: [base] },
+    [neighbor],
+    1240,
+  )!;
+  const result = validateAtlasEdits(
+    saveSharedBorders(
+      [neighbor],
+      changed,
+      features,
+      borderMoves(original.geometry, changed.geometry),
+    ),
+  );
+  const editedNeighbor = result.find((e) => e.name === "Neighbour" && e.from === 1240)!;
+  assert.equal(editedNeighbor.to, 1260);
+  assert.deepEqual(editedNeighbor.geometry.coordinates[0][0], [28.1, 49]);
+  assert.ok(result.some((e) => e.name === "Neighbour" && e.from === 1230 && e.to === 1239));
+  assert.ok(result.some((e) => e.name === "Neighbour" && e.from === 1261 && e.to === 1270));
+  // Inserting a point alone must not move/relabel every following neighbour vertex.
+  assert.deepEqual(
+    borderMoves(
+      original.geometry,
+      editRing(original.geometry, 0, 0, [
+        [28, 49],
+        [30, 49],
+        [32, 49],
+        [32, 52],
+        [28, 52],
+      ]),
+    ),
+    [],
+  );
+});

@@ -102,10 +102,23 @@ service cloud.firestore {
                     && resource.data.createdBy == request.auth.uid;
     }
     match /students/{studentId} {
-      allow read, write: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if teacherIn(request.resource.data.schoolId);
+      allow delete: if teacherIn(resource.data.schoolId);
+      // Keep existing council/homework updates, but protect the identity and class
+      // used to authorize self-assessment. A used invitation cannot be hijacked.
+      allow update: if signedIn() && (
+        (teacherIn(resource.data.schoolId) && request.resource.data.schoolId == resource.data.schoolId)
+        || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['authUid', 'linkedUserId', 'schoolId', 'classId', 'groupId'])
+        || (resource.data.get('authUid', null) == null && resource.data.get('linkedUserId', null) == null
+          && request.resource.data.authUid == request.auth.uid && request.resource.data.linkedUserId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['authUid', 'linkedUserId'])));
     }
     match /lessons/{lessonId} {
-      allow read, write: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if teacherIn(request.resource.data.schoolId);
+      allow update: if teacherIn(resource.data.schoolId) && request.resource.data.schoolId == resource.data.schoolId;
+      allow delete: if teacherIn(resource.data.schoolId);
     }
     match /subjects/{subjectId} {
       allow read, write: if request.auth != null;
@@ -113,9 +126,65 @@ service cloud.firestore {
     match /schedule/{docId} {
       allow read, write: if request.auth != null;
     }
-    // Оцінки учнів за уроки/дз. Doc id = "<lessonId>_<studentId>".
+    match /gradingSettings/{schoolId} {
+      allow read: if inSchool(schoolId);
+      allow create, update: if teacherIn(schoolId)
+        && request.resource.data.keys().hasOnly(['schoolId', 'allowSelfAssessment', 'updatedBy', 'updatedAt'])
+        && request.resource.data.schoolId == schoolId
+        && request.resource.data.allowSelfAssessment is bool
+        && request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if false;
+    }
+    match /selfAssessments/{assessmentId} {
+      function isoDate(value) {
+        return timestamp.date(int(value[0:4]), int(value[5:7]), int(value[8:10]));
+      }
+      function published(lesson) {
+        let at = lesson.get('publishAt', null);
+        return at == null || at == '' ||
+          (at.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.*Z')
+           && isoDate(at) + duration.time(int(at[11:13]), int(at[14:16]), int(at[17:19]), 0) <= request.time);
+      }
+      function ownPending() {
+        let d = request.resource.data;
+        let roster = get(/databases/$(database)/documents/students/$(d.rosterId)).data;
+        let lesson = get(/databases/$(database)/documents/lessons/$(d.lessonId)).data;
+        return inSchool(d.schoolId) && viewer().role == 'student'
+          && get(/databases/$(database)/documents/gradingSettings/$(d.schoolId)).data.allowSelfAssessment == true
+          && d.keys().hasOnly(['schoolId', 'rosterId', 'authorId', 'lessonId', 'subjectId', 'lessonTitle', 'lessonDate', 'value', 'status', 'submittedAt'])
+          && d.authorId == request.auth.uid
+          && roster.schoolId == d.schoolId
+          && (roster.get('authUid', '') == request.auth.uid || roster.get('linkedUserId', '') == request.auth.uid)
+          && lesson.schoolId == d.schoolId && lesson.subjectId == d.subjectId
+          && d.lessonDate == lesson.lessonDate && d.lessonTitle == lesson.title
+          && lesson.classIds is list && (lesson.classIds.size() == 0 || roster.classId in lesson.classIds)
+          && published(lesson)
+          && isoDate(d.lessonDate) <= request.time + duration.value(3, 'h')
+          && assessmentId == d.lessonId + '_' + d.rosterId
+          && d.value is string && d.value.matches('([1-9]|1[0-2])')
+          && d.status == 'pending' && d.submittedAt is number;
+      }
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/selfAssessments/$(assessmentId))
+        || (inSchool(resource.data.schoolId) && (teacherIn(resource.data.schoolId) || resource.data.authorId == request.auth.uid)));
+      allow list: if inSchool(resource.data.schoolId)
+        && (teacherIn(resource.data.schoolId) || resource.data.authorId == request.auth.uid);
+      allow create: if ownPending();
+      allow update: if (ownPending() && resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['value', 'submittedAt']))
+        || (teacherIn(resource.data.schoolId)
+          && resource.data.status == 'pending' && request.resource.data.status == 'reviewed'
+          && request.resource.data.reviewedBy == request.auth.uid
+          && request.resource.data.reviewedValue.matches('([1-9]|1[0-2])')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt', 'reviewedValue']));
+      allow delete: if false;
+    }
+    // Official lesson, homework and final marks may only be written by teachers.
     match /grades/{gradeId} {
-      allow read, write: if request.auth != null;
+      allow read: if inSchool(resource.data.schoolId);
+      allow create: if teacherIn(request.resource.data.schoolId);
+      allow update: if teacherIn(resource.data.schoolId)
+        && request.resource.data.schoolId == resource.data.schoolId;
+      allow delete: if teacherIn(resource.data.schoolId);
     }
     // Батьківські класи (напр. "8-А")
     match /classes/{classId} {
