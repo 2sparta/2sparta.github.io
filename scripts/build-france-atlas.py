@@ -3,7 +3,7 @@ Usage: python scripts/build-france-atlas.py /path/to/historical-basemaps
 The source checkout must match PIN; no geometry interpolation or new boundaries.
 """
 import copy, hashlib, json, pathlib, subprocess, sys
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, MultiPolygon
 from shapely import make_valid, union_all, set_precision
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = pathlib.Path(sys.argv[1])
@@ -70,6 +70,9 @@ for year in YEARS:
         else: grouped[name] = f
     features = list(grouped.values())
     for i, f in enumerate(features):
+        geometry = shape(f['geometry'])
+        if geometry.geom_type == 'MultiPolygon':
+            f['geometry'] = mapping(MultiPolygon(sorted(geometry.geoms, key=lambda p: -p.area)))
         f['id'] = f'france-{year}-{i}'
         f['properties'].update(region='france', sourceYear=year, sourceId=source_id, sourceUrl=source_url, color='#527ab7', description='Датований оглядовий зріз Франції в Європі. Показано останній доступний зріз, без інтерполяції. Королівський домен, васальні володіння та фактичний контроль у середньовічному джерелі можуть не розрізнятися. Колонії не включено.')
     frames.append({'year': year, 'sourceUrl': source_url, 'sourceId': source_id, 'collection': {'type': 'FeatureCollection', 'features': features}})
