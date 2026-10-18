@@ -74,7 +74,7 @@ export function SelfAssessmentPanel({ uk }: { uk: boolean }) {
   if (!teacher && !student) return null;
   const available = (lessons.data?.lessons ?? []).filter(
     (l) =>
-      l.lessonDate <= kyivToday() &&
+      (!l.workType || l.workType === "lesson") && l.lessonDate <= kyivToday() &&
       !(grades.data?.grades ?? []).some((g) => g.kind === "lesson" && g.lessonId === l.id) &&
       !(assessments.data ?? []).some((a) => a.lessonId === l.id && a.status === "reviewed"),
   );

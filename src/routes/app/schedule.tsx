@@ -1,3 +1,4 @@
+import { useSchoolSettings } from "@/components/school-settings-context";
 import { useEffect, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/app/schedule")({ component: SchedulePage 
 const BASE_DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 
 function SchedulePage() {
+  const { settings } = useSchoolSettings();
   const { lang } = usePrefs();
   const t = STRINGS[lang];
   const me = useMeQuery();
@@ -55,9 +57,9 @@ function SchedulePage() {
     enabled: Boolean(activeClass) || isTeacher,
   });
   const subjects = useQuery({ queryKey: ["subjects"], queryFn: () => listSubjects() });
-  const electives = useQuery({ queryKey: ["electives"], queryFn: () => listElectives(), enabled: !isTeacher });
+  const electives = useQuery({ queryKey: ["electives"], queryFn: () => listElectives(), enabled: !isTeacher && settings.clubs });
   const mine = me.data?.profile.role === "student" || me.data?.profile.role === "parent";
-  const clubs = useQuery({ queryKey: ["clubs"], queryFn: () => listClubs(), enabled: mine });
+  const clubs = useQuery({ queryKey: ["clubs"], queryFn: () => listClubs(), enabled: mine && settings.clubs });
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [swap, setSwap] = useState(false);
@@ -154,7 +156,7 @@ function SchedulePage() {
 
   const entries = sched.data?.entries ?? [];
   const today = kyivWeekday();
-  const joined = (clubs.data?.clubs ?? []).filter((c) => c.joined);
+  const joined = (settings.clubs ? clubs.data?.clubs ?? [] : []).filter((c) => c.joined);
   const going = attendingClubIds(joined, clubs.data?.picks ?? {});
   const clubSlots = joined
     .filter((c) => going.has(c.id))
@@ -558,11 +560,11 @@ function SchedulePage() {
         </div>
       </Panel>
 
-      {me.data?.profile.role !== "teacher" && <ClubPlan />}
+      {settings.clubs && me.data?.profile.role !== "teacher" && <ClubPlan />}
 
-      <DutyBoard classId={activeClass} onDirtyChange={setDutyDirty} />
+      {settings.selfGovernment && <DutyBoard classId={activeClass} onDirtyChange={setDutyDirty} />}
 
-      {me.data?.profile.role === "student" && (
+      {settings.clubs && me.data?.profile.role === "student" && (
         <Panel>
           <PanelTitle>{t.myElectives}</PanelTitle>
           <Hint>{t.electivesHint}</Hint>

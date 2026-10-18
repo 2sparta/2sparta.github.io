@@ -32,6 +32,7 @@ import { usePrefs } from "@/lib/prefs";
 import type { Profile } from "@/lib/school/types";
 import { BrandMark, ThemeLangPill } from "./theme-lang";
 import { NotificationsNav } from "./notifications-bell";
+import { useSchoolSettings } from "./school-settings-context";
 import { LearningToolsNav } from "./learning-tools-nav";
 
 const TEACHER_NAV = [
@@ -72,6 +73,7 @@ const PARENT_NAV = [
 
 export function AppShell({ profile }: { profile: Profile }) {
   const { lang, theme } = usePrefs();
+  const { settings } = useSchoolSettings();
   const t = STRINGS[lang];
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
@@ -93,6 +95,7 @@ export function AppShell({ profile }: { profile: Profile }) {
       : profile.role === "parent"
         ? PARENT_NAV
         : TEACHER_NAV.filter((n) => !n.admin || profile.isAdmin);
+  const enabledNav = nav.filter((n) => (n.to !== "/app/chat" || settings.chat) && (n.to !== "/app/selfgov" || settings.selfGovernment) && (n.to !== "/app/clubs" || settings.clubs) && (n.to !== "/app/students" || profile.role === "teacher" || settings.points));
   const materialsMode = pathname.replace(/\/+$/, "") === "/app/materials";
   const materialSection = useRouterState({
     select: (s) => (s.location.search as { section?: string }).section ?? "overview",
@@ -136,7 +139,7 @@ export function AppShell({ profile }: { profile: Profile }) {
         },
       ]
     : [
-        ...nav.map((item) => ({ ...item, label: t[item.key], section: undefined })),
+        ...enabledNav.map((item) => ({ ...item, label: t[item.key], section: undefined })),
         {
           to: "/app/materials",
           icon: Library,
@@ -325,7 +328,7 @@ export function AppShell({ profile }: { profile: Profile }) {
             usefulMode ? "px-[25px]" : "px-7 max-md:px-4",
           )}
         >
-          <div className={cn("w-full", !usefulMode && "max-w-[1080px]")}>
+          <div className={cn("w-full", !usefulMode && pathname !== "/app" && pathname !== "/app/" && "max-w-[1080px]")}>
             <Outlet />
           </div>
         </main>

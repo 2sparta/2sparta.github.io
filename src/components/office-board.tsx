@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Search, UserRound, X } from "lucide-react";
 import { assignOffice, listOfficeHolders, listStudents } from "@/lib/school/server";
-import { OFFICES, officeName } from "@/lib/school/ids";
+import { useSchoolSettings } from "./school-settings-context";
 import type { RosterStudent } from "@/lib/school/types";
 import { useMeQuery } from "@/components/session-gate";
 import { usePrefs } from "@/lib/prefs";
@@ -10,6 +10,8 @@ import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "./ui/pan
 
 export function OfficeBoard() {
   const uk = usePrefs((s) => s.lang) === "uk";
+  const { settings } = useSchoolSettings();
+  const officeName = (id: string | null | undefined) => settings.offices[id ?? ""]?.name ?? id ?? "";
   const teacher = useMeQuery().data?.profile.role === "teacher";
   const holders = useQuery({ queryKey: ["office-holders"], queryFn: listOfficeHolders });
   const roster = useQuery({ queryKey: ["students"], queryFn: listStudents, enabled: teacher });
@@ -39,7 +41,8 @@ export function OfficeBoard() {
         </p>
       )}
       <div className="grid gap-3 lg:grid-cols-2">
-        {OFFICES.map((o) => {
+        {Object.entries(settings.offices).map(([id, entry]) => {
+          const o = { id, ...entry };
           const holder = holders.data?.find((s) => s.office === o.id);
           return (
             <section key={o.id} className="rounded-2xl border border-hairline p-4">
@@ -61,7 +64,7 @@ export function OfficeBoard() {
                   </p>
                   <p className="text-xs text-muted">
                     {holder
-                      ? `${holder.className} · ${uk ? "Бюджет" : "Budget"}: ${holder.budget.toLocaleString(uk ? "uk-UA" : "en-GB")}`
+                      ? `${holder.className}${settings.points ? ` · ${uk ? "Бюджет" : "Budget"}: ${holder.budget.toLocaleString(uk ? "uk-UA" : "en-GB")}` : ""}`
                       : uk
                         ? "Оберіть представника школи"
                         : "Choose a school representative"}
@@ -114,6 +117,8 @@ function OfficeEditor({
   onClose: () => void;
 }) {
   const uk = usePrefs((s) => s.lang) === "uk";
+  const { settings } = useSchoolSettings();
+  const officeName = (id: string | null | undefined) => settings.offices[id ?? ""]?.name ?? id ?? "";
   const holder = people.find((p) => p.id === holderId);
   // Capture expectations when opening; refreshes must not silently change the submitted intent.
   const [expectedHolderId] = useState(holderId);
@@ -253,7 +258,7 @@ function OfficeEditor({
               ? "Вакантна посада"
               : "Vacant office"}
         </p>
-        {selectedId && (
+        {selectedId && settings.points && (
           <label className="block text-xs font-bold">
             {uk ? "Бюджет представника (0–1 000 000)" : "Representative budget (0–1,000,000)"}
             <TextInput

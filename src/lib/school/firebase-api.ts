@@ -43,6 +43,9 @@ import type {
 
 import { canAssessLesson, selfGradeValue, type SelfAssessment } from "./self-assessment";
 
+import { WORK_TYPES, workType, type WorkType } from "./settings";
+import { readSchoolSettings, requireFeature, hasOfficePermission, saveSchoolSettings } from "./settings-api";
+
 type Bag = DocumentData;
 
 function dataOf<T>(input?: { data?: T } | null): T | undefined {
@@ -690,6 +693,8 @@ function mapGrade(r: Bag): Grade {
     comment: s(r.comment),
     createdAt: s(r.createdAt),
     finalPeriod: r.finalPeriod ? s(r.finalPeriod) : null,
+    workType: r.kind === "homework" ? "homework" : workType(r.workType),
+    lessonDate: r.lessonDate ? s(r.lessonDate) : null,
   };
 }
 
@@ -877,6 +882,7 @@ export async function addStudent(input?: { data?: { name: string; classId: strin
 
 export async function adjustPoints(input?: { data?: { rosterId: string; delta: number; note?: string } }) {
   const p = await requireTeacher();
+  await requireFeature(p, "points");
   const data = dataOf(input);
   if (!data?.rosterId) throw new Error("Missing");
   const ref = doc(db(), "students", data.rosterId);
@@ -902,6 +908,7 @@ export async function adjustPoints(input?: { data?: { rosterId: string; delta: n
 
 export async function listLeaderboard() {
   const p = await requireProfile();
+  await requireFeature(p, "points");
   const rows = await bySchool("students", p.schoolId!);
   return rows
     .map((r) => ({
@@ -916,6 +923,7 @@ export async function listLeaderboard() {
 
 export async function listPointsHistory(input?: { data?: { rosterId?: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "points");
   const wanted = p.role === "student" ? p.rosterId : dataOf(input)?.rosterId;
   if (!wanted) return [];
   const rows = await bySchool("pointsHistory", p.schoolId!);
@@ -1161,6 +1169,7 @@ export async function listLessons() {
     id: s(r.id),
     subjectId: s(r.subjectId),
     subjectName: s(r.subjectName),
+    workType: workType(r.workType),
     teacherId: s(r.teacherId),
     title: s(r.title),
     content: s(r.content),
@@ -1195,6 +1204,7 @@ export async function listLessons() {
 
 export async function addLesson(input?: {
   data?: {
+    workType?: WorkType;
     subjectId: string;
     title: string;
     content: string;
@@ -1210,6 +1220,7 @@ export async function addLesson(input?: {
   const data = dataOf(input);
   const title = (data?.title ?? "").trim();
   if (!title || !data?.subjectId) throw new Error("Title required");
+  if (data.workType && (!WORK_TYPES.includes(data.workType) || data.workType === "homework")) throw new Error("INVALID_WORK_TYPE");
   const sub = await assertSubject(p, data.subjectId);
   const id = newId();
   const subjectName = s(sub.data().name);
@@ -1218,6 +1229,7 @@ export async function addLesson(input?: {
     schoolId: p.schoolId,
     subjectId: data.subjectId,
     subjectName,
+    workType: workType(data.workType),
     teacherId: p.userId,
     title,
     content: data.content ?? "",
@@ -1250,18 +1262,12 @@ export async function toggleHomeworkDone(input?: { data?: { lessonId: string; do
 
 export async function getGradingSettings() {
   const p = await requireProfile();
-  const snap = await getDoc(doc(db(), "gradingSettings", p.schoolId!));
-  return { allowSelfAssessment: snap.data()?.allowSelfAssessment === true };
+  return { allowSelfAssessment: (await readSchoolSettings(p.schoolId!)).settings.allowSelfAssessment };
 }
 export async function setGradingSettings(input: { data: { allowSelfAssessment: boolean } }) {
   const p = await requireTeacher();
-  await setDoc(doc(db(), "gradingSettings", p.schoolId!), {
-    schoolId: p.schoolId,
-    allowSelfAssessment: input.data.allowSelfAssessment === true,
-    updatedBy: p.userId,
-    updatedAt: Date.now(),
-  });
-  return { ok: true };
+  const current = await readSchoolSettings(p.schoolId!);
+  return saveSchoolSettings({ settings: { ...current.settings, preset: "custom", allowSelfAssessment: input.data.allowSelfAssessment }, revision: current.revision });
 }
 export async function listSelfAssessments() {
   const p = await requireProfile();
@@ -1330,6 +1336,8 @@ export async function reviewSelfAssessment(input: { data: { id: string; value: s
   if (!snapshot.exists() || snapshot.data().schoolId !== p.schoolId) throw new Error("Not found");
   const assessment = snapshot.data();
   const subject = await assertSubject(p, s(assessment.subjectId));
+  const assessedLesson = await getDoc(doc(db(), "lessons", s(assessment.lessonId)));
+  if (!assessedLesson.exists() || workType(assessedLesson.data().workType) !== "lesson") throw new Error("LESSON_UNAVAILABLE");
   const rows = await bySchool("grades", p.schoolId!);
   const existing = rows.find(
     (g) =>
@@ -1359,6 +1367,7 @@ export async function reviewSelfAssessment(input: { data: { id: string; value: s
       createdAt: existing?.createdAt || new Date().toISOString(),
       reviewedBy: p.userId,
       selfAssessmentId: input.data.id,
+      workType: "lesson", lessonDate: assessedLesson.data().lessonDate,
     });
     tx.update(ref, {
       status: "reviewed",
@@ -1393,6 +1402,7 @@ export async function setGrade(input?: {
     subjectId: string;
     lessonId?: string | null;
     kind: "lesson" | "homework" | "final";
+    workType?: WorkType;
     value: string;
     comment?: string;
     finalPeriod?: string | null;
@@ -1404,6 +1414,10 @@ export async function setGrade(input?: {
   await assertSubject(p, data.subjectId);
   const roster = await getDoc(doc(db(), "students", data.rosterId));
   if (!roster.exists() || roster.data().schoolId !== p.schoolId) throw new Error("Not found");
+  const lesson = data.lessonId ? await getDoc(doc(db(), "lessons", data.lessonId)) : null;
+  if (lesson && (!lesson.exists() || lesson.data().schoolId !== p.schoolId || lesson.data().subjectId !== data.subjectId || (lesson.data().classIds?.length && !lesson.data().classIds.includes(roster.data().classId)))) throw new Error("LESSON_UNAVAILABLE");
+  if (data.workType && !WORK_TYPES.includes(data.workType)) throw new Error("INVALID_WORK_TYPE");
+  const assessedType = data.kind === "homework" ? "homework" : workType(lesson?.data()?.workType ?? data.workType);
   const rows = await bySchool("grades", p.schoolId!);
   const lessonId = data.lessonId || "";
   const period = data.finalPeriod || "";
@@ -1433,6 +1447,8 @@ export async function setGrade(input?: {
     value,
     comment: data.comment ?? "",
     finalPeriod: data.finalPeriod ?? null,
+    workType: assessedType,
+    lessonDate: lesson?.data()?.lessonDate ?? null,
     createdAt: existing?.createdAt ? s(existing.createdAt) : new Date().toISOString(),
   };
   const id = existing ? s(existing.id) : newId();
@@ -1524,12 +1540,13 @@ export async function listActivities(input?: { data?: { classId?: string } }) {
 
 export async function addActivity(input?: { data?: { classId?: string; classIds?: string[]; title: string; body: string; important?: boolean } }) {
   const p = await requireProfile();
+  await requireFeature(p, "selfGovernment");
   const data = dataOf(input);
   const title = (data?.title ?? "").trim();
   const body = (data?.body ?? "").trim();
   let classIds = [...new Set([...(data?.classIds ?? []), data?.classId ?? ""].map((id) => id.trim()).filter(Boolean))];
   const teacher = p.role === "teacher";
-  const starosta = p.role === "student" && p.isStarosta;
+  const starosta = p.role === "student" && (p.isStarosta || await hasOfficePermission(p, "postActivities"));
   if (starosta) classIds = p.classId ? [p.classId] : [];
   if ((!teacher && !starosta) || !title || !body || classIds.length === 0) throw new Error(classIds.length === 0 ? "Required" : "Forbidden");
   const id = newId();
@@ -1552,6 +1569,7 @@ export async function addActivity(input?: { data?: { classId?: string; classIds?
 
 export async function updateActivity(input?: { data?: { id: string; classIds?: string[]; title: string; body: string; important?: boolean } }) {
   const p = await requireProfile();
+  await requireFeature(p, "selfGovernment");
   const data = dataOf(input);
   const id = data?.id;
   const title = (data?.title ?? "").trim();
@@ -1577,6 +1595,7 @@ export async function updateActivity(input?: { data?: { id: string; classIds?: s
 
 export async function deleteActivity(input?: { data?: { id: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "selfGovernment");
   const id = dataOf(input)?.id;
   if (!id) throw new Error("Missing");
   const ref = doc(db(), "announcements", id);
@@ -1622,6 +1641,7 @@ export async function generateTeacherInvite() {
 
 export async function getElection(input?: { data?: { classId?: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "selfGovernment");
   const classId = dataOf(input)?.classId || p.classId;
   if (!classId) return { election: null as Election | null, history: [] as Election[] };
   const rows = (await bySchool("elections", p.schoolId!)).filter((e) => s(e.classId) === classId);
@@ -1648,6 +1668,7 @@ export async function getElection(input?: { data?: { classId?: string } }) {
 
 export async function announceElection(input?: { data?: { classId: string; startsAt: string; endsAt: string } }) {
   const p = await requireTeacher();
+  await requireFeature(p, "selfGovernment");
   const data = dataOf(input);
   if (!data?.classId) throw new Error("Missing");
   const open = (await bySchool("elections", p.schoolId!)).find((e) => s(e.classId) === data.classId && e.closed !== true);
@@ -1673,6 +1694,7 @@ export async function announceElection(input?: { data?: { classId: string; start
 
 export async function runForElection(input?: { data?: { electionId: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "selfGovernment");
   const electionId = dataOf(input)?.electionId;
   if (!p.rosterId || !electionId) throw new Error("Not linked");
   const ref = doc(db(), "elections", electionId);
@@ -1688,6 +1710,7 @@ export async function runForElection(input?: { data?: { electionId: string } }) 
 
 export async function voteElection(input?: { data?: { electionId: string; candidateId: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "selfGovernment");
   const data = dataOf(input);
   if (!p.rosterId || !data?.electionId) throw new Error("Not linked");
   const ref = doc(db(), "elections", data.electionId);
@@ -1701,6 +1724,7 @@ export async function voteElection(input?: { data?: { electionId: string; candid
 
 export async function closeElection(input?: { data?: { electionId: string } }) {
   const p = await requireTeacher();
+  await requireFeature(p, "selfGovernment");
   const electionId = dataOf(input)?.electionId;
   if (!electionId) throw new Error("Missing");
   const ref = doc(db(), "elections", electionId);
@@ -1830,6 +1854,7 @@ async function ensureMyChats(p: Profile) {
 
 export async function listChats() {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   await ensureMyChats(p);
   const snap = await getDocs(query(collection(db(), "chats"), where("memberUids", "array-contains", p.userId)));
   const rows = snap.docs
@@ -1849,6 +1874,7 @@ export async function listChats() {
 
 export async function listMessages(input?: { data?: { chatId: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   const chatId = dataOf(input)?.chatId;
   if (!chatId) throw new Error("Missing");
   const chat = await getDoc(doc(db(), "chats", chatId));
@@ -1875,6 +1901,7 @@ export async function listMessages(input?: { data?: { chatId: string } }) {
 
 export async function sendMessage(input?: { data?: { chatId: string; body: string; subjectName?: string; imageUrls?: string[] } }) {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   const data = dataOf(input);
   const body = (data?.body ?? "").trim();
   const imageUrls = (data?.imageUrls ?? []).filter(Boolean).slice(0, 4);
@@ -1904,6 +1931,7 @@ export async function sendMessage(input?: { data?: { chatId: string; body: strin
 
 export async function startDm(input?: { data?: { otherUserId: string; name: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   const data = dataOf(input);
   if (!data?.otherUserId) throw new Error("Missing");
   const mine = await getDocs(query(collection(db(), "chats"), where("memberUids", "array-contains", p.userId)));
@@ -2047,7 +2075,8 @@ export async function addStarostaHomework(input?: {
   data?: { subjectId: string; title: string; content?: string; homeworkDue: string; imageUrls?: string[] };
 }) {
   const p = await requireProfile();
-  if (!p.rosterId || !p.isStarosta) throw new Error("Monitor only");
+  await requireFeature(p, "studentHomework");
+  if (!p.rosterId || (!p.isStarosta && !await hasOfficePermission(p, "postHomework"))) throw new Error("Monitor only");
   const data = dataOf(input);
   const title = (data?.title ?? "").trim();
   if (!title || !data?.subjectId || !data.homeworkDue) throw new Error("Required");
@@ -2080,6 +2109,7 @@ export async function addStarostaHomework(input?: {
 
 export async function setStarosta(input?: { data?: { rosterId: string; on: boolean } }) {
   const p = await requireTeacher();
+  await requireFeature(p, "selfGovernment");
   const data = dataOf(input);
   if (!data?.rosterId) throw new Error("Missing");
   const ref = doc(db(), "students", data.rosterId);
@@ -2290,6 +2320,7 @@ export async function deleteElective(input?: { data?: { id: string } }) {
 
 export async function createGroupChat(input?: { data?: { name: string; memberUids: string[] } }) {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   const data = dataOf(input);
   const name = (data?.name ?? "").trim();
   const members = [...new Set([p.userId, ...(data?.memberUids ?? [])])];
@@ -2311,6 +2342,7 @@ export async function createGroupChat(input?: { data?: { name: string; memberUid
 
 export async function pinMessage(input?: { data?: { messageId: string; pinned: boolean } }) {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   const data = dataOf(input);
   if (!data?.messageId) throw new Error("Missing");
   const ref = doc(db(), "chatMessages", data.messageId);
@@ -2325,6 +2357,7 @@ export async function pinMessage(input?: { data?: { messageId: string; pinned: b
 
 export async function editMessage(input?: { data?: { messageId: string; body: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   const data = dataOf(input);
   const body = (data?.body ?? "").trim();
   if (!data?.messageId || !body) throw new Error("Empty");
@@ -2337,6 +2370,7 @@ export async function editMessage(input?: { data?: { messageId: string; body: st
 
 export async function deleteMessage(input?: { data?: { messageId: string } }) {
   const p = await requireProfile();
+  await requireFeature(p, "chat");
   const id = dataOf(input)?.messageId;
   if (!id) throw new Error("Missing");
   const ref = doc(db(), "chatMessages", id);

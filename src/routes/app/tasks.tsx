@@ -1,3 +1,4 @@
+import { WORK_TYPES, WORK_LABELS, type WorkType } from "@/lib/school/settings";
 import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +50,7 @@ function TasksPage() {
   const [view, setView] = useState<"today" | "tomorrow" | "all">("today");
   const [kind, setKind] = useState<"lessons" | "homework">("lessons");
   const [title, setTitle] = useState("");
+  const [assessmentType, setAssessmentType] = useState<WorkType>("lesson");
   const [content, setContent] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [date, setDate] = useState(todayFn());
@@ -71,6 +73,7 @@ function TasksPage() {
     mutationFn: () =>
       addLesson({
         data: {
+          workType: assessmentType,
           subjectId: subjectId || subjectsQ.data?.subjects[0]?.id || "",
           title,
           content,
@@ -148,6 +151,7 @@ function TasksPage() {
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </Select>
+              <label className="text-xs font-bold">{lang === "uk" ? "Вид роботи" : "Work type"}<Select className="mt-1 block w-full" value={assessmentType} onChange={(e) => setAssessmentType(e.target.value as WorkType)}>{WORK_TYPES.filter(type => type !== "homework").map(type => <option key={type} value={type}>{WORK_LABELS[type][lang === "uk" ? 0 : 1]}</option>)}</Select></label>
               <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.lessonTitle} />
               <textarea
                 value={content}
@@ -266,7 +270,7 @@ function TasksPage() {
                         {l.title}{" "}
                         {l.addedByStarosta && <span className="text-xs font-bold text-terracotta">{t.addedByStarosta}</span>}
                       </p>
-                      <p className="text-xs font-bold text-forest-mid">{l.subjectName}</p>
+                      <p className="text-xs font-bold text-forest-mid">{l.subjectName} · {WORK_LABELS[l.workType ?? "lesson"][lang === "uk" ? 0 : 1]}</p>
                       {l.content && <p className="mt-1 text-sm text-ink-soft">{l.content}</p>}
                       <PhotoStrip urls={l.imageUrls} />
                       <p className="mt-1 text-xs text-muted">

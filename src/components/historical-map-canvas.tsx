@@ -213,7 +213,7 @@ export function HistoricalMapCanvas({
     if (land)
       L.geoJSON(land, {
         interactive: false,
-        style: { color: "#79acd1", weight: 0.65, fillColor: "#ffffff", fillOpacity: 1 },
+        style: { color: "var(--atlas-coast)", weight: 0.65, fillColor: "var(--atlas-land)", fillOpacity: 1 },
       }).addTo(layers);
     if (borders && historical)
       L.geoJSON(
@@ -304,7 +304,7 @@ export function HistoricalMapCanvas({
     }
     if (riverLayer && rivers)
       L.geoJSON(rivers, {
-        style: { color: "#1686ed", weight: 1.05, opacity: 0.8 },
+        style: { color: "var(--atlas-river)", weight: 1.05, opacity: 0.8 },
         onEachFeature: (feature, layer) => {
           const label = document.createElement("span");
           const name = feature.properties?.name ?? "";

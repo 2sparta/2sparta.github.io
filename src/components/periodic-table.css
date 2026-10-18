@@ -217,6 +217,7 @@
   text-underline-offset: 4px;
 }
 .periodic-cell {
+  background: var(--element-color);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -340,6 +341,7 @@
   border-bottom: 1px solid var(--color-hairline);
 }
 .periodic-emblem {
+  background: var(--element-color);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -481,4 +483,20 @@
   .periodic-temperature {
     width: 100%;
   }
+}
+
+html[data-theme="dark"] .periodic-cell,
+html[data-theme="dark"] .periodic-emblem {
+  background: color-mix(in srgb, var(--element-color) 32%, #111e29);
+  color: #f0f7ff;
+  border-color: color-mix(in srgb, var(--element-color) 65%, #364958);
+}
+html[data-theme="dark"] .periodic-cell:hover {
+  box-shadow: inset 0 0 0 2px #d7efff;
+}
+html[data-theme="dark"] .periodic-cell[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 3px #8adbbf;
+}
+html[data-theme="dark"] .periodic-cell-dim {
+  opacity: 0.36;
 }

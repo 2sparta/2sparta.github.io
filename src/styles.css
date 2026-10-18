@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-.atlas-map { font-family: Georgia, "Times New Roman", serif; background: #d7ebff !important; }
+.atlas-map { --atlas-water: #d7ebff; --atlas-land: #ffffff; --atlas-coast: #79acd1; --atlas-river: #1686ed; font-family: Georgia, "Times New Roman", serif; background: var(--atlas-water) !important; }
 .atlas-map .atlas-label { font: 600 11px/1.3 Georgia, serif; padding: 2px 4px; border: 0; background: rgba(255,255,255,.9); box-shadow: none; color: #292929; }
 .atlas-capital { background: #ed2626; border: 2px solid #222; box-shadow: 0 0 0 2px #fff; }
 .atlas-sea-label { color: #2455b9; font: italic 700 12px/1.4 Georgia, serif; text-align: center; white-space: nowrap; text-shadow: 0 1px 2px #d7ebff; }
@@ -238,3 +238,23 @@ html[data-theme="dark"] .app-leaf {
 .atlas-hatch-swatch { display:inline-block; width:24px; height:15px; border:1px dashed #a65839; background:repeating-linear-gradient(135deg,transparent 0 5px,#a65839 5px 7px); vertical-align:middle; }
 
 .atlas-editor button { max-width:100%; height:auto; min-height:44px; white-space:normal; }
+
+/* The map uses its own geographic palette; SVG paths inherit the active theme. */
+html[data-theme="dark"] .atlas-map {
+  --atlas-water: #101e30; --atlas-land: #263841; --atlas-coast: #6a8a9c; --atlas-river: #5eaeed;
+}
+html[data-theme="dark"] .atlas-map .atlas-label,
+html[data-theme="dark"] .atlas-map .leaflet-tooltip {
+  background: #182b39; color: #eff6ff; border-color: #647e90;
+}
+html[data-theme="dark"] .atlas-map .leaflet-tooltip-top:before { border-top-color: #182b39; }
+html[data-theme="dark"] .atlas-sea-label { color: #99c9f5; text-shadow: 0 1px 2px #101e30; }
+html[data-theme="dark"] .atlas-map .leaflet-bar a,
+html[data-theme="dark"] .atlas-map .leaflet-control-attribution,
+html[data-theme="dark"] .atlas-map .leaflet-control-scale-line {
+  background: #172c3c; color: #e4f0ff; border-color: #678496;
+}
+html[data-theme="dark"] .atlas-map .leaflet-control-attribution a { color: #9dd4ff; }
+html[data-theme="dark"] .atlas-map .leaflet-atlas-original-pane img { filter: brightness(.72) saturate(.8); }
+html[data-theme="dark"] .atlas-capital { border-color: #ffd7ce; box-shadow: 0 0 0 2px #172c3c; }
+html[data-theme="dark"] .atlas-edit-midpoint { background: #17382e; color: #c7f9e2; border-color: #83c4a9; }

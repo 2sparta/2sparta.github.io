@@ -1,3 +1,4 @@
+import { SchoolFeatureGate, useSchoolSettings } from "@/components/school-settings-context";
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +11,7 @@ import { Hint, Panel, PillButton, TextInput } from "@/components/ui/panel";
 import { PhotoAttach, PhotoStrip } from "@/components/photo-attach";
 import { cn } from "@/lib/cn";
 
-export const Route = createFileRoute("/app/chat")({ component: Page });
+export const Route = createFileRoute("/app/chat")({ component: () => <SchoolFeatureGate feature="chat"><Page /></SchoolFeatureGate> });
 
 function sentAt(iso: string, locale: string) {
   const d = new Date(iso);

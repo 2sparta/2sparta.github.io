@@ -312,11 +312,13 @@ export function PeriodicTable({
                       else cells.current.delete(e.number);
                     }}
                     className={`periodic-cell${matchIds.has(e.number) ? "" : " periodic-cell-dim"}`}
-                    style={{
-                      gridColumn: x + 1,
-                      gridRow: y + 1,
-                      backgroundColor: CATEGORIES[e.category].color,
-                    }}
+                    style={
+                      {
+                        gridColumn: x + 1,
+                        gridRow: y + 1,
+                        "--element-color": CATEGORIES[e.category].color,
+                      } as React.CSSProperties
+                    }
                     aria-label={`${e.number}. ${e.name}, ${e.symbol}, ${CATEGORIES[e.category].name}`}
                     aria-pressed={e.number === element.number}
                     title={`${e.name}${e.aliases.length ? ` (${e.aliases.join(", ")})` : ""} · ${CATEGORIES[e.category].name}`}
@@ -335,7 +337,10 @@ export function PeriodicTable({
         </div>
         <article className="periodic-details" aria-label="Властивості обраного елемента">
           <header className="periodic-detail-header">
-            <div className="periodic-emblem" style={{ background: categoryInfo.color }}>
+            <div
+              className="periodic-emblem"
+              style={{ "--element-color": categoryInfo.color } as React.CSSProperties}
+            >
               <small>{element.number}</small>
               <strong>{element.symbol}</strong>
             </div>
