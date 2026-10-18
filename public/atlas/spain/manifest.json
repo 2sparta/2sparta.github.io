@@ -1,0 +1,222 @@
+{
+  "sha256": "452fedfbbe6b9d851d7bb0c61a02d3796d0883a7d253e51c78b084b087f6f1fd",
+  "basemapCommit": "da7a4b735ecef70aebdc9c73e409d8a2500d50f3",
+  "basemapSha256": {
+    "700": "bb66ebee15e57f5d43b0ca524dd9a230651bb821e7e002882b1981a25fd42a38",
+    "800": "9d046cdc4662109c3f803ae46e2c8cba941aa092ec86eccc7823e6cf1554920c",
+    "900": "f483b93e799d6518830ed6da6c3772c49170872d0f07515981a53e71d8dbc74c",
+    "1000": "2140776fd7888c1d4a30e8f6debdaf56192cdf49587f3b6bb67841930ca82d29",
+    "1100": "8b038ee5ec8f032d01a67293e7cf08b7bd3ed58e00defc06af9144e67e708a86",
+    "1200": "2d6913ecedb38e269e41d249c87874d81e3e8d7351754821f57e627442d91525",
+    "1279": "839f48f61d984dd58f70f312dfe626c3988d4d4822e78d68a123fd0784e852e2",
+    "1300": "a27985e60d936611d7933f0c30f1b52c36ef4a17225dfac25fb96abe40fa496f",
+    "1400": "c6b0efcb42d9520a1a724f981373296e84ea2c0a0527de7a06f8f9e2465eb6ec",
+    "1492": "b0e6b0f299fc7b191fd427547c83dec9808087d390304a37a32bc0357e97c1b8",
+    "1500": "d01ffc9b80629787f13d2b1c2f881f005bc0164433548e30f5c058ddee0bfc7b",
+    "1530": "984005809f085285a48318600e3a198274eb4679f5360ebfaead29da496e9f5b",
+    "1600": "7285c07eeedfda9048de5354ea1744d327b07614085e9696c5802bb54c86849c",
+    "1650": "e691a3b5bab4ca7a0629daffaf8cd31731ee76ad390b19dffc1c267b139de4e2",
+    "1700": "eb73d6b00e98205fb2082de050c35e4d698224b17849628d82584610186b88a4",
+    "1715": "fdf5097dd21c30c9d7bfb1d5c2c2a11a5a39c397e6910116d7173580619f5b5a",
+    "1783": "7cfa92418a8628dffa41e386394b86fb6f93310e449d8261990f6903160c1060",
+    "1800": "51fcb6b1f1c361956a3fc24a9c646844ff88754842aa113780428fb4abcd5f2c",
+    "1815": "fb654f734583f550904cfa45f361e395c1a488c4960050da2632cb2ac7d1cd1e",
+    "1878": "e792520cd24cfb77b117d41533a59b0a5b82fc53a291fff1549ddc73e7f9a8b2",
+    "1900": "9c9221c851eaba4948e11b2a0b078e89239231f8c74df0dc321750ae234f10b5",
+    "1914": "a99425f9486e2243835fdc75ad7d82e6ddf3c72fcef87a63429f3313d830cf19",
+    "1920": "fce1c97dc6a6095594cbb7eb896ccd5ce8b2d72254e73a24148c0a4ea200849f",
+    "1930": "5666e451125ceb0193532338bfecf6f403e1a4d7ff62f54fd560cafb0b0b1b61",
+    "1945": "3005839db7bcc5256d511b3abb01f1140c0cce245189bc5c28e7d557a47bc775",
+    "1960": "6067386755f8fc120a4fca44f198952a18da89cd062aa8013d5a0d08cbad8988",
+    "1994": "5369249d6b9d37d1cb799a87eb7f48783587f6c3b9e6d24de35ff58a4935c216"
+  },
+  "sources": [
+    {
+      "file": "source-0.svg",
+      "sourceId": "spain-reconquista",
+      "title": "Progress of the Reconquista (718–1492) - es.svg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/Progress_of_the_Reconquista_%28718%E2%80%931492%29_-_es.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Progress_of_the_Reconquista_(718%E2%80%931492)_-_es.svg",
+      "sha256": "a3ce5db2474afd39e19033f71ae5b29f21fe68e9ce645b250542c1a511dddcee",
+      "author": "Kaidor; Rowanwindwhistler",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "source-1.svg",
+      "sourceId": "spain-civil-map",
+      "title": "General map of the Spanish Civil War (1936–39).svg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d9/General_map_of_the_Spanish_Civil_War_%281936%E2%80%9339%29.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:General_map_of_the_Spanish_Civil_War_(1936%E2%80%9339).svg",
+      "sha256": "eef747beec4a87afb33a812c55352120e4dc84722cf30fa07e86f61fccf04db5",
+      "author": "FDRMRZUSA; Lojwe; underlying map by Tyk (Té y kriptonita)",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    }
+  ],
+  "registration": {
+    "0": {
+      "model": "laea",
+      "crs": "+proj=laea +lat_0=40 +lon_0=-4 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          86.91781617470788,
+          4.702148859065582
+        ],
+        [
+          5.2174142732685675,
+          -83.1229344454662
+        ],
+        [
+          488.5772114077195,
+          388.4584176567392
+        ]
+      ],
+      "fitRmsSourceUnits": 3.489,
+      "holdoutRmsSourceUnits": 3.001,
+      "holdoutMaxSourceUnits": 4.12,
+      "fittingPoints": 8,
+      "heldOutPoints": 4,
+      "holdouts": [
+        {
+          "name": "Cordoba",
+          "residualSourceUnits": 2.73
+        },
+        {
+          "name": "Madrid",
+          "residualSourceUnits": 4.12
+        },
+        {
+          "name": "Coimbra",
+          "residualSourceUnits": 2.62
+        },
+        {
+          "name": "Zaragoza",
+          "residualSourceUnits": 2.176
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate.",
+      "holdoutKm": [
+        {
+          "name": "Cordoba",
+          "km": 3.25
+        },
+        {
+          "name": "Madrid",
+          "km": 4.92
+        },
+        {
+          "name": "Coimbra",
+          "km": 3.1
+        },
+        {
+          "name": "Zaragoza",
+          "km": 2.6
+        }
+      ]
+    },
+    "1": {
+      "model": "laea",
+      "crs": "+proj=laea +lat_0=40 +lon_0=-4 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          72.50996484951948,
+          2.327579651210493
+        ],
+        [
+          1.0451234229803386,
+          -75.49680837806936
+        ],
+        [
+          384.4667933632279,
+          336.2379906161927
+        ]
+      ],
+      "fitRmsSourceUnits": 4.607,
+      "holdoutRmsSourceUnits": 11.364,
+      "holdoutMaxSourceUnits": 17.864,
+      "fittingPoints": 8,
+      "heldOutPoints": 5,
+      "holdouts": [
+        {
+          "name": "Oviedo",
+          "residualSourceUnits": 17.864
+        },
+        {
+          "name": "Granada",
+          "residualSourceUnits": 6.268
+        },
+        {
+          "name": "Pamplona",
+          "residualSourceUnits": 14.198
+        },
+        {
+          "name": "Cordoba",
+          "residualSourceUnits": 7.501
+        },
+        {
+          "name": "Cadiz",
+          "residualSourceUnits": 5.429
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate.",
+      "holdoutKm": [
+        {
+          "name": "Oviedo",
+          "km": 24.31
+        },
+        {
+          "name": "Granada",
+          "km": 8.37
+        },
+        {
+          "name": "Pamplona",
+          "km": 19.09
+        },
+        {
+          "name": "Cordoba",
+          "km": 10.06
+        },
+        {
+          "name": "Cadiz",
+          "km": 7.5
+        }
+      ]
+    }
+  },
+  "dates": [
+    "0700-01-01",
+    "0711-01-01",
+    "0800-01-01",
+    "0900-01-01",
+    "1000-01-01",
+    "1100-01-01",
+    "1200-01-01",
+    "1279-01-01",
+    "1300-01-01",
+    "1400-01-01",
+    "1492-01-02",
+    "1500-01-01",
+    "1530-01-01",
+    "1600-01-01",
+    "1650-01-01",
+    "1700-01-01",
+    "1715-01-01",
+    "1783-01-01",
+    "1800-01-01",
+    "1815-01-01",
+    "1825-01-01",
+    "1878-01-01",
+    "1899-04-11",
+    "1900-01-01",
+    "1914-01-01",
+    "1920-01-01",
+    "1930-01-01",
+    "1945-01-01",
+    "1960-01-01",
+    "1968-10-12",
+    "1976-02-26",
+    "1994-01-01"
+  ],
+  "method": "Dated Historical Basemaps components; directly sampled SVG Reconquista bands and Civil War colour zones. Projected affine registration with held-out city controls. No daily front interpolation. Month-only fronts become available at month end. 1825/1899 reconstructions use explicitly identified island/geographic support contours, not future territorial expansion."
+}

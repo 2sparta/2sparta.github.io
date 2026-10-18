@@ -1,0 +1,24 @@
+[
+  {
+    "file": "source-0.svg",
+    "sourceId": "spain-reconquista",
+    "title": "Progress of the Reconquista (718–1492) - es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/Progress_of_the_Reconquista_%28718%E2%80%931492%29_-_es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Progress_of_the_Reconquista_(718%E2%80%931492)_-_es.svg",
+    "sha256": "a3ce5db2474afd39e19033f71ae5b29f21fe68e9ce645b250542c1a511dddcee",
+    "author": "Kaidor; Rowanwindwhistler",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "file": "source-1.svg",
+    "sourceId": "spain-civil-map",
+    "title": "General map of the Spanish Civil War (1936–39).svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/d/d9/General_map_of_the_Spanish_Civil_War_%281936%E2%80%9339%29.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:General_map_of_the_Spanish_Civil_War_(1936%E2%80%9339).svg",
+    "sha256": "eef747beec4a87afb33a812c55352120e4dc84722cf30fa07e86f61fccf04db5",
+    "author": "FDRMRZUSA; Lojwe; underlying map by Tyk (Té y kriptonita)",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  }
+]

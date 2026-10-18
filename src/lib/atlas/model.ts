@@ -21,7 +21,9 @@ export type AtlasView =
   | "poland"
   | "lithuania"
   | "commonwealth"
-  | "cossacks";
+  | "cossacks"
+  | "spain"
+  | "spanish-empire";
 export type HistoricalProperties = {
   name: string;
   subject: string;
@@ -29,8 +31,9 @@ export type HistoricalProperties = {
   detailed?: boolean;
   sourceYear?: number;
   sourceId?: string;
-  region?: "franks" | "rus" | "mongols" | "france" | "commonwealth";
-  layer?: "state" | "land" | "dependency" | "occupation" | "cossack";
+  region?: "franks" | "rus" | "mongols" | "france" | "commonwealth" | "spain";
+  layer?: "state" | "land" | "dependency" | "occupation" | "cossack" | "colony" | "front";
+  validUntilDate?: string;
   validTo?: number;
   invaded?: boolean;
   custom?: boolean;
@@ -59,6 +62,8 @@ export type AtlasPlace = {
   byzantine?: boolean;
   frankish?: boolean;
   french?: boolean;
+  spanish?: boolean;
+  colonial?: boolean;
   polish?: boolean;
   lithuanian?: boolean;
   commonwealth?: boolean;
@@ -72,6 +77,8 @@ export type AtlasPlace = {
 };
 export type AtlasEvent = {
   year: number;
+  month?: number;
+  day?: number;
   title: string;
   description: string;
   sources: string[];
@@ -179,6 +186,47 @@ export function placeEpoch(places: AtlasPlace[], year: number) {
 }
 export function historicalName(name: string, uk = true) {
   const names: Record<string, string> = {
+    "Visigothic Kingdom": "Вестготське королівство",
+    Florida: "Флорида",
+    Spain: "Іспанія",
+    "Christian Iberian lands": "Християнські володіння · кілька держав",
+    "Al-Andalus — survey": "Аль-Андалус · оглядовий ареал",
+    "Nationalist-held Spain": "Зона заколотників / військ Франко",
+    "Republican-held Spain": "Республіканська зона",
+    "Spain — Franco regime": "Іспанія · режим Франко",
+    "Spanish Philippines": "Іспанські Філіппіни",
+    "Spanish overseas possessions": "Іспанські заморські володіння",
+    "Spanish Guinea": "Іспанська Гвінея",
+    "Spanish Sahara": "Іспанська Сахара",
+    "Portugal — Iberian Union": "Португалія · династична Іберійська унія",
+    "New Spain — early conquests": "Нова Іспанія · ранні завоювання",
+    "Viceroyalty of New Spain": "Віце-королівство Нова Іспанія",
+    "Viceroyalty of Peru": "Віце-королівство Перу",
+    "Viceroyalty of New Granada": "Віце-королівство Нова Гранада",
+    "Viceroyalty of the Río de la Plata": "Віце-королівство Ріо-де-ла-Плата",
+    Castilla: "Кастилія",
+    Castile: "Кастилія",
+    Castille: "Кастилія",
+    Aragón: "Арагонська корона",
+    Granada: "Гранадський емірат",
+    Navarre: "Наварра",
+    León: "Леон",
+    Asturias: "Астурія",
+    Portugal: "Португалія",
+    "Emirate of Córdoba": "Кордовський емірат",
+    "Caliphate of Córdoba": "Кордовський халіфат",
+    "Almoravid dynasty": "Альморавіди · Іберійські володіння",
+    "Almohad Caliphate": "Альмохади · Іберійські володіння",
+    "Cuba (Spain)": "Куба та залежні острови · Іспанія",
+    "Hispaniola (Spain)": "Еспаньйола та залежні острови · Іспанія",
+    "Santo Domingo (Spain)": "Санто-Домінго · Іспанія",
+    "Florida (Spain)": "Флорида · Іспанія",
+    Sardinia: "Сардинія",
+    Naples: "Неаполітанське королівство",
+    Sicily: "Сицилія",
+    Milan: "Мілан",
+    "Franche-Comté": "Франш-Конте",
+    Paraguay: "Парагвай",
     "Kyivan Rus": "Київська Русь",
     "Kievan Rus": "Київська Русь",
     "Rus dependent territories": "Залежні території Русі",

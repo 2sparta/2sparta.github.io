@@ -28,7 +28,9 @@
     "test:school-settings-rules": "node --experimental-strip-types tests/school-settings-rules.test.mjs",
     "test:school-settings-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/school-settings-ui.test.tsx",
     "test:commonwealth": "node --experimental-strip-types --test tests/commonwealth-atlas.test.ts",
-    "test:commonwealth-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/commonwealth-atlas-ui.test.tsx"
+    "test:commonwealth-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/commonwealth-atlas-ui.test.tsx",
+    "test:spain": "node --experimental-strip-types --test tests/atlas-date.test.ts tests/spain-atlas.test.ts",
+    "test:spain-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/spain-atlas-ui.test.tsx"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",

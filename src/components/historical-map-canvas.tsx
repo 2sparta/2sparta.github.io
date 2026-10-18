@@ -22,6 +22,14 @@ import {
 } from "@/lib/atlas/model";
 
 export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
+  spain: [
+    [34.5, -10.5],
+    [44.5, 5],
+  ],
+  "spanish-empire": [
+    [-58, -130],
+    [60, 155],
+  ],
   mongols: [
     [10, 15],
     [65, 140],
@@ -423,6 +431,9 @@ export function HistoricalMapCanvas({
           active ||
           ((Boolean(place.campaign) || place.occupation) && zoom >= 4.5) ||
           place.capital ||
+          (view === "spain" &&
+            zoom >= 4 &&
+            ["es-city-madrid", "es-city-barcelona"].includes(place.id)) ||
           (isCity &&
             place.commonwealth &&
             zoom >= 4.75 &&
