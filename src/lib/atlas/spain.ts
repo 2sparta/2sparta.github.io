@@ -80,6 +80,7 @@ export function spainFrameAt(
     (f) =>
       (options.colonies || f.properties.layer !== "colony") &&
       (!war || f.properties.layer !== "state") &&
+      (!recon || f.properties.layer !== "state" || !isIberianPolity(f.properties.name)) &&
       (!f.properties.validUntilDate || key <= f.properties.validUntilDate),
   );
   return {
@@ -97,6 +98,11 @@ export function spainFrameAt(
     },
   };
 }
+export const isIberianPolity = (name: string) =>
+  isCoarseSpanish(name) ||
+  ["Portugal", "Portugal — Iberian Union", "Christian Iberian lands", "Al-Andalus — survey"].includes(
+    name,
+  );
 export const isCoarseSpanish = (name: string) =>
   [
     "Spain",
@@ -169,13 +175,13 @@ export const SPAIN_SOURCES: AtlasSource[] = [
     id: "spain-reconquista",
     title: "Kaidor, Rowanwindwhistler — Progress of the Reconquista (CC BY-SA 4.0)",
     url: "https://commons.wikimedia.org/wiki/File:Progress_of_the_Reconquista_(718%E2%80%931492)_-_es.svg",
-    note: "Геоприв’язані оглядові ареали 718, 750, 1050, 1090, 1220 та кінця XIII ст. Не одна християнська держава й не щоденні фронти.",
+    note: "Окремі королівства: Астурія, Леон, Кастилія, Арагон, Наварра, Португалія та мусульманські держави. Не один християнський контур і не щоденні фронти.",
   },
   {
     id: "spain-civil-map",
     title: "FDRMRZUSA та співавтори — Spanish Civil War map (CC BY-SA 4.0)",
     url: "https://commons.wikimedia.org/wiki/File:General_map_of_the_Spanish_Civil_War_(1936%E2%80%9339).svg",
-    note: "Зрізи липня/вересня 1936, жовтня 1937, листопада 1938, лютого 1939. Місячні контури доступні від кінця місяця, без вигаданого щоденного пересування фронту.",
+    note: "Зрізи липня/вересня 1936, жовтня 1937, листопада 1938, лютого 1939. Португалія до фронту не входить. Місячні контури без вигаданого щоденного пересування.",
   },
   {
     id: "spain-andalus",
