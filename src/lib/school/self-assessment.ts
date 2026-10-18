@@ -10,12 +10,14 @@ export function canAssessLesson(
     classIds?: unknown;
     lessonDate?: unknown;
     publishAt?: unknown;
+    workType?: unknown;
   },
   student: { schoolId: string | null; classId: string | null },
   today: string,
   now = Date.now(),
 ) {
   return (
+    (lesson.workType == null || lesson.workType === "lesson") &&
     lesson.schoolId === student.schoolId &&
     typeof lesson.subjectId === "string" &&
     !!lesson.subjectId &&

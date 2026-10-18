@@ -23,6 +23,8 @@ import {
 import { useMeQuery } from "@/components/session-gate";
 import { usePrefs } from "@/lib/prefs";
 import { ArticleContent } from "@/components/article-content";
+import { useSchoolSettings } from "@/components/school-settings-context";
+import { ContentInteractions } from "@/components/content-interactions";
 import { MaterialEditor } from "@/components/material-editor";
 import { HistoricalAtlas } from "@/components/historical-atlas";
 import { clampAtlasYear, type AtlasView } from "@/lib/atlas/model";
@@ -132,6 +134,7 @@ function Page() {
 function MaterialsPage({ section, id }: { section: MaterialSection; id?: string }) {
   const uk = usePrefs((s) => s.lang) === "uk";
   const profile = useMeQuery().data?.profile;
+  const { settings } = useSchoolSettings();
   const qc = useQueryClient();
   const materials = useQuery({
     queryKey: ["materials", profile?.schoolId, profile?.userId],
@@ -162,7 +165,7 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
             : "Useful links";
   const all = materials.data ?? [];
   const canCreate =
-    profile?.role === "teacher" || (profile?.role === "student" && kind === "article");
+    profile?.role === "teacher" || (profile?.role === "student" && settings.studentArticles && kind === "article");
   const topics = [...new Set(all.filter((m) => m.kind === kind).map((m) => m.topic))].sort((a, b) =>
     a.localeCompare(b, "uk"),
   );
@@ -263,7 +266,7 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                       : "Draft"
                     : `${readingMinutes(current.body)} ${uk ? "хв читання" : "min read"}`}
                 </p>
-                {(profile?.role === "teacher" || current.authorId === profile?.userId) && (
+                {(profile?.role === "teacher" || (settings.studentArticles && current.authorId === profile?.userId)) && (
                   <PillButton type="button" tone="ghost" onClick={() => setEditor(current)}>
                     {uk ? "Редагувати" : "Edit"}
                   </PillButton>
@@ -283,6 +286,7 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                   </p>
                 )}
                 <ArticleContent body={current.body} idPrefix={`article-${current.id}`} />
+                {current.kind === "article" && current.status === "published" && <ContentInteractions target="article" id={current.id} uk={uk} />}
               </article>
             </Panel>
           ) : (

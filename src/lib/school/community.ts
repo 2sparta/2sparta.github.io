@@ -18,6 +18,8 @@ import { db } from "@/lib/firebase";
 import { OFFICES, newId, officeName } from "./ids";
 import { loadProfile } from "./firebase-api";
 import type { Profile } from "./types";
+import { readSchoolSettings, requireFeature, hasOfficePermission } from "./settings-api";
+import { parseSettings, canOffice } from "./settings";
 import { emptyDutyGrid, parseDutyGrid, serializeDutyGrid } from "./duty-grid";
 
 type Bag = DocumentData;
@@ -132,6 +134,8 @@ function clusterKey(group: { id: string }[]) {
 export async function setStudentPerms(input?: { data?: { rosterId: string; isStarosta?: boolean; canPostHw?: boolean } }) {
   const p = await profile();
   const data = dataOf(input);
+  if (data?.canPostHw != null) await requireFeature(p, "studentHomework");
+  if (data?.isStarosta != null) await requireFeature(p, "selfGovernment");
   if (!data?.rosterId) throw new Error("Missing");
   const ref = doc(db(), "students", data.rosterId);
   const snap = await getDoc(ref);
@@ -149,7 +153,7 @@ export async function setStudentPerms(input?: { data?: { rosterId: string; isSta
     if (data.canPostHw != null) await updateDoc(ref, { canPostHw: data.canPostHw === true });
     return { ok: true };
   }
-  if (p.role === "student" && p.isStarosta && data.canPostHw != null) {
+  if (p.role === "student" && (((await readSchoolSettings(p.schoolId!)).settings.selfGovernment && p.isStarosta) || await hasOfficePermission(p, "manageHomeworkPermissions")) && data.canPostHw != null) {
     if (s(snap.data().classId) !== p.classId) throw new Error("Forbidden");
     await updateDoc(ref, { canPostHw: data.canPostHw === true });
     return { ok: true };
@@ -210,10 +214,11 @@ export async function assignOffice(input: {
   };
 }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
   if (p.role !== "teacher") throw new Error("Forbidden");
   const data = input.data;
   if (
-    !OFFICES.some((o) => o.id === data.office) ||
+    !(await readSchoolSettings(p.schoolId!)).settings.offices[data.office] ||
     !Number.isInteger(data.budget) ||
     data.budget < 0 ||
     data.budget > 1_000_000
@@ -223,6 +228,8 @@ export async function assignOffice(input: {
   const lock = doc(db(), "officeAssignments", p.schoolId!);
   return runTransaction(db(), async (tx) => {
     const lockSnap = await tx.get(lock);
+    const policy = await tx.get(doc(db(), "schoolSettings", p.schoolId!));
+    if (policy.exists() && (!policy.data().selfGovernment || !policy.data().offices?.[data.office])) throw new Error("FEATURE_DISABLED");
     const snaps = await Promise.all(people.map((r) => tx.get(doc(db(), "students", s(r.id)))));
     const live = snaps.filter((r) => r.exists() && r.data().schoolId === p.schoolId);
     const holders = live.filter((r) => r.data()?.office === data.office);
@@ -247,11 +254,12 @@ export async function assignOffice(input: {
 
 export async function setOffice(input?: { data?: { rosterId: string; office: string | null } }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
   if (p.role !== "teacher") throw new Error("Forbidden");
   const data = dataOf(input);
   if (!data?.rosterId) throw new Error("Missing");
   const office = data.office || null;
-  if (office && !OFFICES.some((o) => o.id === office)) throw new Error("Missing");
+  if (office && !(await readSchoolSettings(p.schoolId!)).settings.offices[office]) throw new Error("Missing");
   const ref = doc(db(), "students", data.rosterId);
   const snap = await getDoc(ref);
   if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
@@ -269,6 +277,8 @@ export async function setOffice(input?: { data?: { rosterId: string; office: str
 
 export async function fundOffice(input?: { data?: { rosterId: string; delta: number } }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
+  await requireFeature(p, "points");
   if (p.role !== "teacher") throw new Error("Forbidden");
   const data = dataOf(input);
   if (!data?.rosterId) throw new Error("Missing");
@@ -283,13 +293,16 @@ export async function fundOffice(input?: { data?: { rosterId: string; delta: num
 
 export async function listRewards() {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
+  await requireFeature(p, "points");
   const rows = await bySchool("rewards", p.schoolId!);
+  const settings = (await readSchoolSettings(p.schoolId!)).settings;
   return {
     rewards: rows
       .map((r) => ({
         id: s(r.id),
         office: s(r.office),
-        officeName: officeName(s(r.office)),
+        officeName: settings.offices[s(r.office)]?.name ?? officeName(s(r.office)),
         authorRosterId: s(r.authorRosterId),
         authorName: s(r.authorName),
         title: s(r.title),
@@ -306,7 +319,9 @@ export async function listRewards() {
 
 export async function addReward(input?: { data?: { title: string; body: string; points: number } }) {
   const p = await profile();
-  if (p.role !== "student" || !p.office || !p.rosterId) throw new Error("Forbidden");
+  await requireFeature(p, "selfGovernment");
+  await requireFeature(p, "points");
+  if (p.role !== "student" || !p.office || !p.rosterId || !await hasOfficePermission(p, "createRewards")) throw new Error("Forbidden");
   const data = dataOf(input);
   const title = (data?.title ?? "").trim();
   const body = (data?.body ?? "").trim();
@@ -342,13 +357,15 @@ function awardedOf(raw: Bag) {
 
 export async function updateReward(input?: { data?: { id: string; title: string; body: string; points: number } }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
+  await requireFeature(p, "points");
   const data = dataOf(input);
   if (!data?.id) throw new Error("Missing");
   const ref = doc(db(), "rewards", data.id);
   const snap = await getDoc(ref);
   if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
   const own = s(snap.data().authorRosterId) === p.rosterId;
-  if (p.role !== "teacher" && !own) throw new Error("Forbidden");
+  if (p.role !== "teacher" && (!own || !await hasOfficePermission(p, "createRewards"))) throw new Error("Forbidden");
   const title = (data.title ?? "").trim();
   const body = (data.body ?? "").trim();
   const points = clamp(Number(data.points) || 0);
@@ -360,13 +377,15 @@ export async function updateReward(input?: { data?: { id: string; title: string;
 
 export async function deleteReward(input?: { data?: { id: string } }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
+  await requireFeature(p, "points");
   const id = dataOf(input)?.id;
   if (!id) throw new Error("Missing");
   const ref = doc(db(), "rewards", id);
   const snap = await getDoc(ref);
   if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
   const own = s(snap.data().authorRosterId) === p.rosterId;
-  if (p.role !== "teacher" && !own) throw new Error("Forbidden");
+  if (p.role !== "teacher" && (!own || !await hasOfficePermission(p, "createRewards"))) throw new Error("Forbidden");
   const raw = snap.data();
   const awarded = awardedOf(raw);
   const points = clamp(Number(raw.points) || 0);
@@ -384,53 +403,43 @@ export async function deleteReward(input?: { data?: { id: string } }) {
 
 export async function awardReward(input?: { data?: { rewardId: string; rosterId?: string; rosterIds?: string[] } }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
+  await requireFeature(p, "points");
+  if (!await hasOfficePermission(p, "awardRewards") || !p.rosterId) throw new Error("Forbidden");
   const data = dataOf(input);
-  const wanted = [...new Set([...(data?.rosterIds ?? []), data?.rosterId ?? ""].map((id) => s(id)).filter(Boolean))];
-  if (!data?.rewardId || !wanted.length || !p.rosterId) throw new Error("Missing");
+  const wanted = [...new Set([...(data?.rosterIds ?? []), data?.rosterId ?? ""].filter(Boolean))];
+  if (!data?.rewardId || !wanted.length || wanted.length > 50) throw new Error("Missing");
   const rewardRef = doc(db(), "rewards", data.rewardId);
-  const reward = await getDoc(rewardRef);
-  if (!reward.exists() || reward.data().schoolId !== p.schoolId) throw new Error("Not found");
-  if (s(reward.data().authorRosterId) !== p.rosterId) throw new Error("Forbidden");
-  const raw = reward.data();
-  const already = awardedOf(raw);
-  const fresh = wanted.filter((id) => id !== p.rosterId && !already.some((item) => item.rosterId === id));
-  if (!fresh.length) throw new Error("Missing");
-  const points = clamp(Number(raw.points) || 0);
-  const hold = typeof raw.hold === "number" ? clamp(Number(raw.hold)) : already.length ? 0 : points;
   const authorRef = doc(db(), "students", p.rosterId);
-  const authorSnap = await getDoc(authorRef);
-  const budget = clamp(Number(authorSnap.data()?.budget) || 0);
-  const cost = Math.max(0, points * fresh.length - hold);
-  if (cost > budget) throw new Error("BUDGET");
-  if (cost) await updateDoc(authorRef, { budget: budget - cost });
-  const names: { rosterId: string; name: string }[] = [];
-  for (const rosterId of fresh) {
-    const studentRef = doc(db(), "students", rosterId);
-    const student = await getDoc(studentRef);
-    if (!student.exists() || student.data().schoolId !== p.schoolId) continue;
-    const next = clamp(clamp(Number(student.data().points) || 0) + points);
-    await updateDoc(studentRef, { points: next });
-    await setDoc(doc(db(), "pointsHistory", newId()), {
-      schoolId: p.schoolId,
-      rosterId,
-      delta: points,
-      note: `Нагорода: ${s(raw.title)}`,
-      byUserId: p.userId,
-      byName: p.displayName || "",
-      pointsAfter: next,
-      createdAt: Date.now(),
+  return runTransaction(db(), async (tx) => {
+    const reward = await tx.get(rewardRef);
+    const author = await tx.get(authorRef);
+    const config = await tx.get(doc(db(), "schoolSettings", p.schoolId!));
+    const settings = parseSettings(config.data());
+    const actor = { role: p.role, office: author.data()?.office as string | null };
+    if (!settings.points || !canOffice(settings, actor, "awardRewards")) throw new Error("FEATURE_DISABLED");
+    if (!reward.exists() || reward.data().schoolId !== p.schoolId || reward.data().authorRosterId !== p.rosterId) throw new Error("Forbidden");
+    const raw = reward.data(), already = awardedOf(raw);
+    const fresh = wanted.filter((id) => id !== p.rosterId && !already.some((a) => a.rosterId === id));
+    if (!fresh.length) throw new Error("Missing");
+    const recipients = await Promise.all(fresh.map((id) => tx.get(doc(db(), "students", id))));
+    if (recipients.some((r) => !r.exists() || r.data().schoolId !== p.schoolId)) throw new Error("Not found");
+    const points = clamp(Number(raw.points) || 0);
+    const hold = typeof raw.hold === "number" ? clamp(raw.hold) : already.length ? 0 : points;
+    const cost = Math.max(0, points * fresh.length - hold);
+    const budget = clamp(Number(author.data()?.budget) || 0);
+    if (cost > budget) throw new Error("BUDGET");
+    if (cost) tx.update(authorRef, { budget: budget - cost });
+    const names = recipients.map((student) => {
+      const next = clamp(clamp(Number(student.data()?.points) || 0) + points);
+      tx.update(student.ref, { points: next });
+      tx.set(doc(db(), "pointsHistory", newId()), { schoolId: p.schoolId, rosterId: student.id, delta: next - clamp(Number(student.data()?.points) || 0), note: `Нагорода: ${s(raw.title)}`, byUserId: p.userId, byName: p.displayName, pointsAfter: next, createdAt: Date.now() });
+      return { rosterId: student.id, name: s(student.data()?.name) };
     });
-    names.push({ rosterId, name: s(student.data().name) });
-  }
-  if (!names.length) throw new Error("Not found");
-  const awarded = [...already, ...names];
-  await updateDoc(rewardRef, {
-    awarded,
-    hold: 0,
-    awardedRosterId: awarded[0]?.rosterId ?? null,
-    awardedName: awarded.map((item) => item.name).join(", "),
+    const awarded = [...already, ...names];
+    tx.update(rewardRef, { awarded, hold: 0, awardedRosterId: awarded[0]?.rosterId ?? null, awardedName: awarded.map((a) => a.name).join(", ") });
+    return { ok: true };
   });
-  return { ok: true };
 }
 
 function mapClub(r: Bag, rosterId: string | null) {
@@ -456,6 +465,7 @@ function mapClub(r: Bag, rosterId: string | null) {
 
 export async function listClubs() {
   const p = await profile();
+  await requireFeature(p, "clubs");
   const rows = await bySchool("clubs", p.schoolId!);
   let picks: Record<string, string> = {};
   if (p.rosterId) {
@@ -489,6 +499,7 @@ export async function addClub(input?: {
   };
 }) {
   const p = await profile();
+  await requireFeature(p, "clubs");
   if (p.role !== "teacher") throw new Error("Forbidden");
   const data = dataOf(input);
   const name = (data?.name ?? "").trim();
@@ -528,6 +539,7 @@ export async function updateClub(input?: {
   };
 }) {
   const p = await profile();
+  await requireFeature(p, "clubs");
   if (p.role !== "teacher") throw new Error("Forbidden");
   const data = dataOf(input);
   const name = (data?.name ?? "").trim();
@@ -553,6 +565,7 @@ export async function updateClub(input?: {
 
 export async function deleteClub(input?: { data?: { id: string } }) {
   const p = await profile();
+  await requireFeature(p, "clubs");
   if (p.role !== "teacher") throw new Error("Forbidden");
   const id = dataOf(input)?.id;
   if (!id) throw new Error("Missing");
@@ -565,6 +578,7 @@ export async function deleteClub(input?: { data?: { id: string } }) {
 
 export async function joinClub(input?: { data?: { id: string; join: boolean } }) {
   const p = await profile();
+  await requireFeature(p, "clubs");
   if (p.role !== "student" || !p.rosterId) throw new Error("Forbidden");
   const data = dataOf(input);
   if (!data?.id) throw new Error("Missing");
@@ -577,6 +591,7 @@ export async function joinClub(input?: { data?: { id: string; join: boolean } })
 
 export async function pickClub(input?: { data?: { clubId: string } }) {
   const p = await profile();
+  await requireFeature(p, "clubs");
   if (p.role !== "student" || !p.rosterId) throw new Error("Forbidden");
   const clubId = dataOf(input)?.clubId;
   if (!clubId) throw new Error("Missing");
@@ -611,8 +626,9 @@ export async function listClassHomework() {
 
 export async function addClassHomework(input?: { data?: { subjectName: string; title: string; body?: string; due: string } }) {
   const p = await profile();
+  await requireFeature(p, "studentHomework");
   if (p.role !== "student" || !p.classId || !p.rosterId) throw new Error("Forbidden");
-  if (!p.isStarosta && !p.canPostHw) throw new Error("Forbidden");
+  if (!p.isStarosta && !p.canPostHw && !await hasOfficePermission(p, "postHomework")) throw new Error("Forbidden");
   const data = dataOf(input);
   const title = (data?.title ?? "").trim();
   const subjectName = (data?.subjectName ?? "").trim();
@@ -647,13 +663,14 @@ export async function deleteClassHomework(input?: { data?: { id: string } }) {
 
 export async function getDuty(input?: { data?: { classId?: string } }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
   const classId = dataOf(input)?.classId || p.classId || "";
   if (!classId)
     return { classId: null as string | null, grid: emptyDutyGrid(), canEdit: false, revision: 0 };
   const klass = await getDoc(doc(db(), "classes", classId));
   if (!klass.exists() || klass.data().schoolId !== p.schoolId) throw new Error("Not found");
   const canEdit =
-    p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === classId);
+    p.role === "teacher" || (p.role === "student" && (p.isStarosta || await hasOfficePermission(p, "manageDuty")) && p.classId === classId);
   return {
     classId,
     grid: parseDutyGrid(klass.data().dutyGrid),
@@ -666,10 +683,11 @@ export async function setDuty(input?: {
   data?: { classId: string; cols: string[]; rows: string[][]; revision?: number };
 }) {
   const p = await profile();
+  await requireFeature(p, "selfGovernment");
   const data = dataOf(input);
   if (!data?.classId) throw new Error("Missing");
   const canEdit =
-    p.role === "teacher" || (p.role === "student" && p.isStarosta && p.classId === data.classId);
+    p.role === "teacher" || (p.role === "student" && (p.isStarosta || await hasOfficePermission(p, "manageDuty")) && p.classId === data.classId);
   if (!canEdit) throw new Error("Forbidden");
   const grid = serializeDutyGrid({ cols: data.cols, rows: data.rows });
   const ref = doc(db(), "classes", data.classId);

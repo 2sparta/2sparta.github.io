@@ -13,7 +13,7 @@ import {
   listStudents,
   setStudentPerms,
 } from "@/lib/school/server";
-import { officeName } from "@/lib/school/ids";
+import { useSchoolSettings, SchoolFeatureGate } from "@/components/school-settings-context";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
@@ -23,7 +23,12 @@ export const Route = createFileRoute("/app/students")({ component: StudentsPage 
 
 function StudentsPage() {
   const me = useMeQuery();
-  if (me.data?.profile.role === "student") return <StudentPoints />;
+  if (me.data?.profile.role === "student")
+    return (
+      <SchoolFeatureGate feature="points">
+        <StudentPoints />
+      </SchoolFeatureGate>
+    );
   if (me.data?.profile.role === "parent") return <ParentNote />;
   return <TeacherStudents />;
 }
@@ -47,11 +52,16 @@ function StudentPoints() {
   const { lang } = usePrefs();
   const t = STRINGS[lang];
   const me = useMeQuery();
-  const history = useQuery({ queryKey: ["points-history", "me"], queryFn: () => listPointsHistory() });
+  const history = useQuery({
+    queryKey: ["points-history", "me"],
+    queryFn: () => listPointsHistory(),
+  });
   const board = useQuery({ queryKey: ["leaderboard"], queryFn: () => listLeaderboard() });
   const [lbMode, setLbMode] = useState<"school" | "class">("class");
   const classId = me.data?.profile.classId;
-  const rows = (board.data ?? []).filter((s) => lbMode === "school" || !classId || s.classId === classId);
+  const rows = (board.data ?? []).filter(
+    (s) => lbMode === "school" || !classId || s.classId === classId,
+  );
   const points = me.data?.profile.points ?? 0;
 
   return (
@@ -80,8 +90,12 @@ function StudentPoints() {
         <PanelTitle>{t.leaderboard}</PanelTitle>
         <Hint>{t.leaderboardHint}</Hint>
         <div className="mb-3 flex gap-2">
-          <ModeButton active={lbMode === "class"} onClick={() => setLbMode("class")}>{t.lbClass}</ModeButton>
-          <ModeButton active={lbMode === "school"} onClick={() => setLbMode("school")}>{t.lbSchool}</ModeButton>
+          <ModeButton active={lbMode === "class"} onClick={() => setLbMode("class")}>
+            {t.lbClass}
+          </ModeButton>
+          <ModeButton active={lbMode === "school"} onClick={() => setLbMode("school")}>
+            {t.lbSchool}
+          </ModeButton>
         </div>
         {rows.length === 0 ? (
           <p className="text-sm text-muted">{t.noLeaderboard}</p>
@@ -94,13 +108,22 @@ function StudentPoints() {
 }
 
 function TeacherStudents() {
+  const { settings } = useSchoolSettings();
   const me = useMeQuery();
   const { lang } = usePrefs();
   const t = STRINGS[lang];
   const qc = useQueryClient();
   const isTeacher = me.data?.profile.role === "teacher";
-  const students = useQuery({ queryKey: ["students"], queryFn: () => listStudents(), enabled: isTeacher });
-  const classes = useQuery({ queryKey: ["classes"], queryFn: () => listClasses(), enabled: isTeacher });
+  const students = useQuery({
+    queryKey: ["students"],
+    queryFn: () => listStudents(),
+    enabled: isTeacher,
+  });
+  const classes = useQuery({
+    queryKey: ["classes"],
+    queryFn: () => listClasses(),
+    enabled: isTeacher,
+  });
   const [name, setName] = useState("");
   const [classId, setClassId] = useState("");
   const [groupId, setGroupId] = useState("");
@@ -115,7 +138,13 @@ function TeacherStudents() {
 
   const add = useMutation({
     mutationFn: () =>
-      addStudent({ data: { name, classId: classId || classes.data?.[0]?.id || "", groupId: groupId || groups[0]?.id || null } }),
+      addStudent({
+        data: {
+          name,
+          classId: classId || classes.data?.[0]?.id || "",
+          groupId: groupId || groups[0]?.id || null,
+        },
+      }),
     onSuccess: async (res) => {
       setName("");
       toast.success(`${t.inviteCode}: ${res.inviteCode}`);
@@ -137,37 +166,53 @@ function TeacherStudents() {
     if (q.trim()) rows = rows.filter((s) => s.name.toLowerCase().includes(q.toLowerCase()));
     if (lbMode === "class" && classId) rows = rows.filter((s) => s.classId === classId);
     rows = [...rows].sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name, "uk");
-      if (sort === "linked") return Number(Boolean(b.linkedUserId)) - Number(Boolean(a.linkedUserId));
-      if (sort === "group") return (a.groupName || "").localeCompare(b.groupName || "", "uk") || a.name.localeCompare(b.name, "uk");
+      if (sort === "name" || !settings.points) return a.name.localeCompare(b.name, "uk");
+      if (sort === "linked")
+        return Number(Boolean(b.linkedUserId)) - Number(Boolean(a.linkedUserId));
+      if (sort === "group")
+        return (
+          (a.groupName || "").localeCompare(b.groupName || "", "uk") ||
+          a.name.localeCompare(b.name, "uk")
+        );
       return b.points - a.points;
     });
     return rows;
-  }, [students.data, q, sort, lbMode, classId]);
+  }, [students.data, q, sort, lbMode, classId, settings.points]);
 
-  if (me.isPending) return <p className="pt-8 font-display text-lg font-bold text-muted">{t.loading}</p>;
+  if (me.isPending)
+    return <p className="pt-8 font-display text-lg font-bold text-muted">{t.loading}</p>;
   if (!isTeacher) return null;
 
   return (
     <div>
-      <Panel>
-        <PanelTitle>{t.leaderboard}</PanelTitle>
-        <Hint>{t.pointsExplain}</Hint>
-        <div className="mb-3 flex gap-2">
-          <ModeButton active={lbMode === "school"} onClick={() => setLbMode("school")}>{t.lbSchool}</ModeButton>
-          <ModeButton active={lbMode === "class"} onClick={() => setLbMode("class")}>{t.lbClass}</ModeButton>
-        </div>
-        {list.length === 0 ? (
-          <p className="text-sm text-muted">{t.noLeaderboard}</p>
-        ) : (
-          <PointsTop rows={list} ranked={sort === "points"} />
-        )}
-      </Panel>
+      {settings.points && (
+        <Panel>
+          <PanelTitle>{t.leaderboard}</PanelTitle>
+          <Hint>{t.pointsExplain}</Hint>
+          <div className="mb-3 flex gap-2">
+            <ModeButton active={lbMode === "school"} onClick={() => setLbMode("school")}>
+              {t.lbSchool}
+            </ModeButton>
+            <ModeButton active={lbMode === "class"} onClick={() => setLbMode("class")}>
+              {t.lbClass}
+            </ModeButton>
+          </div>
+          {list.length === 0 ? (
+            <p className="text-sm text-muted">{t.noLeaderboard}</p>
+          ) : (
+            <PointsTop rows={list} ranked={sort === "points"} />
+          )}
+        </Panel>
+      )}
 
       <Panel>
         <PanelTitle>{t.addStudent}</PanelTitle>
         <div className="flex flex-wrap gap-2">
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t.studentName} />
+          <TextInput
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t.studentName}
+          />
           <Select
             value={classId}
             onChange={(e) => {
@@ -176,15 +221,26 @@ function TeacherStudents() {
             }}
           >
             {(classes.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </Select>
-          <Select value={groupId || groups[0]?.id || ""} onChange={(e) => setGroupId(e.target.value)}>
+          <Select
+            value={groupId || groups[0]?.id || ""}
+            onChange={(e) => setGroupId(e.target.value)}
+          >
             {groups.map((g) => (
-              <option key={g.id} value={g.id}>{g.name}</option>
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
             ))}
           </Select>
-          <PillButton type="button" disabled={!name.trim() || add.isPending} onClick={() => add.mutate()}>
+          <PillButton
+            type="button"
+            disabled={!name.trim() || add.isPending}
+            onClick={() => add.mutate()}
+          >
             {t.add}
           </PillButton>
         </div>
@@ -196,11 +252,15 @@ function TeacherStudents() {
           <div className="flex flex-wrap gap-2">
             <Select value={sort} onChange={(e) => setSort(e.target.value)}>
               <option value="name">{t.sortName}</option>
-              <option value="points">{t.sortPoints}</option>
+              {settings.points && <option value="points">{t.sortPoints}</option>}
               <option value="linked">{t.sortLinked}</option>
               <option value="group">{t.sortGroup}</option>
             </Select>
-            <TextInput value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.searchName} />
+            <TextInput
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t.searchName}
+            />
           </div>
         </div>
         {list.length === 0 ? (
@@ -208,12 +268,7 @@ function TeacherStudents() {
         ) : (
           <ul className="space-y-2">
             {list.map((s) => (
-              <TeacherRow
-                key={s.id}
-                student={s}
-                lang={lang}
-                onDelete={() => del.mutate(s.id)}
-              />
+              <TeacherRow key={s.id} student={s} lang={lang} onDelete={() => del.mutate(s.id)} />
             ))}
           </ul>
         )}
@@ -246,13 +301,25 @@ function PointsTop({
     <div>
       <div className="mb-4 flex items-end justify-center gap-3 overflow-x-auto px-1 py-1">
         {shown.map((s, i) => (
-          <PodiumCard key={s.id} place={places[i]!} name={s.name} points={s.points} extra={s.className} />
+          <PodiumCard
+            key={s.id}
+            place={places[i]!}
+            name={s.name}
+            points={s.points}
+            extra={s.className}
+          />
         ))}
       </div>
       {rest.length > 0 && (
         <ol className="space-y-1">
           {rest.map((s, i) => (
-            <PlainRank key={s.id} place={i + 4} name={s.name} points={s.points} extra={s.className} />
+            <PlainRank
+              key={s.id}
+              place={i + 4}
+              name={s.name}
+              points={s.points}
+              extra={s.className}
+            />
           ))}
         </ol>
       )}
@@ -272,7 +339,17 @@ const INK = {
   bronze: "#8a4e24",
 } as const;
 
-function PodiumCard({ place, name, points, extra }: { place: number; name: string; points: number; extra?: string }) {
+function PodiumCard({
+  place,
+  name,
+  points,
+  extra,
+}: {
+  place: number;
+  name: string;
+  points: number;
+  extra?: string;
+}) {
   const tone = place === 1 ? "gold" : place === 2 ? "silver" : "bronze";
   return (
     <article
@@ -283,12 +360,20 @@ function PodiumCard({ place, name, points, extra }: { place: number; name: strin
       <div className="relative flex flex-1 overflow-hidden rounded-[12px] p-[2.5px]">
         <div className="medal-ring" style={{ background: RINGS[tone] }} />
         <div className="relative z-[1] flex flex-1 flex-col rounded-[10px] bg-[#fbf8f2] px-3 py-3 text-[#1a3d32]">
-          <span className="font-display text-lg leading-none font-extrabold" style={{ color: INK[tone] }}>
+          <span
+            className="font-display text-lg leading-none font-extrabold"
+            style={{ color: INK[tone] }}
+          >
             {place}
           </span>
-          <span className="mt-4 flex-1 font-display text-[15px] leading-tight font-extrabold">{name}</span>
+          <span className="mt-4 flex-1 font-display text-[15px] leading-tight font-extrabold">
+            {name}
+          </span>
           {extra && <span className="mt-1 text-[11px] font-semibold text-[#5c7368]">{extra}</span>}
-          <span className="mt-3 font-display text-2xl leading-none font-extrabold tabular-nums" style={{ color: INK[tone] }}>
+          <span
+            className="mt-3 font-display text-2xl leading-none font-extrabold tabular-nums"
+            style={{ color: INK[tone] }}
+          >
             {points}
           </span>
         </div>
@@ -297,10 +382,22 @@ function PodiumCard({ place, name, points, extra }: { place: number; name: strin
   );
 }
 
-function PlainRank({ place, name, points, extra }: { place: number; name: string; points: number; extra?: string }) {
+function PlainRank({
+  place,
+  name,
+  points,
+  extra,
+}: {
+  place: number;
+  name: string;
+  points: number;
+  extra?: string;
+}) {
   return (
     <li className="flex items-center gap-3 rounded-xl bg-cream/50 px-3 py-2">
-      <span className="w-6 text-center font-display text-sm font-extrabold text-muted">{place}</span>
+      <span className="w-6 text-center font-display text-sm font-extrabold text-muted">
+        {place}
+      </span>
       <span className="flex-1 font-semibold text-ink">{name}</span>
       {extra && <span className="text-xs text-ink-soft">{extra}</span>}
       <span className="font-display font-extrabold text-ink">{points}</span>
@@ -329,6 +426,8 @@ function TeacherRow({
   onDelete: () => void;
 }) {
   const t = STRINGS[lang];
+  const { settings } = useSchoolSettings();
+  const officeName = (id: string) => settings.offices[id]?.name ?? id;
   const qc = useQueryClient();
   const [amount, setAmount] = useState("1");
   const [note, setNote] = useState("");
@@ -336,7 +435,7 @@ function TeacherRow({
   const history = useQuery({
     queryKey: ["points-history", student.id],
     queryFn: () => listPointsHistory({ data: { rosterId: student.id } }),
-    enabled: open,
+    enabled: open && settings.points,
   });
   const pts = useMutation({
     mutationFn: (delta: number) => adjustPoints({ data: { rosterId: student.id, delta, note } }),
@@ -351,7 +450,8 @@ function TeacherRow({
   const n = Number(amount);
   const [gear, setGear] = useState(false);
   const perms = useMutation({
-    mutationFn: (d: { isStarosta?: boolean; canPostHw?: boolean }) => setStudentPerms({ data: { rosterId: student.id, ...d } }),
+    mutationFn: (d: { isStarosta?: boolean; canPostHw?: boolean }) =>
+      setStudentPerms({ data: { rosterId: student.id, ...d } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["students"] }),
   });
   const locale = lang === "uk" ? "uk-UA" : "en-GB";
@@ -361,35 +461,46 @@ function TeacherRow({
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-[160px] flex-1">
           <p className="font-display font-extrabold">
-            {student.name} {student.isStarosta && <span className="ml-1 text-xs font-bold text-terracotta">{t.starosta}</span>}
-            {student.office && <span className="ml-1 text-xs font-bold text-forest">{officeName(student.office)}</span>}
+            {student.name}{" "}
+            {settings.selfGovernment && student.isStarosta && (
+              <span className="ml-1 text-xs font-bold text-terracotta">{t.starosta}</span>
+            )}
+            {settings.selfGovernment && student.office && (
+              <span className="ml-1 text-xs font-bold text-forest">
+                {officeName(student.office)}
+              </span>
+            )}
           </p>
           <p className="text-xs text-muted">
             {student.className}
             {student.groupName ? ` · ${student.groupName}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="grid size-8 place-items-center rounded-full bg-surface disabled:opacity-40"
-            disabled={student.points <= 0 || pts.isPending}
-            onClick={() => pts.mutate(-1)}
-            aria-label="-1"
-          >
-            <Minus className="size-3.5" />
-          </button>
-          <span className="w-16 text-center font-display font-extrabold tabular-nums">{student.points}</span>
-          <button
-            type="button"
-            className="grid size-8 place-items-center rounded-full bg-surface disabled:opacity-40"
-            disabled={student.points >= 1_000_000 || pts.isPending}
-            onClick={() => pts.mutate(1)}
-            aria-label="+1"
-          >
-            <Plus className="size-3.5" />
-          </button>
-        </div>
+        {settings.points && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="grid size-8 place-items-center rounded-full bg-surface disabled:opacity-40"
+              disabled={student.points <= 0 || pts.isPending}
+              onClick={() => pts.mutate(-1)}
+              aria-label="-1"
+            >
+              <Minus className="size-3.5" />
+            </button>
+            <span className="w-16 text-center font-display font-extrabold tabular-nums">
+              {student.points}
+            </span>
+            <button
+              type="button"
+              className="grid size-8 place-items-center rounded-full bg-surface disabled:opacity-40"
+              disabled={student.points >= 1_000_000 || pts.isPending}
+              onClick={() => pts.mutate(1)}
+              aria-label="+1"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+        )}
         <button
           type="button"
           className="rounded-full bg-surface px-3 py-1 font-mono text-xs"
@@ -400,27 +511,33 @@ function TeacherRow({
         >
           {student.inviteCode}
         </button>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${student.linkedUserId ? "bg-sage/20 text-forest" : "bg-surface-2 text-muted"}`}>
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-bold ${student.linkedUserId ? "bg-sage/20 text-forest" : "bg-surface-2 text-muted"}`}
+        >
           {student.linkedUserId ? t.linked : t.pending}
         </span>
-        <button
-          type="button"
-          className={`grid size-8 place-items-center rounded-full bg-surface text-forest ${gear ? "ring-2 ring-forest" : ""}`}
-          onClick={() => setGear((v) => !v)}
-          aria-label={t.studentRights}
-          title={t.studentRights}
-        >
-          <Settings className="size-4" />
-        </button>
-        <button
-          type="button"
-          className={`grid size-8 place-items-center rounded-full bg-surface text-forest ${open ? "ring-2 ring-forest" : ""}`}
-          onClick={() => setOpen((v) => !v)}
-          aria-label={t.pointsHistory}
-          title={t.pointsHistory}
-        >
-          <History className="size-4" />
-        </button>
+        {(settings.selfGovernment || settings.studentHomework) && (
+          <button
+            type="button"
+            className={`grid size-8 place-items-center rounded-full bg-surface text-forest ${gear ? "ring-2 ring-forest" : ""}`}
+            onClick={() => setGear((v) => !v)}
+            aria-label={t.studentRights}
+            title={t.studentRights}
+          >
+            <Settings className="size-4" />
+          </button>
+        )}
+        {settings.points && (
+          <button
+            type="button"
+            className={`grid size-8 place-items-center rounded-full bg-surface text-forest ${open ? "ring-2 ring-forest" : ""}`}
+            onClick={() => setOpen((v) => !v)}
+            aria-label={t.pointsHistory}
+            title={t.pointsHistory}
+          >
+            <History className="size-4" />
+          </button>
+        )}
         <button
           type="button"
           className="grid size-8 place-items-center rounded-full bg-surface text-terracotta"
@@ -433,51 +550,84 @@ function TeacherRow({
       </div>
       {gear && (
         <div className="mt-3 flex flex-wrap gap-4 rounded-xl bg-surface px-3 py-2 text-sm">
-          <label className="flex items-center gap-2 font-bold">
-            <input type="checkbox" checked={student.isStarosta} onChange={(e) => perms.mutate({ isStarosta: e.target.checked })} />
-            {t.appointStarosta}
-          </label>
-          <label className="flex items-center gap-2 font-bold">
-            <input type="checkbox" checked={student.canPostHw} onChange={(e) => perms.mutate({ canPostHw: e.target.checked })} />
-            {t.canPostHw}
-          </label>
+          {settings.selfGovernment && (
+            <label className="flex items-center gap-2 font-bold">
+              <input
+                type="checkbox"
+                checked={student.isStarosta}
+                onChange={(e) => perms.mutate({ isStarosta: e.target.checked })}
+              />
+              {t.appointStarosta}
+            </label>
+          )}
+          {settings.studentHomework && (
+            <label className="flex items-center gap-2 font-bold">
+              <input
+                type="checkbox"
+                checked={student.canPostHw}
+                onChange={(e) => perms.mutate({ canPostHw: e.target.checked })}
+              />
+              {t.canPostHw}
+            </label>
+          )}
         </div>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <TextInput
-          className="h-9 w-24"
-          inputMode="numeric"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          aria-label={t.pointsAmount}
-        />
-        <TextInput className="h-9 min-w-[180px] flex-1" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.pointsNotePh} />
-        <PillButton
-          type="button"
-          disabled={!Number.isFinite(n) || n === 0 || pts.isPending || (n > 0 && student.points >= 1_000_000) || (n < 0 && student.points <= 0)}
-          onClick={() => {
-            const room = n > 0 ? Math.min(n, 1_000_000 - student.points) : Math.max(n, -student.points);
-            if (room) pts.mutate(room);
-          }}
-        >
-          {t.pointsApply}
-        </PillButton>
-        <span className="text-xs text-muted">{t.pointsRange}</span>
-      </div>
-      {open && (
+      {settings.points && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <TextInput
+            className="h-9 w-24"
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            aria-label={t.pointsAmount}
+          />
+          <TextInput
+            className="h-9 min-w-[180px] flex-1"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={t.pointsNotePh}
+          />
+          <PillButton
+            type="button"
+            disabled={
+              !Number.isFinite(n) ||
+              n === 0 ||
+              pts.isPending ||
+              (n > 0 && student.points >= 1_000_000) ||
+              (n < 0 && student.points <= 0)
+            }
+            onClick={() => {
+              const room =
+                n > 0 ? Math.min(n, 1_000_000 - student.points) : Math.max(n, -student.points);
+              if (room) pts.mutate(room);
+            }}
+          >
+            {t.pointsApply}
+          </PillButton>
+          <span className="text-xs text-muted">{t.pointsRange}</span>
+        </div>
+      )}
+      {open && settings.points && (
         <ul className="mt-3 space-y-1.5 border-t border-hairline pt-3">
           {(history.data ?? []).length === 0 ? (
             <li className="text-sm text-muted">{t.pointsHistoryEmpty}</li>
           ) : (
             (history.data ?? []).map((item) => (
               <li key={item.id} className="flex flex-wrap items-baseline gap-2 text-sm">
-                <span className={`font-display font-extrabold ${item.delta > 0 ? "text-forest" : "text-terracotta"}`}>
+                <span
+                  className={`font-display font-extrabold ${item.delta > 0 ? "text-forest" : "text-terracotta"}`}
+                >
                   {item.delta > 0 ? "+" : ""}
                   {item.delta}
                 </span>
                 <span className="text-muted">
                   {item.createdAt
-                    ? new Date(item.createdAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                    ? new Date(item.createdAt).toLocaleString(locale, {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
                     : ""}
                   {item.byName ? ` · ${item.byName}` : ""}
                   {item.note ? ` · ${item.note}` : ""}
@@ -501,7 +651,9 @@ function HistoryRow({
   const locale = lang === "uk" ? "uk-UA" : "en-GB";
   return (
     <li className="flex items-baseline gap-3 rounded-xl bg-cream/50 px-3 py-2 text-sm">
-      <span className={`w-12 font-display text-lg font-extrabold ${item.delta > 0 ? "text-forest" : "text-terracotta"}`}>
+      <span
+        className={`w-12 font-display text-lg font-extrabold ${item.delta > 0 ? "text-forest" : "text-terracotta"}`}
+      >
         {item.delta > 0 ? "+" : ""}
         {item.delta}
       </span>
@@ -521,7 +673,15 @@ function HistoryRow({
   );
 }
 
-function ModeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+function ModeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: string;
+}) {
   return (
     <button
       type="button"

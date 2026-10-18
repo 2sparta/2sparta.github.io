@@ -1,3 +1,4 @@
+import type { WorkType } from "./settings";
 export type Role = "teacher" | "student" | "parent";
 
 export type Profile = {
@@ -74,6 +75,7 @@ export type ScheduleEntry = {
 };
 
 export type Lesson = {
+  workType?: WorkType;
   id: string;
   subjectId: string;
   subjectName: string;
@@ -90,6 +92,8 @@ export type Lesson = {
 };
 
 export type Grade = {
+  workType?: WorkType;
+  lessonDate?: string | null;
   id: string;
   rosterId: string;
   subjectId: string;

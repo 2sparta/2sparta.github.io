@@ -23,7 +23,10 @@
     "test:firestore": "node tests/firestore-rules.test.mjs",
     "test:atlas-ui": "node --import tsx --import ./tests/atlas-dom-setup.mjs --test tests/atlas-editor-ui.test.tsx",
     "test:periodic": "node --experimental-strip-types --test tests/periodic-table.test.ts && node --conditions=development --import tsx --import ./tests/periodic-dom-setup.mjs --test tests/periodic-table-ui.test.tsx",
-    "test:assessment-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/self-assessment-ui.test.tsx"
+    "test:assessment-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/self-assessment-ui.test.tsx",
+    "test:school-settings": "node --experimental-strip-types --test tests/school-settings.test.ts",
+    "test:school-settings-rules": "node --experimental-strip-types tests/school-settings-rules.test.mjs",
+    "test:school-settings-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/school-settings-ui.test.tsx"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",

@@ -1,9 +1,10 @@
+import { SchoolFeatureGate, useSchoolSettings } from "@/components/school-settings-context";
 import { OfficeBoard } from "@/components/office-board";
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { announceElection, closeElection, getElection, listActivities, listClasses, addActivity, updateActivity, deleteActivity, runForElection, voteElection, listRewards, listRosterNames, addReward, updateReward, deleteReward, awardReward } from "@/lib/school/server";
-import { officeName } from "@/lib/school/ids";
+import { canOffice } from "@/lib/school/settings";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { useMeQuery } from "@/components/session-gate";
@@ -11,12 +12,13 @@ import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/compon
 import { WideNotice } from "@/routes/app/announcements";
 import { cn } from "@/lib/cn";
 
-export const Route = createFileRoute("/app/selfgov")({ component: Page });
+export const Route = createFileRoute("/app/selfgov")({ component: () => <SchoolFeatureGate feature="selfGovernment"><Page /></SchoolFeatureGate> });
 
 function Page() {
   const { lang } = usePrefs();
   const t = STRINGS[lang];
   const me = useMeQuery();
+  const { settings } = useSchoolSettings();
   const isTeacher = me.data?.profile.role === "teacher";
   const classes = useQuery({ queryKey: ["classes"], queryFn: () => listClasses() });
   const [classId, setClassId] = useState(me.data?.profile.classId ?? "");
@@ -36,7 +38,7 @@ function Page() {
   const [actImportant, setActImportant] = useState(false);
   const [editAct, setEditAct] = useState<string | null>(null);
   const isStarosta = me.data?.profile.role === "student" && me.data.profile.isStarosta;
-  const canPost = isTeacher || isStarosta;
+  const canPost = isTeacher || isStarosta || canOffice(settings, me.data?.profile ?? { role: null }, "postActivities");
   const postIds = isTeacher ? actClasses : me.data?.profile.classId ? [me.data.profile.classId] : [];
   const activities = useQuery({
     queryKey: ["activities", active],
@@ -304,7 +306,7 @@ function Page() {
         )}
       </Panel>
       <OfficeBoard />
-      <RewardsBoard />
+      {settings.points && <RewardsBoard />}
     </div>
   );
 }
@@ -313,11 +315,14 @@ function RewardsBoard() {
   const { lang } = usePrefs();
   const t = STRINGS[lang];
   const me = useMeQuery();
+  const { settings } = useSchoolSettings();
+  const officeName = (id: string | null | undefined) => settings.offices[id ?? ""]?.name ?? id ?? "";
   const profile = me.data?.profile;
   const isTeacher = profile?.role === "teacher";
-  const isHead = profile?.role === "student" && Boolean(profile.office);
+  const isHead = canOffice(settings, profile ?? { role: null }, "createRewards");
+  const canAward = canOffice(settings, profile ?? { role: null }, "awardRewards");
   const rewards = useQuery({ queryKey: ["rewards"], queryFn: () => listRewards() });
-  const students = useQuery({ queryKey: ["roster-names"], queryFn: () => listRosterNames(), enabled: Boolean(isTeacher || isHead) });
+  const students = useQuery({ queryKey: ["roster-names"], queryFn: () => listRosterNames(), enabled: Boolean(isTeacher || isHead || canAward) });
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -411,7 +416,7 @@ function RewardsBoard() {
                 {r.authorName}
                 {awarded.length ? ` · ${t.awarded}: ${awarded.map((a) => a.name).join(", ")}` : ""}
               </p>
-              {mine && (
+              {r.authorRosterId === profile?.rosterId && canAward && (
                 <div className="mt-2">
                   <p className="mb-1 text-xs font-bold text-muted">{t.awardMany}</p>
                   <div className="flex flex-wrap gap-1.5">

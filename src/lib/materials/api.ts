@@ -1,6 +1,7 @@
 import { collection, doc, getDocs, query, runTransaction, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loadProfile } from "@/lib/school/firebase-api";
+import { requireFeature } from "@/lib/school/settings-api";
 import { newId } from "@/lib/school/ids";
 import { validateMaterial, type Material, type MaterialInput } from "./model";
 
@@ -38,6 +39,7 @@ export async function saveMaterial(input: {
 }) {
   const p = await member();
   const data = validateMaterial(input.material);
+  if (p.role === "student") await requireFeature(p, "studentArticles");
   if (p.role !== "teacher" && (p.role !== "student" || data.kind !== "article"))
     throw new Error("Forbidden");
   const ref = doc(db(), "materials", input.id || newId());
@@ -68,6 +70,7 @@ export async function saveMaterial(input: {
 }
 export async function removeMaterial(input: { id: string; revision: number }) {
   const p = await member();
+  if (p.role === "student") await requireFeature(p, "studentArticles");
   const ref = doc(db(), "materials", input.id);
   await runTransaction(db(), async (tx) => {
     const old = await tx.get(ref);

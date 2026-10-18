@@ -1,3 +1,4 @@
+import { SchoolFeatureGate, useSchoolSettings } from "@/components/school-settings-context";
 import { useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +13,7 @@ import { PhotoAttach } from "@/components/photo-attach";
 import { ClubPlan } from "@/components/club-plan";
 import { cn } from "@/lib/cn";
 
-export const Route = createFileRoute("/app/clubs")({ component: ClubsPage });
+export const Route = createFileRoute("/app/clubs")({ component: () => <SchoolFeatureGate feature="clubs"><ClubsPage /></SchoolFeatureGate> });
 
 type ClubRow = {
   id: string;
