@@ -27,7 +27,8 @@ import { useSchoolSettings } from "@/components/school-settings-context";
 import { ContentInteractions } from "@/components/content-interactions";
 import { MaterialEditor } from "@/components/material-editor";
 import { HistoricalAtlas } from "@/components/historical-atlas";
-import { clampAtlasYear, type AtlasView } from "@/lib/atlas/model";
+import { type AtlasView } from "@/lib/atlas/model";
+import { validateAtlasSearchDate } from "@/lib/atlas/date";
 import { LEARNING_TOOLS, validateToolSearch, type LearningTool } from "@/lib/learning-tools";
 import type { PeriodicLayout } from "@/lib/periodic/model";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
@@ -43,6 +44,8 @@ export const Route = createFileRoute("/app/materials")({
     section: MaterialSection;
     id?: string;
     year?: number;
+    month?: number;
+    day?: number;
     view?: AtlasView;
     tool?: LearningTool;
     element?: number;
@@ -53,7 +56,7 @@ export const Route = createFileRoute("/app/materials")({
       : "overview",
     ...(typeof search.id === "string" ? { id: search.id } : {}),
     ...validateToolSearch(search),
-    ...(search.year !== undefined ? { year: clampAtlasYear(Number(search.year)) } : {}),
+    ...validateAtlasSearchDate(search),
     ...([
       "rus",
       "europe",
@@ -68,6 +71,8 @@ export const Route = createFileRoute("/app/materials")({
       "lithuania",
       "commonwealth",
       "cossacks",
+      "spain",
+      "spanish-empire",
     ].includes(String(search.view))
       ? { view: search.view as AtlasView }
       : {}),
@@ -75,7 +80,17 @@ export const Route = createFileRoute("/app/materials")({
   component: Page,
 });
 function Page() {
-  const { section, id, year, view, tool = "atlas", element, layout } = Route.useSearch();
+  const {
+    section,
+    id,
+    year,
+    month,
+    day,
+    view,
+    tool = "atlas",
+    element,
+    layout,
+  } = Route.useSearch();
   const navigate = Route.useNavigate();
   const uk = usePrefs((s) => s.lang) === "uk";
   if (section === "useful")
@@ -101,7 +116,7 @@ function Page() {
                 to="/app/materials"
                 search={
                   item.id === "atlas"
-                    ? { section: "useful", tool: item.id, year, view }
+                    ? { section: "useful", tool: item.id, year, month, day, view }
                     : { section: "useful", tool: item.id, element, layout }
                 }
                 aria-current={tool === item.id ? "page" : undefined}
@@ -129,11 +144,21 @@ function Page() {
         ) : (
           <HistoricalAtlas
             year={year ?? 1000}
+            month={month ?? 1}
+            day={day ?? 1}
             view={view ?? "rus"}
-            onChange={(year, view) =>
+            onChange={(year, view, date) =>
               void navigate({
-                search: { section: "useful", tool: "atlas", year, view },
+                search: {
+                  section: "useful",
+                  tool: "atlas",
+                  year,
+                  month: date?.month ?? 1,
+                  day: date?.day ?? 1,
+                  view,
+                },
                 replace: true,
+                resetScroll: false,
               })
             }
           />

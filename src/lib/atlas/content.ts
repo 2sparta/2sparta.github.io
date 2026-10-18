@@ -5,6 +5,7 @@ import { RUS_SOURCES } from "./rus.ts";
 
 import { COMMONWEALTH_SOURCES } from "./commonwealth.ts";
 import { FRANCE_SOURCES } from "./france.ts";
+import { SPAIN_SOURCES } from "./spain.ts";
 import { MONGOL_SOURCES } from "./mongols.ts";
 
 export const ATLAS_SOURCES: AtlasSource[] = [
@@ -20,6 +21,7 @@ export const ATLAS_SOURCES: AtlasSource[] = [
   ...MONGOL_SOURCES,
   ...FRANCE_SOURCES,
   ...COMMONWEALTH_SOURCES,
+  ...SPAIN_SOURCES,
   {
     id: "basemaps",
     title: "Historical Basemaps — André Ourednik",

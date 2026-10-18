@@ -1,0 +1,235 @@
+{
+  "0": {
+    "points": [
+      {
+        "name": "Lisbon",
+        "element": "circle2874",
+        "x": 91.62839500000001,
+        "y": 470.04440999999997,
+        "lon": -9.1393,
+        "lat": 38.7223,
+        "role": "fit"
+      },
+      {
+        "name": "Seville",
+        "element": "circle3130",
+        "x": 319.906315,
+        "y": 618.921315,
+        "lon": -5.9845,
+        "lat": 37.3891,
+        "role": "fit"
+      },
+      {
+        "name": "Granada",
+        "element": "circle2804",
+        "x": 505.50619,
+        "y": 654.651775,
+        "lon": -3.5986,
+        "lat": 37.1773,
+        "role": "fit"
+      },
+      {
+        "name": "Barcelona",
+        "element": "circle6213",
+        "x": 945.411055,
+        "y": 265.11725,
+        "lon": 2.1734,
+        "lat": 41.3851,
+        "role": "fit"
+      },
+      {
+        "name": "Pamplona",
+        "element": "circle3042",
+        "x": 670.2633,
+        "y": 137.55266,
+        "lon": -1.644,
+        "lat": 42.8125,
+        "role": "fit"
+      },
+      {
+        "name": "Oviedo",
+        "element": "circle3028",
+        "x": 380.44959,
+        "y": 72.04682,
+        "lon": -5.8494,
+        "lat": 43.3614,
+        "role": "fit"
+      },
+      {
+        "name": "Toledo",
+        "element": "circle6267",
+        "x": 486.611,
+        "y": 402.59098,
+        "lon": -4.0273,
+        "lat": 39.8628,
+        "role": "fit"
+      },
+      {
+        "name": "Valencia",
+        "element": "circle3202",
+        "x": 756.611905,
+        "y": 447.21662000000003,
+        "lon": -0.3763,
+        "lat": 39.4699,
+        "role": "fit"
+      },
+      {
+        "name": "Cordoba",
+        "element": "circle2760",
+        "x": 418.16507,
+        "y": 582.19835,
+        "lon": -4.7794,
+        "lat": 37.8882,
+        "role": "holdout"
+      },
+      {
+        "name": "Madrid",
+        "element": "circle6261",
+        "x": 514.40135,
+        "y": 354.95037,
+        "lon": -3.7038,
+        "lat": 40.4168,
+        "role": "holdout"
+      },
+      {
+        "name": "Coimbra",
+        "element": "circle2746",
+        "x": 164.08182,
+        "y": 342.010275,
+        "lon": -8.4292,
+        "lat": 40.2033,
+        "role": "holdout"
+      },
+      {
+        "name": "Zaragoza",
+        "element": "circle3248",
+        "x": 722.8664699999999,
+        "y": 246.72905500000002,
+        "lon": -0.8891,
+        "lat": 41.6488,
+        "role": "holdout"
+      }
+    ]
+  },
+  "1": {
+    "points": [
+      {
+        "name": "Madrid",
+        "element": "rect11234",
+        "x": 404.82824095,
+        "y": 302.49977694999995,
+        "lon": -3.7038,
+        "lat": 40.4168,
+        "role": "fit"
+      },
+      {
+        "name": "Barcelona",
+        "element": "rect11236",
+        "x": 763.37963095,
+        "y": 218.96315694999998,
+        "lon": 2.1734,
+        "lat": 41.3851,
+        "role": "fit"
+      },
+      {
+        "name": "Valencia",
+        "element": "rect11232",
+        "x": 611.32385095,
+        "y": 380.40477695,
+        "lon": -0.3763,
+        "lat": 39.4699,
+        "role": "fit"
+      },
+      {
+        "name": "Seville",
+        "element": "rect11244",
+        "x": 251.83379095,
+        "y": 550.29393695,
+        "lon": -5.9845,
+        "lat": 37.3891,
+        "role": "fit"
+      },
+      {
+        "name": "Bilbao",
+        "element": "rect11238",
+        "x": 443.78082094999996,
+        "y": 64.09182795000001,
+        "lon": -2.935,
+        "lat": 43.263,
+        "role": "fit"
+      },
+      {
+        "name": "Coruna",
+        "element": "rect11256",
+        "x": 132.62958285000002,
+        "y": 40.62657785,
+        "lon": -8.4115,
+        "lat": 43.3623,
+        "role": "fit"
+      },
+      {
+        "name": "Zaragoza",
+        "element": "rect11164",
+        "x": 571.80607285,
+        "y": 206.18138885,
+        "lon": -0.8891,
+        "lat": 41.6488,
+        "role": "fit"
+      },
+      {
+        "name": "Burgos",
+        "element": "rect11156",
+        "x": 407.64363284999996,
+        "y": 134.48801885,
+        "lon": -3.6969,
+        "lat": 42.3439,
+        "role": "fit"
+      },
+      {
+        "name": "Oviedo",
+        "element": "rect2340",
+        "x": 267.32075284999996,
+        "y": 62.684053850000005,
+        "lon": -5.8494,
+        "lat": 43.3614,
+        "role": "holdout"
+      },
+      {
+        "name": "Granada",
+        "element": "rect6048",
+        "x": 408.80250285,
+        "y": 567.5370388499999,
+        "lon": -3.5986,
+        "lat": 37.1773,
+        "role": "holdout"
+      },
+      {
+        "name": "Pamplona",
+        "element": "rect11160",
+        "x": 521.21605285,
+        "y": 115.71573885000001,
+        "lon": -1.644,
+        "lat": 42.8125,
+        "role": "holdout"
+      },
+      {
+        "name": "Cordoba",
+        "element": "rect11246",
+        "x": 326.92309095,
+        "y": 506.17906695,
+        "lon": -4.7794,
+        "lat": 37.8882,
+        "role": "holdout"
+      },
+      {
+        "name": "Cadiz",
+        "element": "rect11242",
+        "x": 226.49104285,
+        "y": 621.62901885,
+        "lon": -6.2886,
+        "lat": 36.5271,
+        "role": "holdout"
+      }
+    ]
+  }
+}
