@@ -34,6 +34,22 @@ export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
     [5, 60],
     [38, 97],
   ],
+  poland: [
+    [47, 13],
+    [57, 33],
+  ],
+  lithuania: [
+    [47, 20],
+    [59, 37],
+  ],
+  commonwealth: [
+    [46, 14],
+    [59, 38],
+  ],
+  cossacks: [
+    [45, 22],
+    [54, 36],
+  ],
   france: [
     [40, -6],
     [52, 11],
@@ -213,7 +229,12 @@ export function HistoricalMapCanvas({
     if (land)
       L.geoJSON(land, {
         interactive: false,
-        style: { color: "var(--atlas-coast)", weight: 0.65, fillColor: "var(--atlas-land)", fillOpacity: 1 },
+        style: {
+          color: "var(--atlas-coast)",
+          weight: 0.65,
+          fillColor: "var(--atlas-land)",
+          fillOpacity: 1,
+        },
       }).addTo(layers);
     if (borders && historical)
       L.geoJSON(
@@ -238,8 +259,15 @@ export function HistoricalMapCanvas({
                       : "#9aa5b0",
               weight: p.invaded ? 2.3 : feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
               fillColor: p.color ?? polityColor(p.subject),
-              fillOpacity: feature!.id === selected ? 0.9 : p.detailed ? 1 : 0.23,
-              dashArray: p.invaded ? "6 3" : p.precision === 1 ? "4 3" : undefined,
+              fillOpacity:
+                feature!.id === selected ? 0.9 : p.layer === "land" ? 0.45 : p.detailed ? 1 : 0.23,
+              dashArray: p.invaded
+                ? "6 3"
+                : p.layer === "land"
+                  ? "3 3"
+                  : p.precision === 1
+                    ? "4 3"
+                    : undefined,
             };
           },
           onEachFeature: (feature, layer) => {
@@ -364,16 +392,19 @@ export function HistoricalMapCanvas({
             radius: active ? 9 : isCity ? 4.5 : 7,
             color: active
               ? "#122f27"
-              : place.campaign === "sack"
-                ? "#c52d27"
-                : place.campaign === "battle"
-                  ? "#b96a11"
-                  : isCity
-                    ? "#222222"
-                    : "#984b33",
+              : place.occupation
+                ? "#417ac0"
+                : place.campaign === "sack"
+                  ? "#c52d27"
+                  : place.campaign === "battle"
+                    ? "#b96a11"
+                    : isCity
+                      ? "#222222"
+                      : "#984b33",
             weight: active ? 3 : 1.5,
-            fillColor:
-              place.campaign === "sack"
+            fillColor: place.occupation
+              ? "#417ac0"
+              : place.campaign === "sack"
                 ? "#c52d27"
                 : place.campaign === "battle"
                   ? "#d89535"
@@ -390,8 +421,18 @@ export function HistoricalMapCanvas({
       marker.bindTooltip(label, {
         permanent:
           active ||
-          (Boolean(place.campaign) && zoom >= 4.5) ||
+          ((Boolean(place.campaign) || place.occupation) && zoom >= 4.5) ||
           place.capital ||
+          (isCity &&
+            place.commonwealth &&
+            zoom >= 4.75 &&
+            [
+              "pllt-city-warsaw",
+              "pllt-city-krakow",
+              "pllt-city-vilnius",
+              "pllt-city-kyiv",
+              "pllt-city-lviv",
+            ].includes(place.id)) ||
           (isCity &&
             view === "rus" &&
             (zoom >= 6 || ["kyiv-city", "halych-city"].includes(place.id))),

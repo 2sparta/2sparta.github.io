@@ -54,9 +54,21 @@ export const Route = createFileRoute("/app/materials")({
     ...(typeof search.id === "string" ? { id: search.id } : {}),
     ...validateToolSearch(search),
     ...(search.year !== undefined ? { year: clampAtlasYear(Number(search.year)) } : {}),
-    ...(["rus", "europe", "world", "byzantium", "franks", "mongols", "hordes", "mughals", "france"].includes(
-      String(search.view),
-    )
+    ...([
+      "rus",
+      "europe",
+      "world",
+      "byzantium",
+      "franks",
+      "mongols",
+      "hordes",
+      "mughals",
+      "france",
+      "poland",
+      "lithuania",
+      "commonwealth",
+      "cossacks",
+    ].includes(String(search.view))
       ? { view: search.view as AtlasView }
       : {}),
   }),
@@ -165,7 +177,8 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
             : "Useful links";
   const all = materials.data ?? [];
   const canCreate =
-    profile?.role === "teacher" || (profile?.role === "student" && settings.studentArticles && kind === "article");
+    profile?.role === "teacher" ||
+    (profile?.role === "student" && settings.studentArticles && kind === "article");
   const topics = [...new Set(all.filter((m) => m.kind === kind).map((m) => m.topic))].sort((a, b) =>
     a.localeCompare(b, "uk"),
   );
@@ -266,7 +279,8 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                       : "Draft"
                     : `${readingMinutes(current.body)} ${uk ? "хв читання" : "min read"}`}
                 </p>
-                {(profile?.role === "teacher" || (settings.studentArticles && current.authorId === profile?.userId)) && (
+                {(profile?.role === "teacher" ||
+                  (settings.studentArticles && current.authorId === profile?.userId)) && (
                   <PillButton type="button" tone="ghost" onClick={() => setEditor(current)}>
                     {uk ? "Редагувати" : "Edit"}
                   </PillButton>
@@ -286,7 +300,9 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
                   </p>
                 )}
                 <ArticleContent body={current.body} idPrefix={`article-${current.id}`} />
-                {current.kind === "article" && current.status === "published" && <ContentInteractions target="article" id={current.id} uk={uk} />}
+                {current.kind === "article" && current.status === "published" && (
+                  <ContentInteractions target="article" id={current.id} uk={uk} />
+                )}
               </article>
             </Panel>
           ) : (

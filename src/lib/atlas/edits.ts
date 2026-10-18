@@ -279,8 +279,8 @@ export function newAtlasEdit(
     subject: feature?.properties.subject ?? "",
     from: year,
     to: year,
-    control: relative ? "relative" : "direct",
-    relation: relative ? "Неповний контроль" : "",
+    control: relative || feature?.properties.control === "relative" ? "relative" : "direct",
+    relation: relative ? "Неповний контроль" : (feature?.properties.relation ?? ""),
     operation: feature && !relative ? "replace" : "add",
     ...(feature && !relative
       ? { target: { name: feature.properties.name, region: feature.properties.region ?? "" } }
