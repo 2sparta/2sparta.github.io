@@ -9,7 +9,19 @@ export const BYZANTINE_YEARS = [
   1400, 1403, 1445, 1453,
 ] as const;
 export type AtlasView =
-  "rus" | "europe" | "world" | "byzantium" | "franks" | "mongols" | "hordes" | "mughals" | "france";
+  | "rus"
+  | "europe"
+  | "world"
+  | "byzantium"
+  | "franks"
+  | "mongols"
+  | "hordes"
+  | "mughals"
+  | "france"
+  | "poland"
+  | "lithuania"
+  | "commonwealth"
+  | "cossacks";
 export type HistoricalProperties = {
   name: string;
   subject: string;
@@ -17,7 +29,8 @@ export type HistoricalProperties = {
   detailed?: boolean;
   sourceYear?: number;
   sourceId?: string;
-  region?: "franks" | "rus" | "mongols" | "france";
+  region?: "franks" | "rus" | "mongols" | "france" | "commonwealth";
+  layer?: "state" | "land" | "dependency" | "occupation" | "cossack";
   validTo?: number;
   invaded?: boolean;
   custom?: boolean;
@@ -46,6 +59,12 @@ export type AtlasPlace = {
   byzantine?: boolean;
   frankish?: boolean;
   french?: boolean;
+  polish?: boolean;
+  lithuanian?: boolean;
+  commonwealth?: boolean;
+  ruthenian?: boolean;
+  cossack?: boolean;
+  occupation?: boolean;
   rus?: boolean;
   capital?: boolean;
   mongol?: boolean;
@@ -57,6 +76,7 @@ export type AtlasEvent = {
   description: string;
   sources: string[];
   approximate?: boolean;
+  ruthenian?: boolean;
   europe?: boolean;
 };
 export function clampAtlasYear(value: number) {
@@ -204,6 +224,35 @@ export function historicalName(name: string, uk = true) {
     "Eastern Chagatai realms": "Східні чагатайські володіння",
     "Nogai Horde": "Ногайська Орда",
     "Mughal Empire": "Імперія Великих Моголів",
+    "Livonia — joint Crown and Lithuania": "Лівонія · спільне володіння Корони й ВКЛ",
+    Crown: "Корона Польська",
+    Commonwealth: "Річ Посполита",
+    Sweden: "Швеція",
+    "Ottoman Empire": "Османська імперія",
+    Zaporizhia: "Запорожжя",
+    "Crown of the Kingdom of Poland": "Корона Польська · Річ Посполита",
+    "Grand Duchy of Lithuania in the Commonwealth": "ВКЛ · Річ Посполита",
+    "Polish-Lithuanian Commonwealth": "Річ Посполита",
+    "Republic of Poland": "Польща · XX ст.",
+    "Republic of Lithuania": "Литва · XX ст.",
+    "Polish Crown fiefs": "Ленні володіння Корони",
+    "Lithuanian dependent lands": "Залежні землі ВКЛ",
+    "Commonwealth fiefs": "Ленні володіння Речі Посполитої",
+    "Volhynia lands": "Волинь · історичний ареал",
+    "Belz lands": "Белзщина · історичний ареал",
+    "Ruthenian lands": "Руське воєводство / Галичина · ареал",
+    "Podolian lands": "Поділля · історичний ареал",
+    "Bratslav lands": "Брацлавщина · історичний ареал",
+    "Kyiv lands": "Київщина · історичний ареал",
+    "Chernihiv-Siverian lands": "Чернігово-Сіверщина · історичний ареал",
+    "Left-Bank Hetmanate": "Лівобережна Гетьманщина · козацька автономія",
+    "Muscovite wartime occupation": "Московське військове зайняття · 1655–1661",
+    "Muscovy / Russian Empire": "Московія / Російська імперія",
+    Muscovy: "Московія",
+    "Cossack Hetmanate": "Гетьманщина · козацька автономія",
+    "Swedish occupation — Deluge": "Шведська окупація · Потоп 1655–1657",
+    "Ottoman Podolia": "Поділля під османським управлінням",
+    "Zaporizhia — joint suzerainty": "Запорожжя · спільне підпорядкування 1667–1686",
     "Poland-Lithuania": "Польща і ВКЛ (узагальнена геометрія)",
     "Byzantine Empire": "Візантійська імперія",
     "Eastern Roman Empire": "Східна Римська імперія",
@@ -248,6 +297,11 @@ export function historicalName(name: string, uk = true) {
     Sclaveni: "Склавини",
     Antes: "Анти",
   };
+  if (uk && name.includes(" — ")) {
+    const [area, owner] = name.split(" — ");
+    if (names[area] && ["Poland", "Lithuania", "Crown"].includes(owner))
+      return `${names[area]} · ${names[owner] ?? owner}`;
+  }
   return uk ? (names[name] ?? name) : name;
 }
 export function featureNote(name: string, year: number) {

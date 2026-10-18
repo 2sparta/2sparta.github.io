@@ -1,0 +1,68 @@
+[
+  {
+    "name": "Poland_and_Lithuania_1387.PNG",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/2/20/Poland_and_Lithuania_1387.PNG",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Poland_and_Lithuania_1387.PNG",
+    "sha256": "360c2fdc9f1744958af667dcb1aef05f966db36e08fdb0bd5d09cba43d7ea2f0",
+    "file": "source-0.png",
+    "author": "Mathiasrex",
+    "license": "CC BY 2.5",
+    "sourceId": "pllt-1387",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5/"
+  },
+  {
+    "name": "RepúblicaDeLasDosNaciones1569-es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/8/80/Rep%C3%BAblicaDeLasDosNaciones1569-es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Rep%C3%BAblicaDeLasDosNaciones1569-es.svg",
+    "sha256": "09219fb23754b689831b59e7e3f4a6a848a8afa34ec042dd18877ed0714eb0e0",
+    "file": "source-2.svg",
+    "author": "Halibutt, Mathiasrex, Rowanwindwhistler",
+    "license": "CC BY-SA 3.0",
+    "sourceId": "pllt-1569",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+  },
+  {
+    "name": "Map_of_Poland_and_Lithuania_(1618-1667)-es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/e/e2/Map_of_Poland_and_Lithuania_%281618-1667%29-es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Map_of_Poland_and_Lithuania_%281618-1667%29-es.svg",
+    "sha256": "f067b13b1c5835f45ef00107f171c638e9015af7b474467acfe824a35c1046a1",
+    "file": "source-3.svg",
+    "author": "Grandiose, Rowanwindwhistler",
+    "license": "CC BY-SA 4.0",
+    "sourceId": "pllt-1618",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "name": "Territorial_changes_of_Poland_1655-es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/Territorial_changes_of_Poland_1655-es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Territorial_changes_of_Poland_1655-es.svg",
+    "sha256": "3c0b3eb5a07b5336599eeb0bff7dbd3326ecf20f1fb313f4b04788c4361c7069",
+    "file": "source-4.svg",
+    "author": "NordNordWest, Rowanwindwhistler",
+    "license": "CC BY-SA 4.0",
+    "sourceId": "pllt-deluge",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "name": "Truce_of_Andrusovo_1667-es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Truce_of_Andrusovo_1667-es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Truce_of_Andrusovo_1667-es.svg",
+    "sha256": "9d2634b4cc1636d348e252c2e28d9075485430d35d75b70ad210a50a42fdcb28",
+    "file": "source-5.svg",
+    "author": "Mathiasrex, Rowanwindwhistler",
+    "license": "CC BY-SA 3.0",
+    "sourceId": "pllt-andrusovo",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+  },
+  {
+    "name": "Polish–Lithuanian_Commonwealth_as_a_fief_of_the_Ottoman_Empire_1672-1676-es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/Polish%E2%80%93Lithuanian_Commonwealth_as_a_fief_of_the_Ottoman_Empire_1672-1676-es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Polish%E2%80%93Lithuanian_Commonwealth_as_a_fief_of_the_Ottoman_Empire_1672-1676-es.svg",
+    "sha256": "ad3d5c2c67c0cdfc6d905f6cc959d2dff751a4715aafe50cd72e50ac5e5ad3dd",
+    "file": "source-6.svg",
+    "author": "Mathiasrex, Rowanwindwhistler",
+    "license": "CC BY-SA 3.0",
+    "sourceId": "pllt-podolia",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+  }
+]

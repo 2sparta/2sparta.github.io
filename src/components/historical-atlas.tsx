@@ -75,6 +75,18 @@ import {
   FRANCE_PERIODS,
   FRANCE_PLACES,
 } from "@/lib/atlas/france";
+import {
+  addCommonwealthLayer,
+  commonwealthSnapshot,
+  commonwealthFrameAt,
+  validateCommonwealthData,
+  COMMONWEALTH_EVENTS,
+  COMMONWEALTH_PERIODS,
+  COMMONWEALTH_PLACES,
+  cossackPlacesAt,
+  occupationPlacesAt,
+  isCommonwealthView,
+} from "@/lib/atlas/commonwealth";
 import { HistoricalMapCanvas } from "./historical-map-canvas";
 import { Panel, PillButton, TextInput } from "./ui/panel";
 
@@ -170,6 +182,29 @@ export function HistoricalAtlas({
       toast.error(message);
     }
   };
+  const [ukrainianLands, setUkrainianLands] = useState(true);
+  const [occupations, setOccupations] = useState(true);
+  const [cossackHistory, setCossackHistory] = useState(true);
+  const regionalView = isCommonwealthView(view);
+  const easternHistory = regionalView || (view === "rus" && year > 1240);
+  const commonwealthYear = commonwealthSnapshot(year);
+  const commonwealth = useQuery({
+    queryKey: ["historical-atlas-commonwealth"],
+    queryFn: async ({ signal }) =>
+      validateCommonwealthData(await jsonFile("/atlas/commonwealth/frames.json", signal)),
+    staleTime: Infinity,
+    enabled: typeof window !== "undefined" && commonwealthYear !== undefined,
+    retry: 1,
+  });
+  const commonwealthFrame = useMemo(
+    () =>
+      commonwealthFrameAt(commonwealth.data, year, {
+        lands: ukrainianLands,
+        occupations,
+        cossacks: cossackHistory,
+      }),
+    [commonwealth.data, year, ukrainianLands, occupations, cossackHistory],
+  );
   const franceYear = franceSnapshot(year);
   const france = useQuery({
     queryKey: ["historical-atlas-france"],
@@ -282,19 +317,22 @@ export function HistoricalAtlas({
   useEffect(() => setSelection(null), [year, campaignStep, mongolDetail]);
   const sourceHistorical = useMemo(
     () =>
-      addFranceLayer(
-        combineHistoricalLayers(
-          snapshot !== undefined ? data.data : undefined,
-          detailed ? byzFrame?.collection : undefined,
-          frankishDetail && frYear !== undefined ? frFrame?.collection : undefined,
-          rusDetail && rusYear !== undefined
-            ? invasion && mongolDetail
-              ? markInvadedRus(rusFrame?.collection, year, campaignStep)
-              : rusFrame?.collection
-            : undefined,
-          mongolCollection,
+      addCommonwealthLayer(
+        addFranceLayer(
+          combineHistoricalLayers(
+            snapshot !== undefined ? data.data : undefined,
+            detailed ? byzFrame?.collection : undefined,
+            frankishDetail && frYear !== undefined ? frFrame?.collection : undefined,
+            rusDetail && rusYear !== undefined
+              ? invasion && mongolDetail
+                ? markInvadedRus(rusFrame?.collection, year, campaignStep)
+                : rusFrame?.collection
+              : undefined,
+            mongolCollection,
+          ),
+          franceFrame?.collection,
         ),
-        franceFrame?.collection,
+        commonwealthFrame?.collection,
       ),
     [
       snapshot,
@@ -313,6 +351,7 @@ export function HistoricalAtlas({
       campaignStep,
       mongolCollection,
       franceFrame,
+      commonwealthFrame,
     ],
   );
   const historical = useMemo(
@@ -339,6 +378,7 @@ export function HistoricalAtlas({
       ...FRANKISH_PLACES,
       ...RUS_PLACES,
       ...FRANCE_PLACES,
+      ...COMMONWEALTH_PLACES,
     ],
     [],
   );
@@ -349,18 +389,28 @@ export function HistoricalAtlas({
         ...activePlaces(allPlaces, markerEpoch),
         ...(mongolDetail ? mongolPlacesAt(year) : []),
         ...campaignMarkers,
+        ...(cossackHistory ? cossackPlacesAt(year) : []),
+        ...(occupations ? occupationPlacesAt(year) : []),
       ].filter((p) =>
-        view === "france"
-          ? p.french
-          : newView
-            ? p.mongol
-            : view === "franks"
-              ? p.frankish
-              : view === "byzantium"
-                ? p.byzantine
-                : view !== "rus" || !p.europe,
+        view === "cossacks"
+          ? p.ruthenian
+          : view === "commonwealth"
+            ? p.commonwealth
+            : view === "poland"
+              ? p.polish || p.ruthenian
+              : view === "lithuania"
+                ? p.lithuanian
+                : view === "france"
+                  ? p.french
+                  : newView
+                    ? p.mongol
+                    : view === "franks"
+                      ? p.frankish
+                      : view === "byzantium"
+                        ? p.byzantine
+                        : view !== "rus" || !p.europe || p.ruthenian,
       ),
-    [markerEpoch, view, year, mongolDetail, campaignMarkers, newView],
+    [markerEpoch, view, year, mongolDetail, campaignMarkers, newView, cossackHistory, occupations],
   );
   const drawn = useMemo(
     () => available.filter((p) => (p.type === "city" ? cities : areas)),
@@ -385,15 +435,17 @@ export function HistoricalAtlas({
       : undefined;
   const period = newView
     ? mongolPeriod(year, view)
-    : ((view === "france"
-        ? FRANCE_PERIODS
-        : view === "rus"
-          ? RUS_PERIODS
-          : view === "franks"
-            ? FRANKISH_PERIODS
-            : view === "byzantium"
-              ? BYZANTINE_PERIODS
-              : ATLAS_PERIODS
+    : ((easternHistory
+        ? COMMONWEALTH_PERIODS
+        : view === "france"
+          ? FRANCE_PERIODS
+          : view === "rus"
+            ? RUS_PERIODS
+            : view === "franks"
+              ? FRANKISH_PERIODS
+              : view === "byzantium"
+                ? BYZANTINE_PERIODS
+                : ATLAS_PERIODS
       ).find((p) => year >= p.from && year <= p.to) ?? {
         from: 1454,
         to: ATLAS_MAX_YEAR,
@@ -406,27 +458,35 @@ export function HistoricalAtlas({
     `${p.name} ${p.description}`.toLowerCase().includes(search.trim().toLowerCase()),
   );
   const nearby = (
-    view === "france"
-      ? FRANCE_EVENTS
-      : newView
-        ? MONGOL_EVENTS
-        : view === "rus"
-          ? [
-              ...RUS_EVENTS,
-              ...(invasion
-                ? MONGOL_EVENTS.filter((e) => e.sources.includes("mongol-invasion"))
-                : []),
-            ]
-          : view === "franks"
-            ? FRANKISH_EVENTS
-            : view === "byzantium"
-              ? [
-                  ...BYZANTINE_EVENTS,
-                  ...ATLAS_EVENTS.filter((e) => e.sources.includes("met-byzantium")),
-                ]
-              : [...ATLAS_EVENTS, ...BYZANTINE_EVENTS, ...FRANKISH_EVENTS, ...FRANCE_EVENTS]
+    easternHistory
+      ? COMMONWEALTH_EVENTS
+      : view === "france"
+        ? FRANCE_EVENTS
+        : newView
+          ? MONGOL_EVENTS
+          : view === "rus"
+            ? [
+                ...RUS_EVENTS,
+                ...(invasion
+                  ? MONGOL_EVENTS.filter((e) => e.sources.includes("mongol-invasion"))
+                  : []),
+              ]
+            : view === "franks"
+              ? FRANKISH_EVENTS
+              : view === "byzantium"
+                ? [
+                    ...BYZANTINE_EVENTS,
+                    ...ATLAS_EVENTS.filter((e) => e.sources.includes("met-byzantium")),
+                  ]
+                : [
+                    ...ATLAS_EVENTS,
+                    ...BYZANTINE_EVENTS,
+                    ...FRANKISH_EVENTS,
+                    ...FRANCE_EVENTS,
+                    ...COMMONWEALTH_EVENTS,
+                  ]
   )
-    .filter((e) => view !== "rus" || !e.europe)
+    .filter((e) => view !== "rus" || !e.europe || e.ruthenian)
     .filter((e) => Math.abs(e.year - year) <= 150)
     .sort((a, b) => Math.abs(a.year - year) - Math.abs(b.year - year) || a.year - b.year)
     .slice(0, 6)
@@ -498,7 +558,7 @@ export function HistoricalAtlas({
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-muted">
               {uk
-                ? "Детальні карти Русі, Візантії, Франків, Франції, Монгольської імперії та Моголів: датовані території, князівства, анклави й оригінали з легендами. Для інших країн збережені оглядові шари; до IX ст. показані попередні спільноти, а не встановлені кордони Русі."
+                ? "Детальні карти Русі, Польщі, Литви, Речі Посполитої, козацької України, Візантії, Франків, Франції, Монгольської імперії та Моголів: датовані території, князівства, анклави й оригінали з легендами. Для інших країн збережені оглядові шари; до IX ст. показані попередні спільноти, а не встановлені кордони Русі."
                 : "Detailed source maps of Rus, Byzantium the Franks and France: dated territories, principalities, enclaves and original legends. Other countries retain their overview layers."}
             </p>
           </div>
@@ -559,7 +619,12 @@ export function HistoricalAtlas({
           className="mt-3 flex flex-wrap gap-1.5"
           aria-label={uk ? "Картографічні зрізи" : "Map snapshots"}
         >
-          {ATLAS_YEARS.map((y) => (
+          {(regionalView
+            ? view === "cossacks"
+              ? [1591, 1594, 1625, 1630, 1635, 1637, 1638, 1648, 1649, 1651, 1655, 1667]
+              : [1000, 1279, 1387, 1530, 1569, 1618, 1655, 1667, 1772, 1795, 1938, 1994]
+            : ATLAS_YEARS
+          ).map((y) => (
             <button
               key={y}
               type="button"
@@ -573,7 +638,9 @@ export function HistoricalAtlas({
         </div>
         <div className="mt-4 rounded-xl border border-forest-mid/25 bg-forest-mid/5 p-3 text-sm">
           <strong>
-            {uk ? "Рік подій" : "Events"}: {year} · {uk ? "Світ" : "World"}: {snapshot ?? "—"}
+            {uk ? "Рік подій" : "Events"}: {year} ·{" "}
+            {regionalView ? (uk ? "Зріз регіону" : "Regional snapshot") : uk ? "Світ" : "World"}:{" "}
+            {regionalView ? (commonwealthFrame?.year ?? "—") : (snapshot ?? "—")}
             {detailed && year <= 1453 && ` · ${uk ? "Візантія" : "Byzantium"}: ${byzYear}`}
             {frankishDetail && frYear !== undefined && ` · ${uk ? "Франки" : "Franks"}: ${frYear}`}
             {rusDetail &&
@@ -582,23 +649,29 @@ export function HistoricalAtlas({
               ` · ${uk ? "Русь" : "Rus"}: ${rusFrame.sourceYear}${rusYear === 1240 ? (uk ? " (до навали)" : " (before invasion)") : ""}`}
           </strong>
           <p className="mt-1 text-xs text-muted">
-            {snapshot === undefined
+            {regionalView
               ? uk
-                ? "Для інших країн цей період ще не налаштовано."
-                : "Other countries are not configured for this period."
-              : year === snapshot
+                ? "Державні межі, історичні землі й форми контролю мають окремі шари. Перевіряйте дату та джерело в картці території."
+                : "State borders, historical lands and forms of control are separate layers. Check each territory’s source and date."
+              : snapshot === undefined
                 ? uk
-                  ? "Оглядовий картографічний зріз цього року; межі приблизні."
-                  : "Overview snapshot for this year; boundaries are approximate."
-                : uk
-                  ? `Світ: найближчий оглядовий зріз (${snapshot}). Візантія: останній доступний авторський зріз не пізніше обраного року. Кордони не інтерполюються.`
-                  : `Nearest available snapshot (${snapshot}). Borders are not interpolated; regional notes use event year ${year}.`}
+                  ? "Для інших країн цей період ще не налаштовано."
+                  : "Other countries are not configured for this period."
+                : year === snapshot
+                  ? uk
+                    ? "Оглядовий картографічний зріз цього року; межі приблизні."
+                    : "Overview snapshot for this year; boundaries are approximate."
+                  : uk
+                    ? `Світ: найближчий оглядовий зріз (${snapshot}). Візантія: останній доступний авторський зріз не пізніше обраного року. Кордони не інтерполюються.`
+                    : `Nearest available snapshot (${snapshot}). Borders are not interpolated; regional notes use event year ${year}.`}
           </p>
-          {warnings.map((note) => (
-            <p key={note} className="mt-2 text-xs text-terracotta">
-              {note}
-            </p>
-          ))}
+          {warnings
+            .filter((note) => !regionalView || !note.startsWith("Кордони інших країн"))
+            .map((note) => (
+              <p key={note} className="mt-2 text-xs text-terracotta">
+                {note}
+              </p>
+            ))}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {(
@@ -606,6 +679,10 @@ export function HistoricalAtlas({
               ["rus", uk ? "Русь-Україна" : "Rus’-Ukraine"],
               ["byzantium", uk ? "Візантія" : "Byzantium"],
               ["france", uk ? "Франція" : "France"],
+              ["poland", uk ? "Польща" : "Poland"],
+              ["lithuania", uk ? "Литва" : "Lithuania"],
+              ["commonwealth", uk ? "Річ Посполита" : "Commonwealth"],
+              ["cossacks", uk ? "Українські землі · козацтво" : "Ukrainian lands · Cossacks"],
               ["franks", uk ? "Франкська держава" : "Frankish realms"],
               ["europe", uk ? "Європа" : "Europe"],
               ["world", uk ? "Світ" : "World"],
@@ -659,7 +736,63 @@ export function HistoricalAtlas({
                 : `France: source snapshot ${franceYear}. Last available map, without annual interpolation; European possessions without colonies. Medieval snapshots may combine crown lands and fiefs.`}
           </p>
         )}
-        {(france.isError ||
+        {(regionalView || (view === "rus" && year > 1240)) && (
+          <section
+            className="mb-3 space-y-3 rounded-xl border border-hairline bg-surface-2 p-3"
+            aria-label={
+              uk
+                ? "Шари Польщі, Литви й українських земель"
+                : "Poland, Lithuania and Ukrainian layers"
+            }
+          >
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-bold">
+              <label className="inline-flex min-h-11 items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ukrainianLands}
+                  onChange={(e) => setUkrainianLands(e.target.checked)}
+                />
+                {uk ? "Історичні українські землі" : "Ukrainian historical lands"}
+              </label>
+              <label className="inline-flex min-h-11 items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={cossackHistory}
+                  onChange={(e) => setCossackHistory(e.target.checked)}
+                />
+                {uk ? "Козацька автономія та повстання" : "Cossack autonomy and uprisings"}
+              </label>
+              <label className="inline-flex min-h-11 items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={occupations}
+                  onChange={(e) => setOccupations(e.target.checked)}
+                />
+                {uk ? "Окупації · штрихування" : "Occupations · hatching"}
+              </label>
+            </div>
+            <p className="text-xs leading-5" data-testid="commonwealth-snapshot">
+              {commonwealthFrame
+                ? `${uk ? "Політичний зріз" : "Political snapshot"}: ${commonwealthFrame.year}.`
+                : uk
+                  ? "Для обраного року немає придатного політичного зрізу цього регіону. Довоєнні та попередні державні кордони не підставляються в роки, які вони не описують."
+                  : "No suitable political snapshot for this year. Earlier borders are not used for unrepresented periods."}
+            </p>
+            <details className="text-xs leading-5 text-muted">
+              <summary className="min-h-9 cursor-pointer font-bold">
+                {uk ? "Легенда й точність" : "Legend and accuracy"}
+              </summary>
+              {commonwealthFrame && <p className="mb-2">{commonwealthFrame.note}</p>}
+              <p>
+                {uk
+                  ? "Кольорові українські землі — оглядові історичні ареали, не точні адміністративні чи етнічні межі. Синій штрих — шведська окупація; фіолетовий — московське військове зайняття; бірюзовий — козацька автономія; коричневий — османське Поділля. Позначки повстань — осередки подій, а не державні кордони."
+                  : "Ukrainian lands are approximate historical areas, not exact administrative or ethnic borders. Blue hatching: Swedish occupation; purple: Muscovite wartime occupation; teal: Cossack autonomy; brown: Ottoman Podolia. Uprising markers indicate events, not state borders."}
+              </p>
+            </details>
+          </section>
+        )}
+        {(commonwealth.isError ||
+          france.isError ||
           data.isError ||
           physical.isError ||
           (detailed && byzantine.isError) ||
@@ -680,6 +813,7 @@ export function HistoricalAtlas({
                 if (snapshot !== undefined) void data.refetch();
                 void physical.refetch();
                 if (franceYear !== undefined) void france.refetch();
+                if (commonwealthYear !== undefined) void commonwealth.refetch();
                 if (detailed) void byzantine.refetch();
                 if (frankishDetail) void frankish.refetch();
                 if (rusDetail) void rus.refetch();
@@ -690,7 +824,8 @@ export function HistoricalAtlas({
             </PillButton>
           </div>
         )}
-        {((franceYear !== undefined && france.isPending) ||
+        {((commonwealthYear !== undefined && commonwealth.isPending) ||
+          (franceYear !== undefined && france.isPending) ||
           (snapshot !== undefined && data.isPending) ||
           physical.isPending ||
           (detailed && year <= 1453 && byzantine.isPending) ||
@@ -816,12 +951,48 @@ export function HistoricalAtlas({
                 originalLayer && detailed && borders && year <= 1453 ? byzFrame?.raster : undefined
               }
             />
+            {commonwealthFrame && (
+              <div
+                className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft"
+                aria-label={uk ? "Легенда штрихованих шарів" : "Hatched layer legend"}
+              >
+                {commonwealthFrame.collection.features
+                  .filter((f) => f.properties.control === "relative")
+                  .map((f) => (
+                    <span key={f.id} className="inline-flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="inline-block size-4 shrink-0 border"
+                        style={{
+                          borderColor: f.properties.color,
+                          backgroundImage: `repeating-linear-gradient(135deg,${f.properties.color} 0 2px,transparent 2px 6px)`,
+                        }}
+                      />
+                      {historicalName(f.properties.name, uk)}
+                    </span>
+                  ))}
+              </div>
+            )}
             <p className="mt-2 text-xs text-muted">
               <span className="atlas-hatch-swatch" aria-hidden="true" />{" "}
               {uk
-                ? "Штрихування — відносна територія: залежність, сфера впливу або неповний контроль. Суцільний колір — основна територія."
-                : "Hatching: dependency, influence or partial control. Solid fill: core territory."}
+                ? "Штрихування — окупація, автономія, залежність або неповний контроль. Суцільний колір — державний контур чи історичний ареал."
+                : "Hatching: occupation, autonomy, dependency or partial control. Solid fill: a state contour or historical area."}
             </p>
+            {commonwealthFrame && commonwealthFrame.collection.features.length > 0 && (
+              <p className="mt-2 text-xs text-muted">
+                <a
+                  href="/atlas/commonwealth/NOTICE.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  {uk
+                    ? "Польща, Литва й Річ Посполита: Mathiasrex, Halibutt, Grandiose, NordNordWest, Rowanwindwhistler · CC BY / CC BY-SA · джерела й перетворення"
+                    : "Poland, Lithuania and Commonwealth: Mathiasrex, Halibutt, Grandiose, NordNordWest, Rowanwindwhistler · CC BY / CC BY-SA · sources and adaptations"}
+                </a>
+              </p>
+            )}
             {editor.draft && (
               <p role="status" className="mt-2 rounded-xl bg-forest-mid/10 p-3 text-xs">
                 {editor.mode === "draw"
@@ -835,7 +1006,7 @@ export function HistoricalAtlas({
             )}
             <p className="mt-2 text-xs text-muted">
               {uk
-                ? "■ Константинополь · ● Місто / поселення · ◌ Орієнтир регіону · Пунктир: оглядова межа. Фізична основа сучасна; деталізований шар відтворює берегові контури джерела."
+                ? "■ Столичний осередок · ● Місто / поселення · ◌ Орієнтир регіону · Пунктир: оглядова межа. Фізична основа сучасна; деталізований шар відтворює берегові контури джерела."
                 : "● Settlement · ◌ Regional reference, not a boundary · Dashed borders: approximate. Coastlines and rivers are modern physical references."}
             </p>
           </div>
@@ -890,11 +1061,15 @@ export function HistoricalAtlas({
                           : "Source contour; approximate boundaries"
                         : selectedPolity.properties.detailed
                           ? uk
-                            ? selectedPolity.properties.region === "rus"
-                              ? "Контур карти Русі"
-                              : selectedPolity.properties.region === "franks"
-                                ? "Контур з векторної карти"
-                                : "Контур з авторського растра"
+                            ? selectedPolity.properties.region === "commonwealth"
+                              ? selectedPolity.properties.layer === "land"
+                                ? "Оглядовий історичний ареал"
+                                : "Датований джерельний контур"
+                              : selectedPolity.properties.region === "rus"
+                                ? "Контур карти Русі"
+                                : selectedPolity.properties.region === "franks"
+                                  ? "Контур з векторної карти"
+                                  : "Контур з авторського растра"
                             : "Digitized source contour"
                           : `${uk ? "Рівень точності джерела" : "Source precision"}: ${selectedPolity.properties.precision}/3`}
                 </p>
@@ -912,22 +1087,28 @@ export function HistoricalAtlas({
                           : "Dated source contour; direct rule and vassal dependency may be combined. Expiry limits the reconstruction, and is not necessarily the end of the state."
                         : selectedPolity.properties.detailed
                           ? uk
-                            ? selectedPolity.properties.region === "rus"
-                              ? `${rusFrame?.note ?? "Картографічна реконструкція Русі."} Колір збережено за джерелом; картки об’єднаних земель не означають єдиного князівства. Дрібні уділи доступні в оригіналі.`
-                              : selectedPolity.properties.region === "franks"
-                                ? "Політична область перенесена безпосередньо з SVG джерела зі збереженням вигинів і анклавів. Контури суміщено за містами або береговими орієнтирами; це картографічна реконструкція, а не точні щорічні кордони. Перевіряйте кольори й залежні території за легендою оригіналу."
-                                : "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
-                            : selectedPolity.properties.region === "rus"
-                              ? "Rus source contour with original colours. Registration is approximate. Some period maps group appanages; see the original legend. The 1240 endpoint uses the 1237 pre-invasion map."
-                              : selectedPolity.properties.region === "franks"
-                                ? "Political area transferred directly from source SVG, preserving bends and enclaves. Registration uses towns or coastal landmarks; check the original legend and snapshot date."
-                                : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
+                            ? selectedPolity.properties.region === "commonwealth"
+                              ? selectedPolity.properties.description ||
+                                "Датований джерельний контур; внутрішні історичні ареали оглядові. Перевіряйте дату, форму підпорядкування та методику джерела."
+                              : selectedPolity.properties.region === "rus"
+                                ? `${rusFrame?.note ?? "Картографічна реконструкція Русі."} Колір збережено за джерелом; картки об’єднаних земель не означають єдиного князівства. Дрібні уділи доступні в оригіналі.`
+                                : selectedPolity.properties.region === "franks"
+                                  ? "Політична область перенесена безпосередньо з SVG джерела зі збереженням вигинів і анклавів. Контури суміщено за містами або береговими орієнтирами; це картографічна реконструкція, а не точні щорічні кордони. Перевіряйте кольори й залежні території за легендою оригіналу."
+                                  : "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
+                            : selectedPolity.properties.region === "commonwealth"
+                              ? "Dated source contour; internal historical areas are approximate. Check its date, status and source method."
+                              : selectedPolity.properties.region === "rus"
+                                ? "Rus source contour with original colours. Registration is approximate. Some period maps group appanages; see the original legend. The 1240 endpoint uses the 1237 pre-invasion map."
+                                : selectedPolity.properties.region === "franks"
+                                  ? "Political area transferred directly from source SVG, preserving bends and enclaves. Registration uses towns or coastal landmarks; check the original legend and snapshot date."
+                                  : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
                           : featureNote(
                               selectedPolity.properties.name,
                               selectedPolity.properties.sourceYear ?? snapshot!,
                             )}
                 </p>
-                {selectedPolity.properties.custom && (
+                {(selectedPolity.properties.custom ||
+                  selectedPolity.properties.region === "commonwealth") && (
                   <div className="mt-2 space-y-2 text-xs">
                     <p>
                       {uk ? "Контролер" : "Controller"}:{" "}
@@ -945,7 +1126,13 @@ export function HistoricalAtlas({
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        {uk ? "Джерело ручної правки" : "Manual edit source"}
+                        {selectedPolity.properties.custom
+                          ? uk
+                            ? "Джерело ручної правки"
+                            : "Manual edit source"
+                          : uk
+                            ? "Картографічне джерело"
+                            : "Cartographic source"}
                       </a>
                     )}
                   </div>
@@ -1081,8 +1268,8 @@ export function HistoricalAtlas({
             </select>
             <p className="mt-2 text-xs font-normal text-muted">
               {uk
-                ? "Деталізовані контури Візантії та франків поєднані з оглядовими геометріями світу. Інші країни не деталізовано."
-                : "Detailed Byzantine and Frankish contours are combined with world overview geometry; other countries retain their overview detail."}
+                ? "Спільна мапа поєднує датовані державні контури, оглядові історичні ареали та шари контролю. Джерело й точність кожної території наведено в її картці."
+                : "This shared map combines dated state contours, approximate historical areas and forms of control. Each territory’s card shows its source and accuracy."}
             </p>
           </label>
         </div>
