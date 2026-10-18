@@ -33,7 +33,7 @@ for key,(fn,report) in fits.items():
  assert max(p['km'] for p in report['holdoutKm'])<45,(key,report)
 for s in sources:
  assert hashlib.sha256((CACHE/s['file']).read_bytes()).hexdigest()==s['sha256'],s['file']
-roots={str(i):ET.parse(str(CACHE/f'source-{i}.svg')) for i in [2,3,4,5,6]}
+roots={str(i):ET.parse(str(CACHE/f'source-{i}.svg')) for i in [2,3,4,5,6,7,8,9]}
 def polygon(g):
  g=make_valid(g)
  if g.geom_type in ['Polygon','MultiPolygon']:return g
@@ -52,8 +52,8 @@ def feature(g,id,name,subject,source_id,source_year,color,**extra):
  if g.geom_type=='MultiPolygon':g=MultiPolygon(sorted(g.geoms,key=lambda p:-p.area))
  s=next((s for s in sources if s['sourceId']==source_id),None)
  return {'type':'Feature','id':id,'properties':{'name':name,'subject':subject,'precision':2,'detailed':True,'region':'commonwealth','sourceId':source_id,'sourceYear':source_year,'sourceUrl':s['descriptionUrl'] if s else ('https://ekmair.ukma.edu.ua/items/034b5e89-32c0-455f-ab27-e2bab5184ab3' if source_id=='pllt-zboriv' else f'https://github.com/aourednik/historical-basemaps/blob/{PIN}/geojson/world_{source_year}.geojson'),'color':color,**extra},'geometry':rounded(mapping(g))}
-def frame(year,items,note):
- frames.append({'year':year,'note':note,'collection':{'type':'FeatureCollection','features':[f for f in items if f]}})
+def frame(year,items,note,date=None):
+ frames.append({'year':year,**({'date':date} if date else {}),'note':note,'collection':{'type':'FeatureCollection','features':[f for f in items if f]}})
 def base_geoms(year):
  source_bytes=(BASE/f'geojson/world_{year}.geojson').read_bytes();base_records[year]=hashlib.sha256(source_bytes).hexdigest();raw=json.loads(source_bytes);out={}
  for f in raw['features']:
@@ -118,14 +118,40 @@ whole1569=path(2,'path187993-4-9-3-3-0');duchy=path(2,'path187993-4-9-3-3-5');va
 crown=polygon(whole1569.difference(duchy).difference(vassals))
 livonia=combine(*[p for p in getattr(crown,'geoms',[crown]) if p.centroid.y>55.5])
 crown=polygon(crown.difference(livonia))
-# Before Lublin, Volhynia, Kyiv, Bratslav and Podlachia are assigned to Lithuania.
-transferred=combine(region_geoms['volhynia'],region_geoms['kyiv'],region_geoms['bratslav'],polygon(transform(fits['2'][0],svg.path_polygon(item(2,'path48454-1')))))
-pre_duchy=combine(duchy,transferred,Polygon([(29,51.15),(40,51.15),(40,60),(29,60)]))
-for year in [1492,1500,1530]:
- total=combine(*base_geoms(year).values()).difference(livonia.buffer(.12)).difference(vassals)
- if year==1530:total=polygon(total.difference(path(5,'path187993-4-9-9').intersection(Polygon([(30.1,51.25),(38,51.25),(38,56),(30.1,56)]))))
- lg=polygon(total.intersection(pre_duchy));pg=polygon(total.difference(lg))
- frame(year,[feature(pg,f'pllt-{year}-poland','Kingdom of Poland','Poland','pllt-basemaps',year,'#cf8b8e',layer='state'),feature(lg,f'pllt-{year}-lithuania','Grand Duchy of Lithuania','Lithuania','pllt-basemaps',year,'#82af91',layer='state'),*lands(year,{'Poland':pg,'Lithuania':lg})],'Зовнішній датований контур Historical Basemaps; внутрішній поділ реконструйовано за картою 1569 р. з поверненням переданих у Любліні земель ВКЛ. Ареали українських земель оглядові.')
+# Transfer the separate Crown/GDL polygons from the 1490 source. The old
+# complement-of-land-envelopes algorithm falsely assigned the east to Poland.
+# Respect SVG painting order: GDL and striped fiefs cover the Crown background.
+# Later SVG neighbours mask a broad gold background; transferring that
+# background alone produces fictitious chords across Germany/Hungary/Moldavia.
+territories=list(item(9,'layer1'));crown_index=next(i for i,e in enumerate(territories) if e.get('id')=='path13269')
+covering=combine(*[path(9,e.get('id')) for e in territories[crown_index+1:] if e.get('d') and 'fill:none' not in e.get('style','') and 'fill:#ffcc00' not in e.get('style','')])
+sea1490=combine(*[path(9,e.get('id')) for e in item(9,'layer9').iter() if e.get('d') and 'fill:#c6ecff' in e.get('style','')])
+crown1490=combine(*[path(9,e.get('id')) for e in territories[crown_index:] if e.get('d') and 'fill:#ffcc00' in e.get('style','')]).difference(covering).difference(sea1490)
+# The source's east is cropped by its sheet/legend. Keep the dated basemap
+# exterior there rather than treating the crop edge as a historical border.
+lt1490=polygon(path(9,'path10977').intersection(combine(*base_geoms(1492).values())))
+deps1490={key:path(9,id) for key,id in [('prussia','path10932'),('moldavia','path10767'),('mazovia','path10888'),('lauenburg','path11000')]}
+deps1490={k:polygon(g.difference(sea1490)) for k,g in deps1490.items()}
+pg1490=polygon(crown1490.difference(combine(*deps1490.values())))
+# The 1490 map supplies the outer reach; the 1450–1600 source supplies dated
+# eastern cessions/recoveries, replacing the former rectangular 1667 back-projection.
+loss1494=combine(path(8,'path5786-7'),path(8,'path5788-7'))
+loss1503=path(8,'path5782-9');loss1514=path(8,'path5792-6')
+loss1536=combine(path(8,'path4442-2'),path(8,'path4440-2'))
+for year in [1492,1500,1503,1508,1514,1526,1530,1536,1537]:
+ loss=loss1494 if year>=1500 else GeometryCollection()
+ if year>=1503:loss=combine(loss,loss1503)
+ if year>=1514:loss=combine(loss,loss1514)
+ if year>=1536:loss=combine(loss,loss1536)
+ lg=polygon(lt1490.difference(loss));pg=pg1490
+ if year>=1508:lg=combine(lg,path(8,'path4428-0-9').intersection(lt1490))
+ if year>=1537:lg=combine(lg,path(8,'path4480-5-8').intersection(lt1490))
+ # Differently registered outlines leave disconnected hairline remnants of
+ # ceded eastern territory. GDL is contiguous here; keep the connected mainland.
+ if lg.geom_type=='MultiPolygon':lg=max(lg.geoms,key=lambda g:g.area)
+ if year>=1526:pg=combine(pg,deps1490['mazovia'])
+ dependencies=combine(*[g for k,g in deps1490.items() if k!='moldavia' and (k!='mazovia' or year<1526)])
+ frame(year,[feature(pg,f'pllt-{year}-poland','Kingdom of Poland','Poland','pllt-1490',1490,'#cf8b8e',layer='state'),feature(lg,f'pllt-{year}-lithuania','Grand Duchy of Lithuania','Lithuania','pllt-eastern-wars',year,'#82af91',layer='state',description='Контур карти 1490 р. обрізано датованим зовнішнім зрізом Historical Basemaps; східні втрати 1494, 1503, 1514, 1536 та повернення Любеча 1508 і Гомеля 1537 — за картою 1450–1600 рр. Південний степовий контроль узагальнений.'),feature(dependencies,f'pllt-{year}-pl-fiefs','Polish Crown fiefs','Poland','pllt-1490',1490,'#b57e9e',layer='dependency',control='relative',relation='Ленні та залежні володіння Корони; Мазовія до приєднання 1526 р. Молдавію не включено до прямих володінь.'),*lands(year,{'Poland':pg,'Lithuania':lg})],'Окремий контур Корони й внутрішній поділ — за картою 1490 р.; східний зовнішній контур обрізано датованим зрізом Historical Basemaps, щоб не переносити край аркуша як кордон. Східні втрати й повернення земель — з датованих областей карти 1450–1600 рр. Молдавія не є частиною Польщі. Південні степові межі оглядові; це не суцільний фактичний контроль.')
 frame(1569,[feature(livonia,'pllt-1569-livonia','Livonia — joint Crown and Lithuania','Commonwealth','pllt-1569',1569,'#b2a0bd',layer='state'),feature(crown,'pllt-1569-crown','Crown of the Kingdom of Poland','Commonwealth','pllt-1569',1569,'#cf8b8e',layer='state'),feature(duchy,'pllt-1569-duchy','Grand Duchy of Lithuania in the Commonwealth','Commonwealth','pllt-1569',1569,'#82af91',layer='state'),feature(vassals,'pllt-1569-fiefs','Commonwealth fiefs','Commonwealth','pllt-1569',1569,'#a794c6',layer='dependency',control='relative',relation='Ленні володіння; не пряме управління Корони або ВКЛ.'),*lands(1569,{'Crown':crown})],'Люблінська унія: Корона й ВКЛ — складові Речі Посполитої; Волинь, Київщина та Брацлавщина належать Короні. Берестейщина й Пінщина залишилися у ВКЛ.')
 frame(1600,[feature(combine(*base_geoms(1600).values()),'pllt-1600-commonwealth','Polish-Lithuanian Commonwealth','Commonwealth','pllt-basemaps',1600,'#c3a2b6',layer='state'),*lands(1600,{'Crown':combine(*base_geoms(1600).values())})],'Оглядовий зріз 1600 р.; українські землі позначено окремими ареалами.')
 plc1618=path(3,'path2999');fiefs1618=combine(path(3,'rect3271'),path(3,'path4095'));plc1618=polygon(plc1618.difference(fiefs1618))
@@ -159,9 +185,48 @@ for year,total,source,sourceyear in [(1618,plc1618,'pllt-1618',1618),(1629,plc16
  if year==1672:
   pod=polygon(region_geoms['podolia'].difference(total));items.append(feature(pod,'pllt-1672-ottoman-podolia','Ottoman Podolia','Ottoman Empire','pllt-podolia',1672,'#ad9063',layer='occupation',control='relative',validFrom=1672,validTo=1699,relation='Поділля під османським управлінням 1672–1699 рр.; схематичний ареал, не вся Річ Посполита.'))
  frame(year,items,'Датований політичний контур та окремі історичні ареали. Козацька автономія й окупація позначені штрихом і не змінюють юридичний контур держави. У 1629 р. тло реконструйоване за довоєнними межами карти Потопу; після 1667 р. східні втрати враховано за картою Андрусівського перемир’я.')
-for year in [1700,1715,1783]:
- total=combine(*base_geoms(year).values());frame(year,[feature(total,f'pllt-{year}-commonwealth','Polish-Lithuanian Commonwealth','Commonwealth','pllt-basemaps',year,'#c3a2b6',layer='state'),*lands(year,{'Crown':total}),*([] if year>1764 else [leftbank_feature(year)])],'Датований оглядовий зріз. Зріз 1783 р. уже враховує Перший поділ 1772 р.; зміни між зрізами не інтерполюються.')
-frame(1795,[],'Після Третього поділу 1795 р. Річ Посполита припинила існування. Її попередній контур приховано; це не карта держав XIX ст.')
+for year in [1700,1715]:
+ total=combine(*base_geoms(year).values());frame(year,[feature(total,f'pllt-{year}-commonwealth','Polish-Lithuanian Commonwealth','Commonwealth','pllt-basemaps',year,'#c3a2b6',layer='state'),*lands(year,{'Crown':total}),leftbank_feature(year)],'Датований оглядовий зріз до поділів Речі Посполитої.')
+# All eight coloured partition areas come from ONE source coordinate space.
+# Reuse their boundaries so the remaining state and cessions are complementary.
+partition_rows=[(1772,'Prussia','path3562','#6e9fb9'),(1793,'Prussia','path3528','#6e9fb9'),(1795,'Prussia','path3472','#6e9fb9'),(1772,'Habsburg Monarchy','path3362','#d3ab67'),(1795,'Habsburg Monarchy','path3423','#d3ab67'),(1772,'Russian Empire','path3305','#82af91'),(1793,'Russian Empire','path3332','#82af91'),(1795,'Russian Empire','path3230','#82af91')]
+# The overview source omits the small Gdansk/Torun exceptions in its 1772
+# colour area. GHI/Magocsi explicitly retains both cities until 1793.
+# Correct local city areas (approximate 12 km envelopes, not district borders).
+# Krakow's marker lies just north of the 1772 boundary: protect its 1795 status
+# against the measured ~8 km affine registration residual as well.
+def city_area(lon,lat,km=12):
+ return transform(lambda x,y,z=None:(lon+np.asarray(x)*km/(111.32*math.cos(math.radians(lat))),lat+np.asarray(y)*km/111.32),Point(0,0).buffer(1,resolution=24))
+city_corrections={(1793,'Prussia'):combine(city_area(18.6466,54.352),city_area(18.5984,53.0138)),(1795,'Habsburg Monarchy'):city_area(19.9445,50.0647)}
+raw_parts=[(y,owner,set_precision(path(7,id),.00001),color) for y,owner,id,color in partition_rows]
+raw_whole=combine(*[g for _,_,g,_ in raw_parts])
+correction_whole=combine(*city_corrections.values()).intersection(raw_whole)
+partition_parts=[];painted=GeometryCollection()
+for y,owner,g,color in raw_parts:
+ g=polygon(g.difference(correction_whole))
+ if (y,owner) in city_corrections:g=combine(g,city_corrections[(y,owner)].intersection(raw_whole))
+ g=polygon(g.difference(painted));painted=combine(painted,g)
+ partition_parts.append((y,owner,g,color))
+partition_whole=painted
+courland=polygon(vassals.intersection(Polygon([(20,55.5),(29,55.5),(29,58),(20,58)])).intersection(combine(*[g for stage,owner,g,_ in partition_parts if stage==1795 and owner=='Russian Empire'])))
+for year in [1771,1772,1783,1793,1795]:
+ items=[];ceded=GeometryCollection();states={}
+ for stage,owner,g,color in partition_parts:
+  if stage>year:continue
+  ceded=combine(ceded,g)
+  items.append(feature(g,f'pllt-partition-{year}-{stage}-{owner}',f'{owner} — partition of {stage}',owner,'pllt-partitions',stage,color,layer='state',relation=f'Землі колишньої Речі Посполитої, анексовані {stage} р.; показано тільки набуті землі, не всю державу.',description='Анексія за поділом; не тимчасова військова окупація. Межі відтворено за єдиною картою трьох поділів.'))
+  states[owner]=combine(states.get(owner,GeometryCollection()),g)
+ remaining=polygon(partition_whole.difference(ceded)) if year<1795 else GeometryCollection()
+ if year<1795:
+  remaining=polygon(remaining.difference(courland))
+  items.append(feature(remaining,f'pllt-{year}-commonwealth','Polish-Lithuanian Commonwealth','Commonwealth','pllt-partitions',year,'#c3a2b6',layer='state'))
+  items.append(feature(courland,f'pllt-{year}-courland','Duchy of Courland and Semigallia','Commonwealth','pllt-1569',1569,'#a794c6',layer='dependency',control='relative',relation='Ленне герцогство; до анексії Російською імперією 1795 р. Контур за картою 1569 р., обрізаний зовнішньою межею карти поділів.'))
+  states['Commonwealth']=remaining
+ items.extend(lands(year,states))
+ date={1772:'1772-08-05',1793:'1793-01-23',1795:'1795-10-24'}.get(year)
+ frame(year,items,'Зріз після відповідного поділу: кольори показують рештки Речі Посполитої та землі, анексовані Російською імперією, Пруссією й Габсбургами. Дата переходу — конвенція про поділ, не одномоментна зміна контролю на місцях.' if year>1771 else 'Річ Посполита перед Першим поділом: зовнішня межа відновлена об’єднанням усіх областей карти поділів; Курляндія — окремий ленник.',date)
+# Do not carry the 1795 settlement through Napoleon and the Congress of Vienna.
+frame(1807,[],'Зріз поділів 1795 р. закінчується 1806 р. Варшавське герцогство, Віденський конгрес і подальші зміни XIX ст. не реконструйовані в цьому детальному шарі; показано доступне загальне тло атласу.')
 # The interwar Polish/Lithuanian states are separate again; no medieval GDL label.
 for year in [1920,1930,1938,1945,1960,1994]:
  items=[]
@@ -171,5 +236,5 @@ for year in [1920,1930,1938,1945,1960,1994]:
  frame(year,items,'Датований зріз XX ст. Карта 1938 р. не є картою окупації 1939–1944 рр.; у воєнні роки цей шар приховується.')
 out=ROOT/'public/atlas/commonwealth';out.mkdir(parents=True,exist_ok=True)
 text=json.dumps({'frames':frames},ensure_ascii=False,separators=(',',':'))+'\n';(out/'frames.json').write_text(text)
-manifest={'method':'Pinned source political SVG contours; projected affine city-marker registration; 1387 color-mask tracing. Historical-land envelopes are manually reviewed source-image traces, not precise administrative/ethnic borders. No annual interpolation. Occupation is a clipped cumulative 1655–1657 footprint, not a daily/annual front.','sha256':hashlib.sha256(text.encode()).hexdigest(),'basemapCommit':PIN,'basemapSha256':base_records,'sources':sources,'registration':{k:v[1] for k,v in fits.items()},'years':[f['year'] for f in frames]}
+manifest={'cityCorrections':{'source':'https://germanhistorydocs.org/en/the-holy-roman-empire-1648-1815/the-partitions-of-poland-1772-1795','method':'Gdansk and Torun retained until 1793; Krakow until 1795. Approximate 12 km city envelopes correct omitted source exceptions and registration residuals; not historical district boundaries.'},'method':'1490 separate Crown/GDL paths with dated eastern cessions from the 1450–1600 map. Three partition stages from one shared SVG partition mesh. Pinned source political SVG contours; projected affine city-marker registration; 1387 color-mask tracing. Historical-land envelopes are manually reviewed source-image traces, not precise administrative/ethnic borders. No annual interpolation. Occupation is a clipped cumulative 1655–1657 footprint, not a daily/annual front.','sha256':hashlib.sha256(text.encode()).hexdigest(),'basemapCommit':PIN,'basemapSha256':base_records,'sources':sources,'registration':{k:v[1] for k,v in fits.items()},'years':[f['year'] for f in frames]}
 (out/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n');print(len(frames),'frames',len(text.encode()),'bytes')

@@ -1,3 +1,4 @@
+import { atlasDateKey, parseAtlasDate, type AtlasDate } from "./date.ts";
 import {
   validateHistoricalCollection,
   type AtlasEvent,
@@ -7,22 +8,32 @@ import {
   type AtlasView,
 } from "./model.ts";
 export const COMMONWEALTH_YEARS = [
-  1000, 1100, 1200, 1279, 1300, 1387, 1492, 1500, 1530, 1569, 1600, 1618, 1629, 1649, 1651, 1652,
-  1654, 1655, 1658, 1660, 1667, 1672, 1700, 1715, 1783, 1795, 1920, 1930, 1938, 1945, 1960, 1994,
+  1000, 1100, 1200, 1279, 1300, 1387, 1492, 1500, 1503, 1508, 1514, 1526, 1530, 1536, 1537, 1569,
+  1600, 1618, 1629, 1649, 1651, 1652, 1654, 1655, 1658, 1660, 1667, 1672, 1700, 1715, 1771, 1772,
+  1783, 1793, 1795, 1807, 1920, 1930, 1938, 1945, 1960, 1994,
 ] as const;
-export type CommonwealthFrame = { year: number; note: string; collection: HistoricalCollection };
+export type CommonwealthFrame = {
+  year: number;
+  date?: string;
+  note: string;
+  collection: HistoricalCollection;
+};
 export type CommonwealthData = { frames: CommonwealthFrame[] };
 export const isCommonwealthView = (view: AtlasView) =>
   ["poland", "lithuania", "commonwealth", "cossacks"].includes(view);
-export function commonwealthSnapshot(year: number) {
-  if (
-    year < 1000 ||
-    year > 1994 ||
-    (year >= 1939 && year <= 1944) ||
-    (year >= 1793 && year <= 1794)
-  )
-    return undefined;
-  return [...COMMONWEALTH_YEARS].reverse().find((y) => y <= year);
+/** Numeric callers request the end-of-year overview; the interactive atlas passes a full date. */
+export const COMMONWEALTH_TRANSITIONS: Record<number, string> = {
+  1772: "1772-08-05",
+  1793: "1793-01-23",
+  1795: "1795-10-24",
+};
+export function commonwealthSnapshot(date: number | AtlasDate) {
+  const year = typeof date === "number" ? date : date.year;
+  if (year < 1000 || year > 1994 || (year >= 1939 && year <= 1944)) return undefined;
+  const key = atlasDateKey(typeof date === "number" ? { year, month: 12, day: 31 } : date);
+  return [...COMMONWEALTH_YEARS]
+    .reverse()
+    .find((y) => (COMMONWEALTH_TRANSITIONS[y] ?? `${y}-01-01`) <= key);
 }
 export function validateCommonwealthData(raw: unknown): CommonwealthData {
   const d = raw as CommonwealthData;
@@ -36,7 +47,12 @@ export function validateCommonwealthData(raw: unknown): CommonwealthData {
       !Array.isArray(f.collection.features)
     )
       throw new Error("INVALID_COMMONWEALTH_DATA");
-    if (f.year === 1795) {
+    if (
+      f.date !== COMMONWEALTH_TRANSITIONS[f.year] ||
+      (f.date && (!parseAtlasDate(f.date) || Number(f.date.slice(0, 4)) !== f.year))
+    )
+      throw new Error("INVALID_COMMONWEALTH_DATA");
+    if (f.year === 1807) {
       if (f.collection.features.length) throw new Error("INVALID_COMMONWEALTH_DATA");
       return;
     }
@@ -59,10 +75,11 @@ export function validateCommonwealthData(raw: unknown): CommonwealthData {
 }
 export function commonwealthFrameAt(
   data: CommonwealthData | undefined,
-  year: number,
+  date: number | AtlasDate,
   options = { lands: true, occupations: true, cossacks: true },
 ): CommonwealthFrame | undefined {
-  const snapshot = commonwealthSnapshot(year);
+  const year = typeof date === "number" ? date : date.year;
+  const snapshot = commonwealthSnapshot(date);
   if (snapshot === undefined) return undefined;
   const f = data?.frames.find((f) => f.year === snapshot);
   if (!f) return undefined;
@@ -100,6 +117,37 @@ export const isCoarseCommonwealth = (name: string) =>
     name,
   );
 export const COMMONWEALTH_SOURCES: AtlasSource[] = [
+  {
+    id: "pllt-second-partition",
+    title: "ZPE — II rozbiór Polski",
+    url: "https://zpe.gov.pl/a/przeczytaj/D9zrapLSC",
+    note: "Конвенція 23 січня 1793 р.; наступне затвердження Гродненським сеймом — окрема подія.",
+  },
+  {
+    id: "pllt-partitions",
+    title: "Sneecs, Rowanwindwhistler — три поділи (CC BY-SA 4.0)",
+    url: "https://commons.wikimedia.org/wiki/File:ReparticionesDePolonia.svg",
+    note: "Єдині контури восьми областей анексій 1772, 1793, 1795 рр.; рештки держави отримано відніманням уже анексованих земель. Геоприв’язка перевірена незалежними містами. Для Гданська, Торуня й Кракова виправлено локальну належність; 12-км міські ареали наближені, не точні округи.",
+  },
+  {
+    id: "pllt-partition-history",
+    title: "German Historical Institute — The Partitions of Poland, 1772–1795",
+    url: "https://germanhistorydocs.org/en/the-holy-roman-empire-1648-1815/the-partitions-of-poland-1772-1795",
+    note: "Перевірка розподілу земель та хронології конвенцій; Гданськ і Торунь лишилися в Речі Посполитій після першого поділу. Австрія не брала участі у другому.",
+  },
+  {
+    id: "pllt-1490",
+    title: "Mathiasrex, Halibutt, Rowanwindwhistler — Польща і ВКЛ 1490 (CC BY-SA 4.0)",
+    url: "https://commons.wikimedia.org/wiki/File:PJagiellon_countries_1490-es.svg",
+    note: "Окремі політичні SVG-контури Корони, ВКЛ та ленників. Враховано порядок накладання; Молдавія не включена до Польщі.",
+  },
+  {
+    id: "pllt-eastern-wars",
+    title: "Grandiose, Rowanwindwhistler — східні зміни 1450–1600 (CC BY-SA 4.0)",
+    url: "https://commons.wikimedia.org/wiki/File:Polish-Lithuania_map_(1450-1600)-es.svg",
+    note: "Датовані втрати ВКЛ 1494, 1503, 1514, 1536 та повернення Любеча 1508 і Гомеля 1537. Маски обрізані контуром ВКЛ 1490 р.; це не повна реконструкція південного степового контролю.",
+  },
+
   {
     id: "pllt-garrisons",
     title: "Muzeum Podlaskie — шведська окупація Ельблонга",
@@ -396,20 +444,20 @@ const eventRows: [number, string, string, string][] = [
   [
     1772,
     "Перший поділ Речі Посполитої",
-    "Галичина перейшла до Габсбургів. Зріз 1783 р. враховує цей поділ; попередня карта не є картою точних меж 1772 р.",
-    "pllt-history",
+    "Галичину анексували Габсбурги, північно-східні землі — Росія, Королівську Пруссію без Гданська й Торуня — Пруссія. Мапа змінюється від конвенції 5 серпня 1772 р.",
+    "pllt-partition-history",
   ],
   [
     1793,
     "Другий поділ",
-    "Більшість Правобережжя анексувала Російська імперія. Детального контуру цього поділу в наборі немає.",
-    "pllt-history",
+    "Росія анексувала більшість Правобережжя й центральні білоруські землі; Пруссія — Велику Польщу, Гданськ і Торунь. Габсбурги в цьому поділі участі не брали. Конвенція 23 січня 1793 р.",
+    "pllt-partition-history",
   ],
   [
     1795,
     "Третій поділ",
-    "Річ Посполита припинила існування; її попередній територіальний шар приховано.",
-    "pllt-history",
+    "Рештки держави поділили Росія, Пруссія та Габсбурги. Від конвенції 24 жовтня 1795 р. на мапі показано анексовані землі; контуру Речі Посполитої вже немає.",
+    "pllt-partition-history",
   ],
   [
     1920,
@@ -433,6 +481,12 @@ const eventRows: [number, string, string, string][] = [
 export const COMMONWEALTH_EVENTS: AtlasEvent[] = eventRows.map(
   ([year, title, description, source]) => ({
     year,
+    ...(COMMONWEALTH_TRANSITIONS[year]
+      ? {
+          month: Number(COMMONWEALTH_TRANSITIONS[year].slice(5, 7)),
+          day: Number(COMMONWEALTH_TRANSITIONS[year].slice(8, 10)),
+        }
+      : {}),
     title,
     description,
     sources: [source],
@@ -463,7 +517,7 @@ export const COMMONWEALTH_PERIODS = [
     title: "Польща й ВКЛ у династичній унії",
     description:
       "Це окремі держави. Галичина пов’язана з Короною, Волинь, Київщина й Брацлавщина — з ВКЛ. Дата останнього зрізу вказана окремо; не кожен рік має нову геометрію.",
-    sources: ["pllt-1387", "pllt-lublin"],
+    sources: ["pllt-1490", "pllt-eastern-wars", "pllt-lublin"],
   },
   {
     from: 1569,
@@ -526,15 +580,15 @@ export const COMMONWEALTH_PERIODS = [
     to: 1794,
     title: "Поділи Речі Посполитої",
     description:
-      "Перший поділ 1772 р. враховано у зрізі 1783. Для 1793–1794 старий контур приховано: точного шару Другого поділу немає.",
-    sources: ["pllt-history", "pllt-basemaps"],
+      "Окремі зрізи показують Перший і Другий поділи. Переходи відбуваються 05.08.1772 та 23.01.1793 — за датами конвенцій; зайняття й ратифікації тривали довше.",
+    sources: ["pllt-partitions", "pllt-partition-history"],
   },
   {
     from: 1795,
     to: 1919,
     title: "Після поділів",
     description:
-      "Річ Посполита вже не існує. Попередній контур приховано; державні утворення XIX ст. й фронти 1918–1919 тут не реконструйовані.",
+      "До 24.10.1795 показано стан після Другого поділу, від цієї дати — розподіл решток держави. Цей зріз діє до 1806 р.; з 1807 р. детальний шар вимкнено, щоб не переносити межі поділів на всі зміни XIX ст.",
     sources: ["pllt-history"],
   },
   {

@@ -275,6 +275,10 @@ export function historicalName(name: string, uk = true) {
     "Livonia — joint Crown and Lithuania": "Лівонія · спільне володіння Корони й ВКЛ",
     Crown: "Корона Польська",
     Commonwealth: "Річ Посполита",
+    "Russian Empire": "Російська імперія",
+    Prussia: "Пруссія",
+    "Habsburg Monarchy": "Габсбурзька монархія",
+    "Duchy of Courland and Semigallia": "Курляндія і Семигалія · ленне герцогство",
     Sweden: "Швеція",
     "Ottoman Empire": "Османська імперія",
     Zaporizhia: "Запорожжя",
@@ -346,8 +350,22 @@ export function historicalName(name: string, uk = true) {
     Antes: "Анти",
   };
   if (uk && name.includes(" — ")) {
+    const partition =
+      /^(Russian Empire|Prussia|Habsburg Monarchy) — partition of (1772|1793|1795)$/.exec(name);
+    if (partition) return `${names[partition[1]]} · поділ ${partition[2]} р.`;
     const [area, owner] = name.split(" — ");
-    if (names[area] && ["Poland", "Lithuania", "Crown"].includes(owner))
+    if (
+      names[area] &&
+      [
+        "Poland",
+        "Lithuania",
+        "Crown",
+        "Commonwealth",
+        "Russian Empire",
+        "Prussia",
+        "Habsburg Monarchy",
+      ].includes(owner)
+    )
       return `${names[area]} · ${names[owner] ?? owner}`;
   }
   return uk ? (names[name] ?? name) : name;

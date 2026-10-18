@@ -78,6 +78,7 @@ import {
 import {
   addCommonwealthLayer,
   commonwealthSnapshot,
+  COMMONWEALTH_TRANSITIONS,
   commonwealthFrameAt,
   validateCommonwealthData,
   COMMONWEALTH_EVENTS,
@@ -252,7 +253,7 @@ export function HistoricalAtlas({
   const [cossackHistory, setCossackHistory] = useState(true);
   const regionalView = isCommonwealthView(view);
   const easternHistory = regionalView || (view === "rus" && year > 1240);
-  const commonwealthYear = commonwealthSnapshot(year);
+  const commonwealthYear = commonwealthSnapshot({ year, month, day });
   const commonwealth = useQuery({
     queryKey: ["historical-atlas-commonwealth"],
     queryFn: async ({ signal }) =>
@@ -263,12 +264,16 @@ export function HistoricalAtlas({
   });
   const commonwealthFrame = useMemo(
     () =>
-      commonwealthFrameAt(commonwealth.data, year, {
-        lands: ukrainianLands,
-        occupations,
-        cossacks: cossackHistory,
-      }),
-    [commonwealth.data, year, ukrainianLands, occupations, cossackHistory],
+      commonwealthFrameAt(
+        commonwealth.data,
+        { year, month, day },
+        {
+          lands: ukrainianLands,
+          occupations,
+          cossacks: cossackHistory,
+        },
+      ),
+    [commonwealth.data, year, month, day, ukrainianLands, occupations, cossackHistory],
   );
   const franceYear = franceSnapshot(year);
   const france = useQuery({
@@ -616,7 +621,7 @@ export function HistoricalAtlas({
           : regionalView
             ? view === "cossacks"
               ? [1591, 1594, 1625, 1630, 1635, 1637, 1638, 1648, 1649, 1651, 1655, 1667]
-              : [1000, 1279, 1387, 1530, 1569, 1618, 1655, 1667, 1772, 1795, 1938, 1994]
+              : [1000, 1279, 1387, 1530, 1569, 1618, 1655, 1667, 1772, 1793, 1795, 1938, 1994]
             : ATLAS_YEARS
         ).map((y) =>
           spanishView && [1492, 1899, 1936, 1939, 1976].includes(y)
@@ -631,7 +636,9 @@ export function HistoricalAtlas({
                   } as Record<number, string>
                 )[y],
               )!
-            : normalizeAtlasDate(y),
+            : regionalView && COMMONWEALTH_TRANSITIONS[y]
+              ? parseAtlasDate(COMMONWEALTH_TRANSITIONS[y])!
+              : normalizeAtlasDate(y),
         );
   const commitYear = () => {
     const next = clampAtlasYear(yearText.trim() ? Number(yearText) : year);
@@ -863,7 +870,13 @@ export function HistoricalAtlas({
               aria-pressed={dateKey === atlasDateKey(d)}
               className={`min-h-9 rounded-full px-3 text-xs font-bold ${dateKey === atlasDateKey(d) ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
             >
-              {formatAtlasDate(d, spanishView && year >= 1936 && year <= 1939 ? "day" : "year")}
+              {formatAtlasDate(
+                d,
+                (spanishView && year >= 1936 && year <= 1939) ||
+                  (regionalView && COMMONWEALTH_TRANSITIONS[d.year])
+                  ? "day"
+                  : "year",
+              )}
             </button>
           ))}
         </div>
@@ -884,7 +897,9 @@ export function HistoricalAtlas({
                 ? formatAtlasDate(parseAtlasDate(spainFrame.date)!, spainFrame.precision)
                 : "—"
               : regionalView
-                ? (commonwealthFrame?.year ?? "—")
+                ? commonwealthFrame?.date
+                  ? commonwealthFrame.date.split("-").reverse().join(".")
+                  : (commonwealthFrame?.year ?? "—")
                 : (snapshot ?? "—")}
             {!spanishView &&
               detailed &&
@@ -1100,7 +1115,7 @@ export function HistoricalAtlas({
             </div>
             <p className="text-xs leading-5" data-testid="commonwealth-snapshot">
               {commonwealthFrame
-                ? `${uk ? "Політичний зріз" : "Political snapshot"}: ${commonwealthFrame.year}.`
+                ? `${uk ? "Політичний зріз" : "Political snapshot"}: ${commonwealthFrame.date ? commonwealthFrame.date.split("-").reverse().join(".") : commonwealthFrame.year}.`
                 : uk
                   ? "Для обраного року немає придатного політичного зрізу цього регіону. Довоєнні та попередні державні кордони не підставляються в роки, які вони не описують."
                   : "No suitable political snapshot for this year. Earlier borders are not used for unrepresented periods."}
@@ -1323,6 +1338,32 @@ export function HistoricalAtlas({
                 </a>
               </div>
             )}
+            {regionalView &&
+              commonwealthFrame &&
+              commonwealthFrame.year >= 1771 &&
+              commonwealthFrame.year <= 1795 && (
+                <div
+                  className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft"
+                  aria-label={uk ? "Легенда поділів Речі Посполитої" : "Partitions legend"}
+                >
+                  {[
+                    ...new Map(
+                      commonwealthFrame.collection.features
+                        .filter((f) => f.properties.layer === "state")
+                        .map((f) => [f.properties.subject, f]),
+                    ).values(),
+                  ].map((f) => (
+                    <span key={f.properties.subject} className="inline-flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="inline-block size-4 shrink-0 rounded-sm border border-ink/20"
+                        style={{ backgroundColor: f.properties.color }}
+                      />
+                      {historicalName(f.properties.subject, uk)}
+                    </span>
+                  ))}
+                </div>
+              )}
             {!spanishView && commonwealthFrame && (
               <div
                 className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft"
@@ -1362,8 +1403,8 @@ export function HistoricalAtlas({
                     className="underline"
                   >
                     {uk
-                      ? "Польща, Литва й Річ Посполита: Mathiasrex, Halibutt, Grandiose, NordNordWest, Rowanwindwhistler · CC BY / CC BY-SA · джерела й перетворення"
-                      : "Poland, Lithuania and Commonwealth: Mathiasrex, Halibutt, Grandiose, NordNordWest, Rowanwindwhistler · CC BY / CC BY-SA · sources and adaptations"}
+                      ? "Польща, Литва й Річ Посполита: Mathiasrex, Halibutt, Grandiose, NordNordWest, Sneecs, Rowanwindwhistler · CC BY / CC BY-SA · джерела й перетворення"
+                      : "Poland, Lithuania and Commonwealth: Mathiasrex, Halibutt, Grandiose, NordNordWest, Sneecs, Rowanwindwhistler · CC BY / CC BY-SA · sources and adaptations"}
                   </a>
                 </p>
               )}

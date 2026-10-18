@@ -1,6 +1,10 @@
 {
-  "method": "Pinned source political SVG contours; projected affine city-marker registration; 1387 color-mask tracing. Historical-land envelopes are manually reviewed source-image traces, not precise administrative/ethnic borders. No annual interpolation. Occupation is a clipped cumulative 1655–1657 footprint, not a daily/annual front.",
-  "sha256": "7c15156fc630f7a891459f1a43e4f8a29e5b87053f3c7af99e83a32d9ed7e95e",
+  "cityCorrections": {
+    "source": "https://germanhistorydocs.org/en/the-holy-roman-empire-1648-1815/the-partitions-of-poland-1772-1795",
+    "method": "Gdansk and Torun retained until 1793; Krakow until 1795. Approximate 12 km city envelopes correct omitted source exceptions and registration residuals; not historical district boundaries."
+  },
+  "method": "1490 separate Crown/GDL paths with dated eastern cessions from the 1450–1600 map. Three partition stages from one shared SVG partition mesh. Pinned source political SVG contours; projected affine city-marker registration; 1387 color-mask tracing. Historical-land envelopes are manually reviewed source-image traces, not precise administrative/ethnic borders. No annual interpolation. Occupation is a clipped cumulative 1655–1657 footprint, not a daily/annual front.",
+  "sha256": "e690462bc10ffeb7f98d7f75421aa8488e320882ba71c41e142281ad5a86b8af",
   "basemapCommit": "da7a4b735ecef70aebdc9c73e409d8a2500d50f3",
   "basemapSha256": {
     "1000": "2140776fd7888c1d4a30e8f6debdaf56192cdf49587f3b6bb67841930ca82d29",
@@ -9,12 +13,9 @@
     "1279": "839f48f61d984dd58f70f312dfe626c3988d4d4822e78d68a123fd0784e852e2",
     "1300": "a27985e60d936611d7933f0c30f1b52c36ef4a17225dfac25fb96abe40fa496f",
     "1492": "b0e6b0f299fc7b191fd427547c83dec9808087d390304a37a32bc0357e97c1b8",
-    "1500": "d01ffc9b80629787f13d2b1c2f881f005bc0164433548e30f5c058ddee0bfc7b",
-    "1530": "984005809f085285a48318600e3a198274eb4679f5360ebfaead29da496e9f5b",
     "1600": "7285c07eeedfda9048de5354ea1744d327b07614085e9696c5802bb54c86849c",
     "1700": "eb73d6b00e98205fb2082de050c35e4d698224b17849628d82584610186b88a4",
     "1715": "fdf5097dd21c30c9d7bfb1d5c2c2a11a5a39c397e6910116d7173580619f5b5a",
-    "1783": "7cfa92418a8628dffa41e386394b86fb6f93310e449d8261990f6903160c1060",
     "1920": "fce1c97dc6a6095594cbb7eb896ccd5ce8b2d72254e73a24148c0a4ea200849f",
     "1930": "5666e451125ceb0193532338bfecf6f403e1a4d7ff62f54fd560cafb0b0b1b61",
     "1938": "f2565926fed1b197227b7fe126934a43ed75b8fce007e38be72a7d21a415d813",
@@ -73,7 +74,7 @@
       "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Truce_of_Andrusovo_1667-es.svg",
       "sha256": "9d2634b4cc1636d348e252c2e28d9075485430d35d75b70ad210a50a42fdcb28",
       "file": "source-5.svg",
-      "author": "Mathiasrex, Rowanwindwhistler",
+      "author": "Mathiasrex, Halibutt, Rowanwindwhistler",
       "license": "CC BY-SA 3.0",
       "sourceId": "pllt-andrusovo",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
@@ -84,10 +85,43 @@
       "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Polish%E2%80%93Lithuanian_Commonwealth_as_a_fief_of_the_Ottoman_Empire_1672-1676-es.svg",
       "sha256": "ad3d5c2c67c0cdfc6d905f6cc959d2dff751a4715aafe50cd72e50ac5e5ad3dd",
       "file": "source-6.svg",
-      "author": "Mathiasrex, Rowanwindwhistler",
+      "author": "Mathiasrex, Halibutt, Rowanwindwhistler",
       "license": "CC BY-SA 3.0",
       "sourceId": "pllt-podolia",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+      "name": "ReparticionesDePolonia.svg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/b3/ReparticionesDePolonia.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:ReparticionesDePolonia.svg",
+      "sha256": "424e6f303bc4d6bc4e8064b498bce787ebac1e82df8ec8168ce689699b468587",
+      "file": "source-7.svg",
+      "author": "Sneecs, Rowanwindwhistler",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "pllt-partitions",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "name": "Polish-Lithuania_map_%281450-1600%29-es.svg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Polish-Lithuania_map_%281450-1600%29-es.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Polish-Lithuania_map_(1450-1600)-es.svg",
+      "sha256": "4a2897215f211616730c605ac8c7ae1106d6a22f7cc98fe6c5af9521940f17e8",
+      "file": "source-8.svg",
+      "author": "Grandiose, Rowanwindwhistler",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "pllt-eastern-wars",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "name": "PJagiellon_countries_1490-es.svg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/PJagiellon_countries_1490-es.svg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:PJagiellon_countries_1490-es.svg",
+      "sha256": "db64e452ae519bba701c6feb6708dfcbc7b2fe7a94642a2b527a07369bbd0347",
+      "file": "source-9.svg",
+      "author": "Mathiasrex, Halibutt, Rowanwindwhistler",
+      "license": "CC BY-SA 4.0",
+      "sourceId": "pllt-1490",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
     }
   ],
   "registration": {
@@ -394,6 +428,162 @@
           "km": 38.48
         }
       ]
+    },
+    "7": {
+      "model": "lcc",
+      "crs": "+proj=lcc +lat_1=45 +lat_2=60 +lat_0=52 +lon_0=25 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          117.09315213931363,
+          -1.6784416972578944
+        ],
+        [
+          -0.8044416833556258,
+          -116.95186161688734
+        ],
+        [
+          818.6359005220302,
+          993.2145281981024
+        ]
+      ],
+      "fitRmsSourceUnits": 7.19,
+      "holdoutRmsSourceUnits": 8.587,
+      "holdoutMaxSourceUnits": 11.215,
+      "fittingPoints": 8,
+      "heldOutPoints": 4,
+      "holdouts": [
+        {
+          "name": "Smolensk",
+          "residualSourceUnits": 9.97
+        },
+        {
+          "name": "Lviv",
+          "residualSourceUnits": 11.215
+        },
+        {
+          "name": "Lublin",
+          "residualSourceUnits": 4.448
+        },
+        {
+          "name": "Torun",
+          "residualSourceUnits": 7.072
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate.",
+      "holdoutKm": [
+        {
+          "name": "Smolensk",
+          "km": 8.61
+        },
+        {
+          "name": "Lviv",
+          "km": 9.69
+        },
+        {
+          "name": "Lublin",
+          "km": 3.84
+        },
+        {
+          "name": "Torun",
+          "km": 6.07
+        }
+      ]
+    },
+    "9": {
+      "model": "lcc",
+      "crs": "+proj=lcc +lat_1=45 +lat_2=60 +lat_0=52 +lon_0=25 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          23.238825693501166,
+          -0.23471121354873448
+        ],
+        [
+          -0.13081700871368368,
+          -23.053899479369687
+        ],
+        [
+          245.05073154937844,
+          252.16162231065758
+        ]
+      ],
+      "fitRmsSourceUnits": 1.308,
+      "holdoutRmsSourceUnits": 1.609,
+      "holdoutMaxSourceUnits": 2.261,
+      "fittingPoints": 7,
+      "heldOutPoints": 3,
+      "holdouts": [
+        {
+          "name": "Lviv",
+          "residualSourceUnits": 2.261
+        },
+        {
+          "name": "Minsk",
+          "residualSourceUnits": 1.392
+        },
+        {
+          "name": "Bratslav",
+          "residualSourceUnits": 0.845
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate.",
+      "holdoutKm": [
+        {
+          "name": "Lviv",
+          "km": 9.86
+        },
+        {
+          "name": "Minsk",
+          "km": 6.06
+        },
+        {
+          "name": "Bratslav",
+          "km": 3.67
+        }
+      ]
+    },
+    "8": {
+      "model": "lcc",
+      "crs": "+proj=lcc +lat_1=45 +lat_2=60 +lat_0=52 +lon_0=25 +datum=WGS84",
+      "affineProjected100kmToSvg": [
+        [
+          89.0174739807987,
+          4.657438771775412
+        ],
+        [
+          4.552408983303319,
+          -90.10820283611523
+        ],
+        [
+          -103.05955419190005,
+          565.0493289028815
+        ]
+      ],
+      "fitRmsSourceUnits": 2.35,
+      "holdoutRmsSourceUnits": 12.197,
+      "holdoutMaxSourceUnits": 17.148,
+      "fittingPoints": 6,
+      "heldOutPoints": 2,
+      "holdouts": [
+        {
+          "name": "Minsk",
+          "residualSourceUnits": 17.148
+        },
+        {
+          "name": "Chernihiv",
+          "residualSourceUnits": 1.868
+        }
+      ],
+      "warning": "Registration residual describes source alignment, not historical boundary accuracy. Modern city centres differ from medieval markers; shoreline references are approximate.",
+      "holdoutKm": [
+        {
+          "name": "Minsk",
+          "km": 19.35
+        },
+        {
+          "name": "Chernihiv",
+          "km": 2.11
+        }
+      ]
     }
   },
   "years": [
@@ -405,7 +595,13 @@
     1387,
     1492,
     1500,
+    1503,
+    1508,
+    1514,
+    1526,
     1530,
+    1536,
+    1537,
     1569,
     1600,
     1618,
@@ -421,8 +617,12 @@
     1672,
     1700,
     1715,
+    1771,
+    1772,
     1783,
+    1793,
     1795,
+    1807,
     1920,
     1930,
     1938,
