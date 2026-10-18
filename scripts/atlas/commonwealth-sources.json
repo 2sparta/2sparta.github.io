@@ -49,7 +49,7 @@
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Truce_of_Andrusovo_1667-es.svg",
     "sha256": "9d2634b4cc1636d348e252c2e28d9075485430d35d75b70ad210a50a42fdcb28",
     "file": "source-5.svg",
-    "author": "Mathiasrex, Rowanwindwhistler",
+    "author": "Mathiasrex, Halibutt, Rowanwindwhistler",
     "license": "CC BY-SA 3.0",
     "sourceId": "pllt-andrusovo",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
@@ -60,9 +60,42 @@
     "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Polish%E2%80%93Lithuanian_Commonwealth_as_a_fief_of_the_Ottoman_Empire_1672-1676-es.svg",
     "sha256": "ad3d5c2c67c0cdfc6d905f6cc959d2dff751a4715aafe50cd72e50ac5e5ad3dd",
     "file": "source-6.svg",
-    "author": "Mathiasrex, Rowanwindwhistler",
+    "author": "Mathiasrex, Halibutt, Rowanwindwhistler",
     "license": "CC BY-SA 3.0",
     "sourceId": "pllt-podolia",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+  },
+  {
+    "name": "ReparticionesDePolonia.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/b3/ReparticionesDePolonia.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:ReparticionesDePolonia.svg",
+    "sha256": "424e6f303bc4d6bc4e8064b498bce787ebac1e82df8ec8168ce689699b468587",
+    "file": "source-7.svg",
+    "author": "Sneecs, Rowanwindwhistler",
+    "license": "CC BY-SA 4.0",
+    "sourceId": "pllt-partitions",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "name": "Polish-Lithuania_map_%281450-1600%29-es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Polish-Lithuania_map_%281450-1600%29-es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Polish-Lithuania_map_(1450-1600)-es.svg",
+    "sha256": "4a2897215f211616730c605ac8c7ae1106d6a22f7cc98fe6c5af9521940f17e8",
+    "file": "source-8.svg",
+    "author": "Grandiose, Rowanwindwhistler",
+    "license": "CC BY-SA 4.0",
+    "sourceId": "pllt-eastern-wars",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "name": "PJagiellon_countries_1490-es.svg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/PJagiellon_countries_1490-es.svg",
+    "descriptionUrl": "https://commons.wikimedia.org/wiki/File:PJagiellon_countries_1490-es.svg",
+    "sha256": "db64e452ae519bba701c6feb6708dfcbc7b2fe7a94642a2b527a07369bbd0347",
+    "file": "source-9.svg",
+    "author": "Mathiasrex, Halibutt, Rowanwindwhistler",
+    "license": "CC BY-SA 4.0",
+    "sourceId": "pllt-1490",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
   }
 ]

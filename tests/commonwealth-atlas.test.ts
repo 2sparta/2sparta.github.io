@@ -80,6 +80,106 @@ test("Lublin changes Ukrainian lands from Lithuania to the Crown without backdat
   assert.equal(stateAt(1530, [31.3, 51.498]).length, 0);
   assert.equal(stateAt(1530, [24.1052, 56.9496]).length, 0);
 });
+test("Early Crown stays in the west, with dated eastern GDL losses and no Polish Moldavia", () => {
+  for (const y of [1492, 1500, 1503, 1514, 1530]) {
+    for (const p of [
+      [34, 50.5],
+      [35, 51],
+      [30.523, 50.45],
+      [28.941, 48.821],
+    ] as [number, number][])
+      assert.ok(
+        stateAt(y, p).every((f) => f.properties.subject !== "Poland"),
+        `${y}: ${p}`,
+      );
+    assert.equal(stateAt(y, [26.25, 47.65]).length, 0, "Moldavia is not a direct possession");
+    for (const p of [
+      [21.261, 48.717],
+      [14.4378, 50.0755],
+      [16.8, 54.6],
+    ] as [number, number][])
+      assert.ok(
+        stateAt(y, p).every((f) => f.properties.subject !== "Poland"),
+        `Neighbour/sea mask ${y}: ${p}`,
+      );
+    assert.equal(stateAt(y, [24.0316, 49.8429])[0]?.properties.subject, "Poland");
+  }
+  assert.equal(stateAt(1500, [31.3, 51.498])[0]?.properties.subject, "Lithuania");
+  assert.equal(stateAt(1503, [31.3, 51.498]).length, 0);
+  assert.equal(stateAt(1503, [32.0453, 54.7826])[0]?.properties.subject, "Lithuania");
+  assert.equal(stateAt(1514, [32.0453, 54.7826]).length, 0);
+});
+test("Every partition changes the remaining state and assigns representative cities to the right annexer", () => {
+  const owner = (y: number, p: [number, number]) => stateAt(y, p).map((f) => f.properties.subject);
+  for (const p of [
+    [18.6466, 54.352],
+    [18.5984, 53.0138],
+    [16.9252, 52.4064],
+  ] as [number, number][]) {
+    assert.deepEqual(owner(1772, p), ["Commonwealth"]);
+    assert.deepEqual(owner(1793, p), ["Prussia"]);
+  }
+  assert.deepEqual(owner(1771, [24.0316, 49.8429]), ["Commonwealth"]);
+  assert.deepEqual(owner(1772, [24.0316, 49.8429]), ["Habsburg Monarchy"]);
+  assert.deepEqual(owner(1772, [30.2033, 55.1848]), ["Russian Empire"]);
+  assert.deepEqual(owner(1772, [27.5615, 53.9006]), ["Commonwealth"]);
+  assert.deepEqual(owner(1793, [27.5615, 53.9006]), ["Russian Empire"]);
+  assert.deepEqual(owner(1793, [28.941, 48.821]), ["Russian Empire"]);
+  for (const y of [1772, 1793]) {
+    assert.deepEqual(owner(y, [19.9445, 50.0647]), ["Commonwealth"]);
+    assert.deepEqual(owner(y, [21.0122, 52.2297]), ["Commonwealth"]);
+    assert.deepEqual(owner(y, [25.2797, 54.6872]), ["Commonwealth"]);
+  }
+  assert.deepEqual(owner(1795, [19.9445, 50.0647]), ["Habsburg Monarchy"]);
+  assert.deepEqual(owner(1795, [21.0122, 52.2297]), ["Prussia"]);
+  assert.deepEqual(owner(1795, [25.2797, 54.6872]), ["Russian Empire"]);
+  const stages = (y: number) =>
+    frame(y).collection.features.filter((f) => f.properties.layer === "state");
+  assert.equal(stages(1772).length, 4);
+  assert.equal(stages(1793).length, 6);
+  assert.equal(stages(1795).length, 8);
+  assert.ok(
+    !stages(1793).some(
+      (f) => f.properties.subject === "Habsburg Monarchy" && f.properties.sourceYear === 1793,
+    ),
+  );
+  const area = (f: HistoricalFeature) => {
+    const ringArea = (r: number[][]) =>
+      Math.abs(
+        r.reduce((sum, p, i) => {
+          const q = r[(i + 1) % r.length];
+          return sum + p[0] * q[1] - q[0] * p[1];
+        }, 0),
+      ) / 2;
+    if (f.geometry.type !== "Polygon" && f.geometry.type !== "MultiPolygon") return 0;
+    return (
+      f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates
+    ).reduce(
+      (sum, p) => sum + ringArea(p[0]) - p.slice(1).reduce((holes, r) => holes + ringArea(r), 0),
+      0,
+    );
+  };
+  const remaining = (y: number) =>
+    area(stages(y).find((f) => f.properties.subject === "Commonwealth")!);
+  assert.ok(remaining(1771) > remaining(1772) && remaining(1772) > remaining(1793));
+  const statesArea = (y: number) => stages(y).reduce((sum, f) => sum + area(f), 0);
+  assert.ok(Math.abs(statesArea(1771) - statesArea(1772)) < 0.001);
+  assert.ok(Math.abs(statesArea(1772) - statesArea(1793)) < 0.001);
+});
+test("Partition convention dates switch at the selected day and quick events carry those dates", () => {
+  for (const [y, m, d, previous] of [
+    [1772, 8, 5, 1771],
+    [1793, 1, 23, 1783],
+    [1795, 10, 24, 1793],
+  ]) {
+    assert.equal(commonwealthSnapshot({ year: y, month: m, day: d - 1 }), previous);
+    assert.equal(commonwealthSnapshot({ year: y, month: m, day: d }), y);
+    assert.equal(commonwealthFrameAt(data, { year: y, month: m, day: d })?.year, y);
+    const e = COMMONWEALTH_EVENTS.find((e) => e.year === y)!;
+    assert.equal(e.month, m);
+    assert.equal(e.day, d);
+  }
+});
 test("Swedish occupation is a separate bounded hatch and never paints uncaptured cities or permanent Swedish Livonia", () => {
   const occ = frame(1655).collection.features.find((f) => f.properties.layer === "occupation")!;
   assert.equal(occ.properties.control, "relative");
@@ -134,9 +234,13 @@ test("Autonomy, territorial losses and Ottoman Podolia follow their dated layers
   );
 });
 test("Gaps and partitions never reuse prewar or pre-partition borders; layer controls preserve input data", () => {
-  for (const y of [999, 1793, 1794, 1939, 1940, 1944, 1995])
-    assert.equal(commonwealthSnapshot(y), undefined);
-  assert.equal(frame(1795).collection.features.length, 0);
+  for (const y of [999, 1939, 1940, 1944, 1995]) assert.equal(commonwealthSnapshot(y), undefined);
+  assert.ok(frame(1795).collection.features.length > 0);
+  assert.ok(
+    !frame(1795).collection.features.some(
+      (f) => f.properties.name === "Polish-Lithuanian Commonwealth",
+    ),
+  );
   assert.equal(frame(1910).collection.features.length, 0);
   for (let y = 1000; y <= 1994; y++) {
     const snapshot = commonwealthSnapshot(y);

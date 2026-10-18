@@ -29,7 +29,9 @@ test("The atlas loads the real dataset, switches occupation/land layers, and cha
   function Page() {
     const [year, setYear] = useState(1655);
     jump = setYear;
-    return <HistoricalAtlas year={year} view="commonwealth" onChange={setYear} />;
+    return (
+      <HistoricalAtlas year={year} month={12} day={31} view="commonwealth" onChange={setYear} />
+    );
   }
   const root = createRoot(document.getElementById("root")!);
   const check = (name: string) =>
@@ -92,7 +94,20 @@ test("The atlas loads the real dataset, switches occupation/land layers, and cha
       jump(1795);
       await delay();
     });
-    assert.equal(document.querySelector('option[value^="pllt-"]'), null);
+    assert.ok(document.querySelector('option[value="pllt-partition-1795-1795-Prussia"]'));
+    assert.equal(document.querySelector('option[value="pllt-1795-commonwealth"]'), null);
+    for (const [year, count] of [
+      [1772, 3],
+      [1793, 5],
+      [1795, 8],
+    ]) {
+      await act(async () => {
+        jump(year);
+        await delay();
+      });
+      assert.equal(document.querySelectorAll('option[value^="pllt-partition-"]').length, count);
+      assert.ok(document.querySelector('[aria-label="Легенда поділів Речі Посполитої"]'));
+    }
   } finally {
     await act(async () => root.unmount());
     client.clear();
