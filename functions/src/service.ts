@@ -74,7 +74,7 @@ export function chessService(
         if (old[key] !== undefined && time - old[key] < ms) throw new Error("RATE_LIMIT");
         set("chessLimits", uid, { ...old, [key]: time });
       };
-      let result: Record<string, unknown> = {};
+      let result: { id?: string } = {};
       switch (input.action) {
         case "ping":
           break;
