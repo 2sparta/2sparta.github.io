@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Chess, DEFAULT_POSITION, type Color } from "chess.js";
+import { Chess, DEFAULT_POSITION, type Color, type PieceSymbol } from "chess.js";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,6 +11,7 @@ import {
   Cpu,
   FlipVertical2,
   Globe2,
+  Lightbulb,
   Loader2,
   RotateCcw,
   Search,
@@ -35,6 +36,7 @@ import {
 import { OPENING_GUIDES, lineMoves, openingLabel, type Opening } from "@/lib/chess/openings";
 import { ChessBoard, ChessPiece } from "./chess/board";
 import { MoveList, PgnActions } from "./chess/moves";
+import { evaluate } from "@/lib/chess/engine";
 import { useChessEngine } from "./chess/use-engine";
 import { OnlineLobby } from "./chess/online";
 import { ChessTournaments } from "./chess/tournaments";
@@ -165,6 +167,26 @@ function PlayerBar({
     </div>
   );
 }
+const PIECE_POINTS = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 } as const;
+function CapturedPieces({
+  pieces,
+  color,
+  lead,
+}: {
+  pieces: PieceSymbol[];
+  color: Color;
+  lead: number;
+}) {
+  if (!pieces.length && lead <= 0) return null;
+  return (
+    <div className="chess-captures">
+      {pieces.map((piece, i) => (
+        <ChessPiece key={`${piece}-${i}`} piece={piece} color={color} />
+      ))}
+      {lead > 0 ? <b>+{lead}</b> : null}
+    </div>
+  );
+}
 function PositionControls({
   onFlip,
   onReset,
@@ -235,7 +257,8 @@ export function ChessClub({
     [offset, setOffset] = useState(0),
     [now, setNow] = useState(Date.now()),
     [error, setError] = useState(""),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState(""),
+    [hintFen, setHintFen] = useState<string | null>(null);
   const [selectedTournament, setSelectedTournament] = useState<string | null>(tournamentId ?? null);
   const [analysis, setAnalysis] = useState({ initialFen: DEFAULT_POSITION, moves: [] as string[] }),
     [analysisPly, setAnalysisPly] = useState(0),
@@ -382,6 +405,7 @@ export function ChessClub({
     1600,
     analysis.initialFen === DEFAULT_POSITION ? analysis.moves.slice(0, analysisPly) : [],
   );
+  const hintJob = useChessEngine(hintFen ?? undefined, 2, 500);
   const openingMoves = useMemo(() => lineMoves(selectedOpening.pgn), [selectedOpening.pgn]);
   const openingFull = useMemo(() => replay(openingMoves), [openingMoves]);
   const openingBoard = useMemo(
@@ -588,6 +612,17 @@ export function ChessClub({
           ? gamePly
           : localPly;
   const moveHistory = full.history({ verbose: true });
+  const reviewed = moveHistory.slice(0, Math.min(ply, moveHistory.length));
+  const captured: Record<Color, PieceSymbol[]> = { w: [], b: [] };
+  for (const move of reviewed) {
+    if (move.captured) captured[move.color].push(move.captured);
+  }
+  const material = (pieces: PieceSymbol[]) =>
+    pieces.reduce((sum, piece) => sum + PIECE_POINTS[piece], 0);
+  const whiteLead = material(captured.w) - material(captured.b);
+  const hintMove =
+    !activeOnline && hintJob.fen === board.fen() ? hintJob.result?.lines[0]?.move : undefined;
+  const practiceEval = tab === "play" && !activeOnline ? evaluate(board) : null;
   const selectedGuide = OPENING_GUIDES.find(
     (g) => g.pgn === selectedOpening.pgn || selectedOpening.name.startsWith(g.en),
   );
@@ -793,10 +828,16 @@ export function ChessClub({
                   active={tab === "play" && board.turn() !== orientation}
                   uk={uk}
                 />
+                <CapturedPieces
+                  pieces={captured[orientation === "w" ? "b" : "w"]}
+                  color={orientation}
+                  lead={orientation === "w" ? Math.max(0, -whiteLead) : Math.max(0, whiteLead)}
+                />
                 <ChessBoard
                   board={board}
                   orientation={orientation}
                   uk={uk}
+                  hint={hintMove}
                   lastMove={
                     ply > 0
                       ? uciOf(
@@ -831,6 +872,11 @@ export function ChessClub({
                           }
                         : applyLocal
                   }
+                />
+                <CapturedPieces
+                  pieces={captured[orientation]}
+                  color={orientation === "w" ? "b" : "w"}
+                  lead={orientation === "w" ? Math.max(0, whiteLead) : Math.max(0, -whiteLead)}
                 />
                 <PlayerBar
                   name={
@@ -869,6 +915,30 @@ export function ChessClub({
                   />
                   {gameStatus}
                 </div>
+                {practiceEval !== null && (
+                  <div className="chess-eval-strip">
+                    <div
+                      className="chess-eval-track"
+                      title={tr(
+                        "Приблизна оцінка з боку білих",
+                        "Approximate evaluation from White’s side",
+                      )}
+                    >
+                      <span
+                        style={{
+                          width: `${Math.max(6, Math.min(94, 50 + (Math.abs(practiceEval) > 90000 ? (practiceEval > 0 ? 40 : -40) : practiceEval / 12)))}%`,
+                        }}
+                      />
+                    </div>
+                    <span>
+                      {Math.abs(practiceEval) > 90000
+                        ? practiceEval > 0
+                          ? "M+"
+                          : "M−"
+                        : `${practiceEval > 0 ? "+" : ""}${(practiceEval / 100).toFixed(1)}`}
+                    </span>
+                  </div>
+                )}
               )}
               {tab === "analysis" && (
                 <div className="chess-eval-summary">
@@ -979,6 +1049,36 @@ export function ChessClub({
                     {tr("Нова партія", "New game")}
                   </button>
                   <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      className="chess-text-button"
+                      disabled={
+                        localFinished ||
+                        bot.busy ||
+                        localPly !== local.moves.length ||
+                        (mode === "bot" && localFull.turn() !== local.human)
+                      }
+                      onClick={() => setHintFen(localBoard.fen())}
+                    >
+                      <Lightbulb className="size-3.5" />
+                      {hintJob.busy && hintFen === localBoard.fen()
+                        ? tr("Шукаю…", "Looking…")
+                        : hintMove
+                          ? `${tr("Підказка", "Hint")} · ${hintJob.result?.lines[0]?.san}`
+                          : tr("Підказка", "Hint")}
+                    </button>
+                    <button
+                      className="chess-text-button"
+                      onClick={() => {
+                        const fen = localBoard.fen();
+                        navigator.clipboard
+                          ?.writeText(fen)
+                          .then(() => setNotice(tr("Позицію скопійовано.", "Position copied.")))
+                          .catch(() => setNotice(fen));
+                      }}
+                    >
+                      <Copy className="size-3.5" />
+                      {tr("Копіювати FEN", "Copy FEN")}
+                    </button>
                     <button
                       className="chess-text-button"
                       disabled={!local.moves.length || bot.busy}

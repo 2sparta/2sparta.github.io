@@ -20,11 +20,11 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  padding: 38px 40px;
+  padding: 22px 28px;
   border-radius: 24px;
   color: #f9f5e9;
   background: #183e32;
-  min-height: 246px;
+  min-height: 0;
   border: 1px solid #47735c;
 }
 .chess-hero-kicker {
@@ -38,12 +38,12 @@
 }
 .chess-hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(28px, 3.3vw, 42px);
+  font-size: clamp(24px, 2.4vw, 34px);
   font-weight: 850;
   line-height: 1.17;
   letter-spacing: -0.035em;
   max-width: 630px;
-  margin-top: 20px;
+  margin-top: 12px;
 }
 .chess-hero p {
   font-size: 14px;
@@ -56,7 +56,7 @@
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  margin-top: 25px;
+  margin-top: 16px;
   color: #e1e4ce;
   font-size: 11px;
   font-weight: 700;
@@ -149,7 +149,8 @@
 }
 .chess-game-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 302px;
+  grid-template-columns: minmax(260px, 440px) 302px;
+  justify-content: center;
   align-items: start;
   gap: 24px;
 }
@@ -248,6 +249,60 @@
   pointer-events: none;
 }
 .chess-capture-ring {
+  position: absolute;
+  inset: 2px;
+  border: 5px solid #284c3e88;
+  border-radius: 50%;
+  z-index: 2;
+  pointer-events: none;
+}
+.chess-square.chess-hint::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 3px dashed #c5922e;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+.chess-captures {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  min-height: 18px;
+  margin: -6px 0 8px;
+}
+.chess-captures .chess-piece {
+  width: 16px;
+  height: 16px;
+  filter: none;
+}
+.chess-captures b {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-forest-mid);
+}
+.chess-eval-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.chess-eval-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 99px;
+  background: #203e35;
+  overflow: hidden;
+}
+.chess-eval-track span {
+  display: block;
+  height: 100%;
+  background: #efe6cf;
+}
   position: absolute;
   inset: 2px;
   border: 5px solid #284c3e88;
@@ -827,11 +882,11 @@ html[data-theme="dark"] .chess-guide-eco {
 }
 @media (min-width: 1300px) {
   .chess-game-layout {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(260px, 460px) 320px;
     gap: 28px;
   }
   .chess-board-frame {
-    padding: 18px;
+    padding: 16px;
   }
 }
 @media (max-width: 1000px) {
@@ -843,7 +898,7 @@ html[data-theme="dark"] .chess-guide-eco {
     max-width: 520px;
   }
   .chess-game-layout {
-    grid-template-columns: minmax(0, 1fr) 270px;
+    grid-template-columns: minmax(220px, 380px) 270px;
     gap: 17px;
   }
   .chess-card,
@@ -853,7 +908,8 @@ html[data-theme="dark"] .chess-guide-eco {
 }
 @media (max-width: 760px) {
   .chess-game-layout {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 420px);
+    justify-content: center;
     gap: 15px;
   }
   .chess-hero {

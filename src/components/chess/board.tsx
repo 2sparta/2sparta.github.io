@@ -65,6 +65,7 @@ export function ChessBoard({
   disabled = false,
   onMove,
   lastMove,
+  hint,
   uk = true,
 }: {
   board: Chess;
@@ -72,6 +73,7 @@ export function ChessBoard({
   disabled?: boolean;
   onMove?: (move: string) => void;
   lastMove?: string;
+  hint?: string;
   uk?: boolean;
 }) {
   const [selected, setSelected] = useState<Square | null>(null),
@@ -152,7 +154,7 @@ export function ChessBoard({
                   aria-rowindex={Math.floor(i / 8) + 1}
                   aria-colindex={(i % 8) + 1}
                   data-square={square}
-                  className={`chess-square ${light ? "chess-light" : "chess-dark"} ${selected === square ? "chess-selected" : ""} ${lastMove?.slice(0, 2) === square || lastMove?.slice(2, 4) === square ? "chess-last" : ""} ${check === square ? "chess-check" : ""}`}
+                  className={`chess-square ${light ? "chess-light" : "chess-dark"} ${selected === square ? "chess-selected" : ""} ${lastMove?.slice(0, 2) === square || lastMove?.slice(2, 4) === square ? "chess-last" : ""} ${hint?.slice(0, 2) === square || hint?.slice(2, 4) === square ? "chess-hint" : ""} ${check === square ? "chess-check" : ""}`}
                   onClick={() => pick(square)}
                   onKeyDown={(e) => {
                     const delta =
