@@ -36,6 +36,20 @@ service cloud.firestore {
       return enabled(schoolId, 'studentHomework') && linkedStudent(schoolId) && ownRoster().classId == classId
         && (ownRoster().get('canPostHw', false) || ownRoster().get('isStarosta', false) || officePermission(schoolId, 'postHomework'));
     }
+    // Chess state is written exclusively by authenticated, authoritative Cloud Functions.
+    // This prevents a browser from forging a move, clock, tournament result or pairing.
+    function chessVisible(d) { return signedIn() && (d.scope == 'site' || inSchool(d.schoolId)); }
+    match /chessGames/{gameId} {
+      allow read: if chessVisible(resource.data)
+        || (signedIn() && request.auth.uid in resource.data.playerIds)
+        || (resource.data.tournamentId != null && chessVisible(get(/databases/$(database)/documents/chessTournaments/$(resource.data.tournamentId)).data));
+      allow write: if false;
+    }
+    match /chessTournaments/{tournamentId} {
+      allow read: if chessVisible(resource.data);
+      allow write: if false;
+    }
+    match /chessLimits/{userId} { allow read, write: if false; }
     match /schoolSettings/{schoolId} {
       function valid() {
         let d = request.resource.data;

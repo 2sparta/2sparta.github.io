@@ -30,7 +30,12 @@
     "test:commonwealth": "node --experimental-strip-types --test tests/commonwealth-atlas.test.ts",
     "test:commonwealth-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/commonwealth-atlas-ui.test.tsx",
     "test:spain": "node --experimental-strip-types --test tests/atlas-date.test.ts tests/spain-atlas.test.ts",
-    "test:spain-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/spain-atlas-ui.test.tsx"
+    "test:spain-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/spain-atlas-ui.test.tsx",
+    "test:chess": "node --experimental-strip-types --test tests/chess.test.ts",
+    "test:chess-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/chess-ui.test.tsx",
+    "test:chess-service": "node --import tsx --test functions/tests/service.test.ts",
+    "test:chess-rules": "node tests/chess-rules.test.mjs",
+    "build:chess-functions": "npm --prefix functions run build"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
@@ -63,6 +68,7 @@
     "@tanstack/react-table": "^8.21.0",
     "@tanstack/router-plugin": "^1.168.0",
     "better-auth": "~1.6.30",
+    "chess.js": "^1.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
