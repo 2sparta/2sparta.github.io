@@ -909,36 +909,38 @@ export function ChessClub({
                 onReset={tab === "play" && !activeOnline ? () => newLocal() : undefined}
               />
               {tab === "play" && (
-                <div className="chess-position-status" role="status">
-                  <span
-                    className={`chess-status-dot ${localFinished || game?.status === "finished" ? "is-finished" : ""}`}
-                  />
-                  {gameStatus}
-                </div>
-                {practiceEval !== null && (
-                  <div className="chess-eval-strip">
-                    <div
-                      className="chess-eval-track"
-                      title={tr(
-                        "Приблизна оцінка з боку білих",
-                        "Approximate evaluation from White’s side",
-                      )}
-                    >
-                      <span
-                        style={{
-                          width: `${Math.max(6, Math.min(94, 50 + (Math.abs(practiceEval) > 90000 ? (practiceEval > 0 ? 40 : -40) : practiceEval / 12)))}%`,
-                        }}
-                      />
-                    </div>
-                    <span>
-                      {Math.abs(practiceEval) > 90000
-                        ? practiceEval > 0
-                          ? "M+"
-                          : "M−"
-                        : `${practiceEval > 0 ? "+" : ""}${(practiceEval / 100).toFixed(1)}`}
-                    </span>
+                <>
+                  <div className="chess-position-status" role="status">
+                    <span
+                      className={`chess-status-dot ${localFinished || game?.status === "finished" ? "is-finished" : ""}`}
+                    />
+                    {gameStatus}
                   </div>
-                )}
+                  {practiceEval !== null && (
+                    <div className="chess-eval-strip">
+                      <div
+                        className="chess-eval-track"
+                        title={tr(
+                          "Приблизна оцінка з боку білих",
+                          "Approximate evaluation from White’s side",
+                        )}
+                      >
+                        <span
+                          style={{
+                            width: `${Math.max(6, Math.min(94, 50 + (Math.abs(practiceEval) > 90000 ? (practiceEval > 0 ? 40 : -40) : practiceEval / 12)))}%`,
+                          }}
+                        />
+                      </div>
+                      <span>
+                        {Math.abs(practiceEval) > 90000
+                          ? practiceEval > 0
+                            ? "M+"
+                            : "M−"
+                          : `${practiceEval > 0 ? "+" : ""}${(practiceEval / 100).toFixed(1)}`}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
               {tab === "analysis" && (
                 <div className="chess-eval-summary">
