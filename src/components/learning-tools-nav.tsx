@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Atom, ChevronDown, Compass, Map } from "lucide-react";
+import { Atom, ChevronDown, Compass, Map, Swords } from "lucide-react";
 import { LEARNING_TOOLS } from "@/lib/learning-tools";
 import { cn } from "@/lib/cn";
 
@@ -44,7 +44,7 @@ export function LearningToolsNav({
         >
           {LEARNING_TOOLS.map((item) => {
             const selected = active && item.id === tool;
-            const Icon = item.id === "periodic" ? Atom : Map;
+            const Icon = item.id === "chess" ? Swords : item.id === "periodic" ? Atom : Map;
             return (
               <Link
                 key={item.id}

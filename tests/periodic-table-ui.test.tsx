@@ -185,7 +185,7 @@ test("useful navigation expands without navigating and its sublinks select tools
     assert.equal(button("Корисне").getAttribute("aria-expanded"), "false");
     await click(button("Корисне"));
     assert.equal(router.state.location.search.section, "overview");
-    assert.equal(document.querySelectorAll("#learning-tools-subnav a").length, 2);
+    assert.equal(document.querySelectorAll("#learning-tools-subnav a").length, 3);
     const link = [...document.querySelectorAll("a")].find(
       (n) => n.textContent === "Періодична таблиця",
     )!;
@@ -197,6 +197,16 @@ test("useful navigation expands without navigating and its sublinks select tools
     assert.equal(router.state.location.search.section, "useful");
     assert.equal(navigations, 1);
     assert.equal(link.getAttribute("aria-current"), "page");
+    const chessLink = [...document.querySelectorAll("#learning-tools-subnav a")].find(
+      (n) => n.textContent === "Шахи",
+    )!;
+    await act(async () => {
+      chessLink.click();
+      await new Promise((r) => setTimeout(r, 40));
+    });
+    assert.equal(router.state.location.search.tool, "chess");
+    assert.equal(chessLink.getAttribute("aria-current"), "page");
+    assert.equal(navigations, 2);
     await click(button("Корисне"));
     assert.equal(document.querySelector("#learning-tools-subnav"), null);
   } finally {

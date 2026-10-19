@@ -37,6 +37,9 @@ export type MaterialSection = "overview" | "videos" | "articles" | "links" | "us
 const PeriodicTable = lazy(() =>
   import("@/components/periodic-table").then((module) => ({ default: module.PeriodicTable })),
 );
+const ChessClub = lazy(() =>
+  import("@/components/chess-club").then((m) => ({ default: m.ChessClub })),
+);
 export const Route = createFileRoute("/app/materials")({
   validateSearch: (
     search: Record<string, unknown>,
@@ -48,6 +51,9 @@ export const Route = createFileRoute("/app/materials")({
     day?: number;
     view?: AtlasView;
     tool?: LearningTool;
+    chessTab?: "play" | "openings" | "analysis" | "tournaments";
+    chessGame?: string;
+    chessTournament?: string;
     element?: number;
     layout?: PeriodicLayout;
   } => ({
@@ -88,6 +94,9 @@ function Page() {
     day,
     view,
     tool = "atlas",
+    chessTab,
+    chessGame,
+    chessTournament,
     element,
     layout,
   } = Route.useSearch();
@@ -103,8 +112,8 @@ function Page() {
           <h1 className="font-display text-3xl font-extrabold">{uk ? "Корисне" : "Tools"}</h1>
           <p className="mt-2 text-sm text-muted">
             {uk
-              ? "Інтерактивні інструменти для історії та природничих наук."
-              : "Interactive tools for history and science."}
+              ? "Інтерактивні інструменти для навчання, досліджень і гри."
+              : "Interactive tools for learning, discovery and play."}
           </p>
           <nav
             aria-label={uk ? "Інструменти" : "Learning tools"}
@@ -127,7 +136,27 @@ function Page() {
             ))}
           </nav>
         </div>
-        {tool === "periodic" ? (
+        {tool === "chess" ? (
+          <Suspense fallback={<Panel>Завантаження шахового клубу…</Panel>}>
+            <ChessClub
+              tab={chessTab}
+              gameId={chessGame}
+              tournamentId={chessTournament}
+              onNavigate={(n) =>
+                void navigate({
+                  search: {
+                    section: "useful",
+                    tool: "chess",
+                    chessTab: n.tab,
+                    chessGame: n.gameId,
+                    chessTournament: n.tournamentId,
+                  },
+                  resetScroll: false,
+                })
+              }
+            />
+          </Suspense>
+        ) : tool === "periodic" ? (
           <Suspense fallback={<Panel>Завантаження періодичної таблиці…</Panel>}>
             <PeriodicTable
               number={element ?? 4}
