@@ -7,6 +7,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
+    "gcp-build": "",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/service.test.ts"
   },
