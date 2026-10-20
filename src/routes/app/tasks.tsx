@@ -1,3 +1,4 @@
+import { HomeworkStream } from "@/components/homework-stream";
 import { WORK_TYPES, WORK_LABELS, type WorkType } from "@/lib/school/settings";
 import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -61,8 +62,6 @@ function TasksPage() {
   const [subName, setSubName] = useState("");
   const [subRoom, setSubRoom] = useState("");
   const [subMeet, setSubMeet] = useState("");
-  const [hideDone, setHideDone] = useState(false);
-  const [hwSort, setHwSort] = useState<"date" | "subject">("date");
   const [subjectFilter, setSubjectFilter] = useState("");
   const [openJournal, setOpenJournal] = useState<string | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -131,12 +130,8 @@ function TasksPage() {
     if (subjectFilter) list = list.filter((l) => l.subjectId === subjectFilter);
     if (view === "today") list = list.filter((l) => (kind === "homework" ? l.homeworkDue === today : l.lessonDate === today));
     if (view === "tomorrow") list = list.filter((l) => (kind === "homework" ? l.homeworkDue === tomorrow : l.lessonDate === tomorrow));
-    if (hideDone && kind === "homework") list = list.filter((l) => !done.has(l.id));
-    if (kind === "homework" && hwSort === "subject") {
-      list = [...list].sort((a, b) => a.subjectName.localeCompare(b.subjectName, "uk") || a.homeworkDue!.localeCompare(b.homeworkDue || ""));
-    }
     return list;
-  }, [lessons, kind, view, hideDone, done, today, tomorrow, subjectFilter, hwSort]);
+  }, [lessons, kind, view, today, tomorrow, subjectFilter]);
 
   return (
     <div>
@@ -215,48 +210,57 @@ function TasksPage() {
       )}
 
       <Panel>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {(["today", "tomorrow", "all"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              className={cn("rounded-full px-3 py-1.5 font-display text-xs font-bold", view === v ? "bg-forest text-paper" : "bg-surface-2")}
-            >
-              {v === "today" ? t.viewToday : v === "tomorrow" ? t.viewTomorrow : t.viewAll}
-            </button>
-          ))}
-          <span className="mx-1 hidden h-5 w-px bg-hairline sm:block" />
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           {(["lessons", "homework"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setKind(v)}
-              className={cn("rounded-full px-3 py-1.5 font-display text-xs font-bold", kind === v ? "bg-forest text-paper" : "bg-surface-2")}
-            >
+            <button key={v} type="button" aria-pressed={kind === v} onClick={() => setKind(v)}
+              className={cn("rounded-full px-4 py-2 font-display text-sm font-bold", kind === v ? "bg-forest-mid text-paper" : "bg-surface-2")}>
               {v === "lessons" ? t.viewLessons : t.viewHw}
             </button>
           ))}
-          <Select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className="h-9">
-            <option value="">{t.allSubjects}</option>
-            {(subjectsQ.data?.subjects ?? []).map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+          {kind === "lessons" && <>
+            {(["today", "tomorrow", "all"] as const).map((v) => (
+              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+                className={cn("rounded-full px-3 py-2 font-display text-xs font-bold", view === v ? "bg-cream-deep text-ink" : "bg-surface-2")}>
+                {v === "today" ? t.viewToday : v === "tomorrow" ? t.viewTomorrow : t.viewAll}
+              </button>
             ))}
-          </Select>
-          {kind === "homework" && (
-            <Select value={hwSort} onChange={(e) => setHwSort(e.target.value as "date" | "subject")} className="h-9">
-              <option value="date">{t.hwByDate}</option>
-              <option value="subject">{t.hwBySubject}</option>
+            <Select aria-label={t.allSubjects} value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className="h-9">
+              <option value="">{t.allSubjects}</option>
+              {(subjectsQ.data?.subjects ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
-          )}
-          {kind === "homework" && isStudent && (
-            <label className="flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />
-              {t.hideDone}
-            </label>
-          )}
+          </>}
         </div>
-        {filtered.length === 0 ? (
+        {kind === "homework" ? (
+          <HomeworkStream
+            uk={lang === "uk"}
+            loading={lessonsQ.isPending}
+            today={today}
+            error={lessonsQ.isError || tog.isError || delLes.isError
+              ? (lang === "uk" ? "Не вдалося завантажити або зберегти ДЗ. Повторіть спробу." : "Could not load or save homework. Please try again.")
+              : undefined}
+            onRetry={() => { tog.reset(); delLes.reset(); void lessonsQ.refetch(); }}
+            pending={tog.isPending}
+            onToggle={isStudent ? (lessonId, checked) => tog.mutate({ lessonId, done: checked }) : undefined}
+            items={lessons.filter((l) => l.hasHomework).map((l) => ({
+              id: l.id, title: l.title, subject: l.subjectName, body: l.content,
+              due: l.homeworkDue, published: l.publishAt, images: l.imageUrls,
+              done: isStudent || me.data?.profile.role === "parent" ? done.has(l.id) : undefined,
+              label: WORK_LABELS[l.workType ?? "lesson"][lang === "uk" ? 0 : 1],
+            }))}
+            renderActions={isTeacher ? (item) => <>
+              <button type="button" className="text-forest-mid" aria-expanded={openJournal === item.id}
+                onClick={() => setOpenJournal(openJournal === item.id ? null : item.id)}>{t.journal}</button>
+              <button type="button" className="text-terracotta" disabled={delLes.isPending}
+                onClick={() => { if (window.confirm(t.confirmDelete)) delLes.mutate(item.id); }}>{t.deleteLesson}</button>
+            </> : undefined}
+            renderDetails={isTeacher ? (item) => {
+              if (openJournal !== item.id) return null;
+              const lesson = lessons.find((l) => l.id === item.id)!;
+              return <Journal students={(studentsQ.data ?? []).filter((s) => !lesson.classIds.length || lesson.classIds.includes(s.classId))}
+                grades={(bookQ.data?.grades ?? []).filter((g) => g.lessonId === item.id)} subjectId={lesson.subjectId} lessonId={item.id} />;
+            } : undefined}
+          />
+        ) : filtered.length === 0 ? (
           <p className="text-sm text-muted">{kind === "homework" ? t.noHw : t.noLessons}</p>
         ) : (
           <ul className="space-y-2">

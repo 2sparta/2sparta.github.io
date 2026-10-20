@@ -1,6 +1,7 @@
 import { useSchoolSettings } from "@/components/school-settings-context";
 import { canOffice } from "@/lib/school/settings";
 import { useState } from "react";
+import { HomeworkStream } from "@/components/homework-stream";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -104,38 +105,28 @@ function HomeworkPage() {
             </PillButton>
           </div>
         )}
-        {posts.length === 0 ? (
-          <p className="text-sm text-muted">{t.empty}</p>
-        ) : (
-          <ul className="space-y-2">
-            {posts.map((p) => (
-              <li key={p.id} className="rounded-2xl border border-hairline bg-cream/40 px-3 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-display font-extrabold">{p.title}</p>
-                    <p className="text-xs font-bold text-forest-mid">
-                      {p.subjectName}
-                      {p.due ? ` · ${t.dueDate} ${p.due}` : ""}
-                    </p>
-                    {p.body && <p className="mt-1 text-sm">{p.body}</p>}
-                    <p className="mt-1 text-xs text-muted">{p.authorName}</p>
-                  </div>
-                  {(profile?.role === "teacher" ||
-                    profile?.isStarosta ||
-                    profile?.rosterId === p.authorRosterId) && (
-                    <button
-                      type="button"
-                      className="text-xs font-bold text-terracotta"
-                      onClick={() => drop.mutate(p.id)}
-                    >
-                      {t.delete}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <HomeworkStream
+          uk={lang === "uk"}
+          loading={q.isPending}
+          error={q.isError || drop.isError || add.isError
+            ? (lang === "uk" ? "Не вдалося завантажити або зберегти ДЗ. Повторіть спробу." : "Could not load or save homework. Please try again.")
+            : undefined}
+          onRetry={() => { add.reset(); drop.reset(); void q.refetch(); }}
+          items={posts.map((p) => ({
+            id: p.id, title: p.title, subject: p.subjectName, body: p.body,
+            due: p.due || null, author: p.authorName,
+            label: lang === "uk" ? "Дошка класу" : "Class board",
+          }))}
+          renderActions={(item) => {
+            const post = posts.find((p) => p.id === item.id)!;
+            return profile?.role === "teacher" || profile?.isStarosta || profile?.rosterId === post.authorRosterId
+              ? <button type="button" className="text-terracotta" disabled={drop.isPending}
+                  onClick={() => { if (window.confirm(lang === "uk" ? "Видалити це домашнє завдання?" : "Delete this homework?")) drop.mutate(item.id); }}>
+                  {t.delete}
+                </button>
+              : null;
+          }}
+        />
       </Panel>
       {isStarosta && (
         <Panel>
