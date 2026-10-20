@@ -11,6 +11,22 @@ assert.ok(!existsSync(fixtureSource) && !existsSync(fixtureHtml), "Refusing to o
 writeFileSync(fixtureSource, "import React, { useState } from \"react\";\nimport { createRoot } from \"react-dom/client\";\nimport { QueryClient, QueryClientProvider } from \"@tanstack/react-query\";\nimport { ChessClub, type ChessNavigation } from \"@/components/chess-club\";\nimport { HomeworkStream } from \"@/components/homework-stream\";\nimport { homeworkToday, shiftHomeworkDate } from \"@/lib/school/homework\";\nimport { usePrefs } from \"@/lib/prefs\";\nimport \"@/styles.css\";\nconst params = new URLSearchParams(location.search);\nusePrefs.getState().setTheme(params.get(\"theme\") === \"dark\" ? \"dark\" : \"light\");\nusePrefs.getState().setLang(\"uk\");\nconst client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });\nclient.setQueryData([\"me\"], { profile: { userId: \"review-user\", displayName: \"Гравець клубу\", schoolId: \"review-school\", role: \"student\" } });\nconst today = homeworkToday();\nfunction Fixture() {\n  const [navigation, setNavigation] = useState<ChessNavigation>({ tab: \"play\" });\n  const [items, setItems] = useState([\n    { id: \"math\", title: \"Лінійні рівняння\", subject: \"Алгебра\", due: today, body: \"Розв’яжіть № 8–12.\\nПоясніть хід розв’язання.\", author: \"Учитель математики\", done: false },\n    { id: \"history\", title: \"Українські землі у складі Речі Посполитої\", subject: \"Історія України\", due: shiftHomeworkDate(today, 1), body: \"Опрацюйте матеріал і складіть хронологічну таблицю.\", author: \"Учитель історії\", done: false },\n    { id: \"old\", title: \"Практична робота: вимірювання\", subject: \"Фізика\", due: shiftHomeworkDate(today, -1), body: \"Запишіть результати спостереження.\", done: false },\n    { id: \"done\", title: \"Площа трикутника\", subject: \"Геометрія\", due: today, body: \"Повторення формул.\", done: true },\n  ]);\n  return <QueryClientProvider client={client}><main style={{ maxWidth: 1100, margin: \"20px auto\", padding: 20, background: \"var(--color-surface)\", borderRadius: 22, minWidth: 0 }}>\n    {params.get(\"view\") === \"homework\"\n      ? <HomeworkStream uk items={items} onToggle={(id, done) => setItems((old) => old.map((item) => item.id === id ? { ...item, done } : item))} />\n      : <ChessClub tab={navigation.tab} onNavigate={setNavigation} />}\n  </main></QueryClientProvider>;\n}\ndocument.body.style.padding = \"0 16px\";\ncreateRoot(document.getElementById(\"root\")!).render(<Fixture />);\n");
 writeFileSync(fixtureHtml, "<!doctype html><html lang=\"uk\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>UI review fixture</title>\n<script type=\"module\">import RefreshRuntime from \"/@react-refresh\";RefreshRuntime.injectIntoGlobalHook(window);window.$RefreshReg$=()=>{};window.$RefreshSig$=()=>type=>type;window.__vite_plugin_react_preamble_installed__=true;</script>\n</head><body><div id=\"root\"></div><script type=\"module\" src=\"/src/__classroom-review.tsx\"></script></body></html>\n");
 const children = [];
+function startDev(force = false) {
+  const descriptor = openSync(output + "/review-dev.log", "w");
+  const child = spawn("npm", ["run", "dev", ...(force ? ["--", "--force"] : [])], {
+    detached: true, stdio: ["ignore", descriptor, descriptor],
+  });
+  children.push(child);
+}
+async function stopOwnedDev() {
+  for (const child of children.splice(0)) { try { process.kill(-child.pid, "SIGTERM"); } catch {} }
+  for (let attempt = 0; attempt < 50; attempt++) {
+    let alive = false; try { alive = (await fetch(base)).ok; } catch {}
+    if (!alive) return;
+    await delay(100);
+  }
+  throw new Error("The owned dev server did not stop");
+}
 function run(command, args, log) {
   return new Promise((resolve, reject) => {
     const descriptor = openSync(log, "w");
@@ -30,10 +46,7 @@ let browser;
 try {
   let serving = false;
   try { serving = (await fetch(base)).ok; } catch {}
-  if (!serving) {
-    const child = spawn("npm", ["run", "dev"], { detached: true, stdio: ["ignore", openSync(output + "/review-dev.log", "w"), openSync(output + "/review-dev.log", "a")] });
-    children.push(child);
-  }
+  if (!serving) startDev();
   await ready();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
   const results = [];
@@ -96,10 +109,20 @@ try {
   writeFileSync(output + "/classroom-chess-review.json", JSON.stringify(results, null, 2));
   // Fixtures must never be present in the publishable build.
   rmSync(fixtureSource); rmSync(fixtureHtml);
+  // Isolate the application's dependency scan from the temporary standalone entry.
+  // Restart only a server launched by this check, leaving an existing developer server alone.
+  if (children.length) {
+    await stopOwnedDev();
+    startDev(true);
+    await ready();
+  }
   // The root route discovers additional dependencies after the isolated fixtures.
   // Let Vite complete that optimization, and verify real hydration before auditing
   // fresh pages. No errors from the actual smoke run are suppressed or retried.
   const warm = await browser.newPage();
+  const warmErrors = [];
+  warm.on("pageerror", (error) => warmErrors.push(error.message));
+  warm.on("console", (message) => { if (message.type() === "error") warmErrors.push(message.text()); });
   await warm.route("https://fonts.googleapis.com/**", (r) => r.fulfill({ status: 200, contentType: "text/css", body: "" }));
   await warm.route("https://grok.com/grok-app-builder/extensions.js", (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -114,7 +137,11 @@ try {
       await warm.getByRole("button", { name: after, exact: true }).click();
       await warm.getByRole("button", { name: before, exact: true }).waitFor({ state: "visible" });
       break;
-    } catch (error) { if (attempt === 2) throw error; }
+    } catch (error) { if (attempt === 2) {
+      console.error("Root warm-up diagnostics:", JSON.stringify(warmErrors));
+      console.error(readFileSync(output + "/review-dev.log", "utf8").slice(-6000));
+      throw error;
+    } }
   }
   await warm.close();
   await browser.close(); browser = null;
