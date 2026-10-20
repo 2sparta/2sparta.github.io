@@ -13,7 +13,8 @@ writeFileSync(fixtureHtml, "<!doctype html><html lang=\"uk\"><head><meta charset
 const children = [];
 function run(command, args, log) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", openSync(log, "w"), openSync(log, "a")], env: process.env });
+    const descriptor = openSync(log, "w");
+    const child = spawn(command, args, { stdio: ["ignore", descriptor, descriptor], env: process.env });
     child.on("error", reject);
     child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(command + " failed (" + code + ")\n" + readFileSync(log, "utf8").slice(-8000))));
   });
