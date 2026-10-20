@@ -125,9 +125,11 @@ try {
   warm.on("console", (message) => { if (message.type() === "error") warmErrors.push(message.text()); });
   await warm.route("https://fonts.googleapis.com/**", (r) => r.fulfill({ status: 200, contentType: "text/css", body: "" }));
   await warm.route("https://grok.com/grok-app-builder/extensions.js", (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
+  let reloadNeeded = true;
   for (let attempt = 0; attempt < 3; attempt++) {
+    const errorsBefore = warmErrors.length;
     try {
-      await warm.goto(base, { waitUntil: "domcontentloaded" });
+      if (reloadNeeded) await warm.goto(base, { waitUntil: "domcontentloaded" });
       const toggle = warm.getByRole("button", { name: /^(Dark|Light) theme$/ });
       await toggle.waitFor({ state: "visible", timeout: 6000 });
       const before = await toggle.getAttribute("aria-label");
@@ -137,7 +139,11 @@ try {
       await warm.getByRole("button", { name: after, exact: true }).click();
       await warm.getByRole("button", { name: before, exact: true }).waitFor({ state: "visible" });
       break;
-    } catch (error) { if (attempt === 2) {
+    } catch (error) {
+      // An SSR button can be clicked before hydration. Retry on the same document;
+      // reload only if dependency optimization produced an actual module error.
+      reloadNeeded = warmErrors.length > errorsBefore;
+      if (attempt === 2) {
       console.error("Root warm-up diagnostics:", JSON.stringify(warmErrors));
       console.error(readFileSync(output + "/review-dev.log", "utf8").slice(-6000));
       throw error;
