@@ -12,6 +12,7 @@ on:
       - "tests/*homework*"
       - "tests/chess*"
       - "scripts/*review*"
+      - "scripts/check-classroom-chess-ui.mjs"
       - "package*.json"
       - ".github/workflows/homework-chess.yml"
 permissions:
