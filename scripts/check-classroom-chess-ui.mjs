@@ -105,10 +105,14 @@ try {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       await warm.goto(base, { waitUntil: "domcontentloaded" });
-      await warm.getByRole("button", { name: "Dark theme", exact: true }).click({ timeout: 6000 });
-      await warm.getByRole("button", { name: "Light theme", exact: true }).waitFor({ state: "visible", timeout: 6000 });
-      await warm.getByRole("button", { name: "Light theme", exact: true }).click();
-      await warm.getByRole("button", { name: "Dark theme", exact: true }).waitFor({ state: "visible" });
+      const toggle = warm.getByRole("button", { name: /^(Dark|Light) theme$/ });
+      await toggle.waitFor({ state: "visible", timeout: 6000 });
+      const before = await toggle.getAttribute("aria-label");
+      const after = before === "Dark theme" ? "Light theme" : "Dark theme";
+      await toggle.click();
+      await warm.getByRole("button", { name: after, exact: true }).waitFor({ state: "visible", timeout: 6000 });
+      await warm.getByRole("button", { name: after, exact: true }).click();
+      await warm.getByRole("button", { name: before, exact: true }).waitFor({ state: "visible" });
       break;
     } catch (error) { if (attempt === 2) throw error; }
   }
