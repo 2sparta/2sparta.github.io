@@ -23,7 +23,8 @@ export type AtlasView =
   | "commonwealth"
   | "cossacks"
   | "spain"
-  | "spanish-empire";
+  | "spanish-empire"
+  | "england";
 export type HistoricalProperties = {
   name: string;
   subject: string;
@@ -31,7 +32,7 @@ export type HistoricalProperties = {
   detailed?: boolean;
   sourceYear?: number;
   sourceId?: string;
-  region?: "franks" | "rus" | "mongols" | "france" | "commonwealth" | "spain";
+  region?: "franks" | "rus" | "mongols" | "france" | "commonwealth" | "spain" | "england";
   layer?: "state" | "land" | "dependency" | "occupation" | "cossack" | "colony" | "front";
   validUntilDate?: string;
   validTo?: number;
@@ -62,6 +63,7 @@ export type AtlasPlace = {
   byzantine?: boolean;
   frankish?: boolean;
   french?: boolean;
+  english?: boolean;
   spanish?: boolean;
   colonial?: boolean;
   polish?: boolean;
@@ -213,6 +215,37 @@ export function historicalName(name: string, uk = true) {
     León: "Леон",
     Asturias: "Астурія",
     Portugal: "Португалія",
+    "Roman Britain": "Римська Британія",
+    "Northern Britain": "Північ Британії поза провінцією",
+    "Gaelic Ireland": "Гельська Ірландія",
+    "Channel Islands": "Нормандські острови",
+    "Isle of Man": "Острів Мен",
+    "Northern Isles": "Оркнейські й Шетландські острови",
+    Hebrides: "Гебриди",
+    Dumnonia: "Думнонія",
+    "Welsh kingdoms": "Валлійські королівства",
+    Kent: "Кент",
+    Sussex: "Сассекс",
+    Essex: "Ессекс",
+    "East Anglia": "Східна Англія",
+    Wessex: "Вессекс",
+    Northumbria: "Нортумбрія",
+    Pictland: "Піктландія",
+    Mercia: "Мерсія",
+    "English Northumbria": "Англійська Нортумбрія",
+    Danelaw: "Данелаг",
+    "Wessex and English Mercia": "Вессекс і англійська Мерсія",
+    "Kingdom of the Isles": "Королівство островів",
+    "Kingdom of Alba": "Королівство Алба",
+    "Kingdom of England": "Королівство Англія",
+    "Kingdom of Scotland": "Королівство Шотландія",
+    "Lordship of Ireland": "Лордство Ірландії",
+    "Kingdom of Ireland": "Королівство Ірландія",
+    "Commonwealth of England": "Співдружність Англії, Шотландії й Ірландії",
+    "Kingdom of Great Britain": "Королівство Великої Британії",
+    "United Kingdom": "Сполучене Королівство",
+    "Irish Free State": "Ірландська Вільна держава",
+    Ireland: "Ірландія",
     "Emirate of Córdoba": "Кордовський емірат",
     "Caliphate of Córdoba": "Кордовський халіфат",
     "Almoravid dynasty": "Альморавіди · Іберійські володіння",

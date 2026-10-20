@@ -48,6 +48,18 @@ export function formatAtlasDate(date: AtlasDate, precision: "year" | "month" | "
 export function validateAtlasSearchDate(search: Record<string, unknown>) {
   if (search.year === undefined && search.month === undefined && search.day === undefined)
     return {};
+  if (search.view === "england") {
+    const year = Math.max(
+      43,
+      Math.min(1994, Math.trunc(Number(search.year ?? 1000)) || 1000),
+    );
+    const month = bounded(Number(search.month ?? 1), 1, 12, 1);
+    return {
+      year,
+      month,
+      day: bounded(Number(search.day ?? 1), 1, daysInAtlasMonth(year, month), 1),
+    };
+  }
   const d = normalizeAtlasDate(
     Number(search.year ?? 1000),
     Number(search.month ?? 1),

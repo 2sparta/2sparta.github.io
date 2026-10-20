@@ -1,0 +1,23 @@
+{
+  "sha256": "ec005eeb566fd0cd4d4efab54240e31dd8badd8807710d2ee1449ca197f111de",
+  "years": [
+    43,
+    600,
+    802,
+    886,
+    927,
+    1066,
+    1171,
+    1284,
+    1472,
+    1542,
+    1603,
+    1654,
+    1660,
+    1707,
+    1801,
+    1922,
+    1994
+  ],
+  "method": "School reconstruction of England and the British Isles from Roman Britain to 1994. Polygons are clipped to the atlas Natural Earth land mask so coastlines match the physical layer. Internal borders are schematic and are not interpolated between snapshot years. Northern limit of Roman Britain is Hadrian's Wall, a 2nd-century frontier, not the front of the year 43 campaign."
+}

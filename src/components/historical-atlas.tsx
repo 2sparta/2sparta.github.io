@@ -101,6 +101,19 @@ import {
   spanishCampaignPlaces,
 } from "@/lib/atlas/spain";
 import {
+  ENGLAND_EVENTS,
+  ENGLAND_PERIODS,
+  ENGLAND_PLACES,
+  ENGLAND_YEARS,
+  clampEnglandYear,
+  englandDate,
+  englandDateKey,
+  englandSnapshot,
+  formatEnglandDate,
+  shiftEnglandDay,
+  validateEnglandData,
+} from "@/lib/atlas/england";
+import {
   normalizeAtlasDate,
   atlasDateKey,
   atlasDateOrdinal,
@@ -154,8 +167,9 @@ export function HistoricalAtlas({
   onChange: (year: number, view: AtlasView, date?: Pick<AtlasDate, "month" | "day">) => void;
 }) {
   const uk = usePrefs((s) => s.lang) === "uk";
-  const date = normalizeAtlasDate(year, month, day);
-  const dateKey = atlasDateKey(date);
+  const englandView = view === "england";
+  const date = englandView ? englandDate(year, month, day) : normalizeAtlasDate(year, month, day);
+  const dateKey = englandView ? englandDateKey(date) : atlasDateKey(date);
   const onChange = (
     nextYear: number,
     nextView: AtlasView,
@@ -288,6 +302,16 @@ export function HistoricalAtlas({
     year >= 1940 && year <= 1944
       ? undefined
       : france.data?.frames.find((f) => f.year === franceYear);
+  const englandYear = englandSnapshot(englandView ? date.year : year);
+  const england = useQuery({
+    queryKey: ["historical-atlas-england"],
+    queryFn: async ({ signal }) =>
+      validateEnglandData(await jsonFile("/atlas/england/frames.json", signal)),
+    staleTime: Infinity,
+    enabled: typeof window !== "undefined" && englandView,
+    retry: 1,
+  });
+  const englandFrame = england.data?.frames.find((f) => f.year === englandYear);
   const snapshot = overviewSnapshot(year);
   const byzYear = byzantineSnapshot(year);
   const frYear = frankishSnapshot(year);
@@ -454,6 +478,7 @@ export function HistoricalAtlas({
       ...FRANCE_PLACES,
       ...COMMONWEALTH_PLACES,
       ...SPAIN_PLACES,
+      ...ENGLAND_PLACES,
     ],
     [],
   );
@@ -470,7 +495,9 @@ export function HistoricalAtlas({
       ].filter((p) =>
         spanishView
           ? p.spanish && (colonies || !p.colonial)
-          : view === "cossacks"
+          : englandView
+            ? p.english
+            : view === "cossacks"
             ? p.ruthenian
             : view === "commonwealth"
               ? p.commonwealth
@@ -499,6 +526,7 @@ export function HistoricalAtlas({
       occupations,
       dateKey,
       spanishView,
+      englandView,
       colonies,
     ],
   );
@@ -517,15 +545,19 @@ export function HistoricalAtlas({
     },
     [Boolean(editor.draft)],
   );
+  const mapHistorical = englandView ? englandFrame?.collection : historical;
   const selectedPlace =
     selection?.kind === "place" ? available.find((p) => p.id === selection.id) : undefined;
   const selectedPolity =
-    selection?.kind === "polity" && historical?.features.some((f) => f.id === selection.feature.id)
-      ? historical.features.find((f) => f.id === selection.feature.id)
+    selection?.kind === "polity" &&
+    mapHistorical?.features.some((f) => f.id === selection.feature.id)
+      ? mapHistorical.features.find((f) => f.id === selection.feature.id)
       : undefined;
   const period = spanishView
     ? SPAIN_PERIODS.find((p) => year >= p.from && year <= p.to)!
-    : newView
+    : englandView
+      ? ENGLAND_PERIODS.find((p) => date.year >= p.from && date.year <= p.to)!
+      : newView
       ? mongolPeriod(year, view)
       : ((easternHistory
           ? COMMONWEALTH_PERIODS
@@ -552,7 +584,9 @@ export function HistoricalAtlas({
   const nearby = (
     spanishView
       ? SPAIN_EVENTS
-      : easternHistory
+      : englandView
+        ? ENGLAND_EVENTS
+        : easternHistory
         ? COMMONWEALTH_EVENTS
         : view === "france"
           ? FRANCE_EVENTS
@@ -583,23 +617,28 @@ export function HistoricalAtlas({
   )
     .filter((e) => view !== "rus" || !e.europe || e.ruthenian)
     .filter((e) => Math.abs(e.year - year) <= 150)
-    .sort(
-      (a, b) =>
-        Math.abs(
-          atlasDateOrdinal(normalizeAtlasDate(a.year, a.month, a.day)) - atlasDateOrdinal(date),
-        ) -
-        Math.abs(
-          atlasDateOrdinal(normalizeAtlasDate(b.year, b.month, b.day)) - atlasDateOrdinal(date),
-        ),
+    .sort((a, b) =>
+      englandView
+        ? Math.abs(a.year - date.year) - Math.abs(b.year - date.year)
+        : Math.abs(
+            atlasDateOrdinal(normalizeAtlasDate(a.year, a.month, a.day)) - atlasDateOrdinal(date),
+          ) -
+          Math.abs(
+            atlasDateOrdinal(normalizeAtlasDate(b.year, b.month, b.day)) - atlasDateOrdinal(date),
+          ),
     )
     .slice(0, 6)
     .sort((a, b) =>
-      atlasDateKey(normalizeAtlasDate(a.year, a.month, a.day)).localeCompare(
-        atlasDateKey(normalizeAtlasDate(b.year, b.month, b.day)),
-      ),
+      englandView
+        ? a.year - b.year
+        : atlasDateKey(normalizeAtlasDate(a.year, a.month, a.day)).localeCompare(
+            atlasDateKey(normalizeAtlasDate(b.year, b.month, b.day)),
+          ),
     );
   const commitDay = () => {
-    const next = normalizeAtlasDate(year, date.month, dayText.trim() ? Number(dayText) : date.day);
+    const next = englandView
+      ? englandDate(year, date.month, dayText.trim() ? Number(dayText) : date.day)
+      : normalizeAtlasDate(year, date.month, dayText.trim() ? Number(dayText) : date.day);
     setDayText(String(next.day));
     onChange(year, view, next);
   };
@@ -618,6 +657,8 @@ export function HistoricalAtlas({
       ? warQuickDates.map((key) => parseAtlasDate(key)!)
       : (spanishView
           ? [711, 750, 1050, 1090, 1220, 1492, 1530, 1650, 1783, 1825, 1899, 1936, 1939, 1976]
+          : englandView
+            ? [...ENGLAND_YEARS]
           : regionalView
             ? view === "cossacks"
               ? [1591, 1594, 1625, 1630, 1635, 1637, 1638, 1648, 1649, 1651, 1655, 1667]
@@ -638,10 +679,14 @@ export function HistoricalAtlas({
               )!
             : regionalView && COMMONWEALTH_TRANSITIONS[y]
               ? parseAtlasDate(COMMONWEALTH_TRANSITIONS[y])!
-              : normalizeAtlasDate(y),
+              : englandView
+                ? englandDate(y)
+                : normalizeAtlasDate(y),
         );
   const commitYear = () => {
-    const next = clampAtlasYear(yearText.trim() ? Number(yearText) : year);
+    const next = englandView
+      ? clampEnglandYear(yearText.trim() ? Number(yearText) : year)
+      : clampAtlasYear(yearText.trim() ? Number(yearText) : year);
     setYearText(String(next));
     onChange(next, view);
   };
@@ -702,14 +747,14 @@ export function HistoricalAtlas({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-forest-mid">
-              395–1994 · {uk ? "навчальний атлас" : "learning atlas"}
+              {englandView ? "43–1994" : "395–1994"} · {uk ? "навчальний атлас" : "learning atlas"}
             </p>
             <h2 className="mt-1 font-display text-2xl font-extrabold">
               {uk ? "Світ і держави крізь час" : "World and states through time"}
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-muted">
               {uk
-                ? "Історичний атлас із датованими територіями, містами й джерелами. Іспанія: завоювання, Реконкіста, колоніальні володіння та громадянська війна. Виберіть регіон і дату; точність кожного контуру вказана окремо."
+                ? "Історичний атлас із датованими територіями, містами й джерелами. Англія: від Римської Британії до сучасного поділу островів. Іспанія: завоювання, Реконкіста, колоніальні володіння та громадянська війна. Виберіть регіон і дату; точність кожного контуру вказана окремо."
                 : "Detailed source maps of Rus, Byzantium the Franks and France: dated territories, principalities, enclaves and original legends. Other countries retain their overview layers."}
             </p>
           </div>
@@ -723,7 +768,7 @@ export function HistoricalAtlas({
             {uk ? "Рік подій" : "Event year"}
             <TextInput
               type="number"
-              min={ATLAS_MIN_YEAR}
+              min={englandView ? 43 : ATLAS_MIN_YEAR}
               max={ATLAS_MAX_YEAR}
               step={1}
               value={yearText}
@@ -801,9 +846,13 @@ export function HistoricalAtlas({
             <button
               type="button"
               aria-label={uk ? "Попередній день" : "Previous day"}
-              disabled={atlasDateOrdinal(date) === 0}
+              disabled={
+                englandView
+                  ? date.year === 43 && date.month === 1 && date.day === 1
+                  : atlasDateOrdinal(date) === 0
+              }
               onClick={() => {
-                const d = shiftAtlasDay(date, -1);
+                const d = englandView ? shiftEnglandDay(date, -1) : shiftAtlasDay(date, -1);
                 onChange(d.year, view, d);
               }}
               className="grid size-11 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
@@ -813,9 +862,13 @@ export function HistoricalAtlas({
             <button
               type="button"
               aria-label={uk ? "Наступний день" : "Next day"}
-              disabled={atlasDateOrdinal(date) === ATLAS_LAST_DAY}
+              disabled={
+                englandView
+                  ? date.year === 1994 && date.month === 12 && date.day === 31
+                  : atlasDateOrdinal(date) === ATLAS_LAST_DAY
+              }
               onClick={() => {
-                const d = shiftAtlasDay(date, 1);
+                const d = englandView ? shiftEnglandDay(date, 1) : shiftAtlasDay(date, 1);
                 onChange(d.year, view, d);
               }}
               className="grid size-11 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
@@ -827,21 +880,38 @@ export function HistoricalAtlas({
             <button
               type="button"
               aria-label={uk ? "На 10 років назад" : "Back 10 years"}
-              disabled={year <= ATLAS_MIN_YEAR}
-              onClick={() => onChange(clampAtlasYear(year - 10), view)}
+              disabled={year <= (englandView ? 43 : ATLAS_MIN_YEAR)}
+              onClick={() =>
+                onChange(englandView ? clampEnglandYear(year - 10) : clampAtlasYear(year - 10), view)
+              }
               className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
             >
               <ChevronLeft className="size-4" />
             </button>
             <input
               type="range"
-              aria-label={uk ? "Часова шкала 395–1994" : "Timeline 395–1994"}
-              min={0}
-              max={ATLAS_LAST_DAY}
+              aria-label={
+                englandView
+                  ? uk
+                    ? "Часова шкала 43–1994"
+                    : "Timeline 43–1994"
+                  : uk
+                    ? "Часова шкала 395–1994"
+                    : "Timeline 395–1994"
+              }
+              min={englandView ? 43 : 0}
+              max={englandView ? 1994 : ATLAS_LAST_DAY}
               step={1}
-              value={atlasDateOrdinal(date)}
-              aria-valuetext={formatAtlasDate(date)}
+              value={englandView ? date.year : atlasDateOrdinal(date)}
+              aria-valuetext={englandView ? formatEnglandDate(date) : formatAtlasDate(date)}
               onChange={(e) => {
+                if (englandView) {
+                  onChange(clampEnglandYear(Number(e.target.value)), view, {
+                    month: date.month,
+                    day: date.day,
+                  });
+                  return;
+                }
                 const d = atlasDateFromOrdinal(Number(e.target.value));
                 onChange(d.year, view, d);
               }}
@@ -851,7 +921,9 @@ export function HistoricalAtlas({
               type="button"
               aria-label={uk ? "На 10 років уперед" : "Forward 10 years"}
               disabled={year >= ATLAS_MAX_YEAR}
-              onClick={() => onChange(clampAtlasYear(year + 10), view)}
+              onClick={() =>
+                onChange(englandView ? clampEnglandYear(year + 10) : clampAtlasYear(year + 10), view)
+              }
               className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
             >
               <ChevronRight className="size-4" />
@@ -864,27 +936,32 @@ export function HistoricalAtlas({
         >
           {quickDates.map((d) => (
             <button
-              key={atlasDateKey(d)}
+              key={englandView ? englandDateKey(d) : atlasDateKey(d)}
               type="button"
               onClick={() => onChange(d.year, view, d)}
-              aria-pressed={dateKey === atlasDateKey(d)}
-              className={`min-h-9 rounded-full px-3 text-xs font-bold ${dateKey === atlasDateKey(d) ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
+              aria-pressed={dateKey === (englandView ? englandDateKey(d) : atlasDateKey(d))}
+              className={`min-h-9 rounded-full px-3 text-xs font-bold ${dateKey === (englandView ? englandDateKey(d) : atlasDateKey(d)) ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
             >
-              {formatAtlasDate(
-                d,
-                (spanishView && year >= 1936 && year <= 1939) ||
-                  (regionalView && COMMONWEALTH_TRANSITIONS[d.year])
-                  ? "day"
-                  : "year",
-              )}
+              {englandView
+                ? String(d.year)
+                : formatAtlasDate(
+                    d,
+                    (spanishView && year >= 1936 && year <= 1939) ||
+                      (regionalView && COMMONWEALTH_TRANSITIONS[d.year])
+                      ? "day"
+                      : "year",
+                  )}
             </button>
           ))}
         </div>
         <div className="mt-4 rounded-xl border border-forest-mid/25 bg-forest-mid/5 p-3 text-sm">
           <strong>
             {uk ? "Дата подій" : "Event date"}:{" "}
-            <span data-testid="atlas-event-date">{formatAtlasDate(date)}</span> ·{" "}
-            {spanishView || regionalView
+            <span data-testid="atlas-event-date">
+              {englandView ? formatEnglandDate(date) : formatAtlasDate(date)}
+            </span>{" "}
+            ·{" "}
+            {spanishView || regionalView || englandView
               ? uk
                 ? "Зріз регіону"
                 : "Regional snapshot"
@@ -896,27 +973,33 @@ export function HistoricalAtlas({
               ? spainFrame
                 ? formatAtlasDate(parseAtlasDate(spainFrame.date)!, spainFrame.precision)
                 : "—"
+              : englandView
+                ? (englandFrame?.year ?? "—")
               : regionalView
                 ? commonwealthFrame?.date
                   ? commonwealthFrame.date.split("-").reverse().join(".")
                   : (commonwealthFrame?.year ?? "—")
                 : (snapshot ?? "—")}
-            {!spanishView &&
+            {!(spanishView || englandView) &&
               detailed &&
               year <= 1453 &&
               ` · ${uk ? "Візантія" : "Byzantium"}: ${byzYear}`}
-            {!spanishView &&
+            {!(spanishView || englandView) &&
               frankishDetail &&
               frYear !== undefined &&
               ` · ${uk ? "Франки" : "Franks"}: ${frYear}`}
-            {!spanishView &&
+            {!(spanishView || englandView) &&
               rusDetail &&
               rusFrame &&
               rusYear !== undefined &&
               ` · ${uk ? "Русь" : "Rus"}: ${rusFrame.sourceYear}${rusYear === 1240 ? (uk ? " (до навали)" : " (before invasion)") : ""}`}
           </strong>
           <p className="mt-1 text-xs text-muted">
-            {spanishView
+            {englandView
+              ? uk
+                ? "Берег збігається з суходолом атласу. Внутрішні межі схематичні: між зрізами кордони не інтерполюються. Штрихування — залежність або неповний контроль."
+                : "The coastline matches the atlas land mask. Internal borders are schematic and are not interpolated between snapshots. Hatching marks dependency or incomplete control."
+              : spanishView
               ? uk
                 ? "Дата подій може бути точною до дня; політичні та воєнні карти мають власну річну або місячну точність. Проміжні щоденні фронти не вигадуються."
                 : "Events may have exact dates; political and military maps retain their own annual or monthly precision. Daily fronts are not interpolated."
@@ -938,7 +1021,9 @@ export function HistoricalAtlas({
           </p>
           {warnings
             .filter(
-              (note) => !(regionalView || spanishView) || !note.startsWith("Кордони інших країн"),
+              (note) =>
+                !(regionalView || spanishView || englandView) ||
+                !note.startsWith("Кордони інших країн"),
             )
             .map((note) => (
               <p key={note} className="mt-2 text-xs text-terracotta">
@@ -952,6 +1037,7 @@ export function HistoricalAtlas({
               ["rus", uk ? "Русь-Україна" : "Rus’-Ukraine"],
               ["byzantium", uk ? "Візантія" : "Byzantium"],
               ["france", uk ? "Франція" : "France"],
+              ["england", uk ? "Англія" : "England"],
               ["spain", uk ? "Іспанія" : "Spain"],
               ["spanish-empire", uk ? "Іспанська імперія" : "Spanish Empire"],
               ["poland", uk ? "Польща" : "Poland"],
@@ -970,7 +1056,9 @@ export function HistoricalAtlas({
               key={key}
               type="button"
               aria-pressed={view === key}
-              onClick={() => onChange(year, key)}
+              onClick={() =>
+                onChange(key === "england" ? year : Math.max(ATLAS_MIN_YEAR, year), key)
+              }
               className={`flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold ${view === key ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
             >
               <Globe2 className="size-4" />
@@ -1283,7 +1371,7 @@ export function HistoricalAtlas({
               </div>
             )}
             <HistoricalMapCanvas
-              historical={historical}
+              historical={mapHistorical}
               edit={
                 manual.data?.canEdit && editor.canvas
                   ? { ...editor.canvas, disabled: saveManual.isPending || manual.isError }
@@ -1364,7 +1452,7 @@ export function HistoricalAtlas({
                   ))}
                 </div>
               )}
-            {!spanishView && commonwealthFrame && (
+            {!(spanishView || englandView) && commonwealthFrame && (
               <div
                 className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft"
                 aria-label={uk ? "Легенда штрихованих шарів" : "Hatched layer legend"}
@@ -1392,7 +1480,7 @@ export function HistoricalAtlas({
                 ? "Штрихування — окупація, автономія, залежність або неповний контроль. Суцільний колір — державний контур чи історичний ареал."
                 : "Hatching: occupation, autonomy, dependency or partial control. Solid fill: a state contour or historical area."}
             </p>
-            {!spanishView &&
+            {!(spanishView || englandView) &&
               commonwealthFrame &&
               commonwealthFrame.collection.features.length > 0 && (
                 <p className="mt-2 text-xs text-muted">
@@ -1466,7 +1554,11 @@ export function HistoricalAtlas({
                 </h3>
                 <p className="mt-2 text-xs text-muted">
                   {selectedPolity.properties.name} ·{" "}
-                  {selectedPolity.properties.region === "spain"
+                  {selectedPolity.properties.region === "england"
+                    ? uk
+                      ? "Навчальний контур, берег за суходолом атласу"
+                      : "School contour clipped to the atlas coastline"
+                    : selectedPolity.properties.region === "spain"
                     ? uk
                       ? "Датований джерельний контур"
                       : "Dated source contour"
@@ -1497,7 +1589,9 @@ export function HistoricalAtlas({
                             : `${uk ? "Рівень точності джерела" : "Source precision"}: ${selectedPolity.properties.precision}/3`}
                 </p>
                 <p className="mt-2 text-sm leading-6">
-                  {selectedPolity.properties.region === "spain"
+                  {selectedPolity.properties.region === "england"
+                    ? selectedPolity.properties.description
+                    : selectedPolity.properties.region === "spain"
                     ? selectedPolity.properties.description ||
                       selectedPolity.properties.relation ||
                       spainFrame?.note ||
@@ -1537,7 +1631,8 @@ export function HistoricalAtlas({
                 </p>
                 {(selectedPolity.properties.custom ||
                   selectedPolity.properties.region === "commonwealth" ||
-                  selectedPolity.properties.region === "spain") && (
+                  selectedPolity.properties.region === "spain" ||
+                  selectedPolity.properties.region === "england") && (
                   <div className="mt-2 space-y-2 text-xs">
                     <p>
                       {uk ? "Контролер" : "Controller"}:{" "}

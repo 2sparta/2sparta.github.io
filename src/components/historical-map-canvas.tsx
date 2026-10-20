@@ -62,6 +62,10 @@ export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
     [40, -6],
     [52, 11],
   ],
+  england: [
+    [49.1, -11.4],
+    [61.0, 2.2],
+  ],
   franks: [
     [39, -7],
     [55, 19],
@@ -434,6 +438,9 @@ export function HistoricalMapCanvas({
           (view === "spain" &&
             zoom >= 4 &&
             ["es-city-madrid", "es-city-barcelona"].includes(place.id)) ||
+          (view === "england" &&
+            zoom >= 4.5 &&
+            ["en-london", "en-edinburgh", "en-dublin", "en-york"].includes(place.id)) ||
           (isCity &&
             place.commonwealth &&
             zoom >= 4.75 &&

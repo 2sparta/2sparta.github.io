@@ -79,6 +79,7 @@ export const Route = createFileRoute("/app/materials")({
       "cossacks",
       "spain",
       "spanish-empire",
+      "england",
     ].includes(String(search.view))
       ? { view: search.view as AtlasView }
       : {}),
