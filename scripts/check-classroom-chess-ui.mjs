@@ -94,9 +94,26 @@ try {
     await context.close();
   }
   writeFileSync(output + "/classroom-chess-review.json", JSON.stringify(results, null, 2));
-  await browser.close(); browser = null;
   // Fixtures must never be present in the publishable build.
   rmSync(fixtureSource); rmSync(fixtureHtml);
+  // The root route discovers additional dependencies after the isolated fixtures.
+  // Let Vite complete that optimization, and verify real hydration before auditing
+  // fresh pages. No errors from the actual smoke run are suppressed or retried.
+  const warm = await browser.newPage();
+  await warm.route("https://fonts.googleapis.com/**", (r) => r.fulfill({ status: 200, contentType: "text/css", body: "" }));
+  await warm.route("https://grok.com/grok-app-builder/extensions.js", (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await warm.goto(base, { waitUntil: "domcontentloaded" });
+      await warm.getByRole("button", { name: "Dark theme", exact: true }).click({ timeout: 6000 });
+      await warm.getByRole("button", { name: "Light theme", exact: true }).waitFor({ state: "visible", timeout: 6000 });
+      await warm.getByRole("button", { name: "Light theme", exact: true }).click();
+      await warm.getByRole("button", { name: "Dark theme", exact: true }).waitFor({ state: "visible" });
+      break;
+    } catch (error) { if (attempt === 2) throw error; }
+  }
+  await warm.close();
+  await browser.close(); browser = null;
   await run("node", ["--import", "./scripts/review-smoke-runtime.mjs", "scripts/browser-smoke.mjs", base + "/", output + "/review-dev.png"], output + "/review-dev-smoke.log");
   await run("npm", ["run", "build"], output + "/review-build.log");
   assert.ok(!existsSync(".vercel/output/static/__classroom-review.html"), "Review HTML leaked into the build");
