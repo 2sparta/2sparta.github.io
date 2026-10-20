@@ -1,7 +1,5 @@
 name: Homework and chess checks
 on:
-  push:
-    branches: [codex/homework-chess-upgrade]
   pull_request:
     paths:
       - "src/components/chess*/**"
