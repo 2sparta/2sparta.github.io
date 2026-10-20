@@ -39,6 +39,8 @@ npm run typecheck
 npm run build
 npm run test:chess
 npm run test:chess-ui
+npm run test:chess-interactions
+npm run test:chess-interactions-ui
 npm run test:chess-service
 npm --prefix functions run typecheck
 npm --prefix functions run build

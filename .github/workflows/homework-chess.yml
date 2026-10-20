@@ -44,6 +44,8 @@ jobs:
           npm run test:chess-service
       - run: npx playwright install --with-deps chromium
       - name: Browser review and production build
+        env:
+          REVIEW_INLINE_IMAGES: ${{ github.head_ref == 'codex/homework-chess-upgrade' && '1' || '' }}
         run: |
           sudo install -d -m 0777 /workspace/screenshots
           npm run check:classroom-chess-ui

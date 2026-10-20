@@ -111,6 +111,22 @@ try {
   console.log("Homework/chess desktop and mobile UI checks passed in both themes; dev/production smoke agrees.");
 } finally {
   if (browser) await browser.close();
+  // Optional review transport for environments without a local image viewer.
+  // Only generated fixture/sign-in screenshots are emitted, never user data.
+  if (process.env.REVIEW_INLINE_IMAGES === "1") {
+    const names = [
+      "review-dev.png", "review-dev-mobile.png", "review-production.png", "review-production-mobile.png",
+      ...["homework", "chess"].flatMap((view) => ["light", "dark"].flatMap((theme) =>
+        [1440, 390].map((width) => view + "-review-" + theme + "-" + width + ".png"))),
+    ];
+    for (const name of names) if (existsSync(output + "/" + name)) {
+      const encoded = readFileSync(output + "/" + name).toString("base64");
+      console.log("REVIEW_PNG_BEGIN " + name + " " + encoded.length);
+      for (let offset = 0; offset < encoded.length; offset += 6000)
+        console.log("REVIEW_PNG_CHUNK " + name + " " + encoded.slice(offset, offset + 6000));
+      console.log("REVIEW_PNG_END " + name);
+    }
+  }
   rmSync(fixtureSource, { force: true }); rmSync(fixtureHtml, { force: true });
   for (const child of children) { try { process.kill(-child.pid, "SIGTERM"); } catch {} }
   try { await run("npm", ["run", "preview:stop"], output + "/review-preview-stop.log"); } catch {}

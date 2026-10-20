@@ -261,7 +261,7 @@ function TasksPage() {
             } : undefined}
           />
         ) : filtered.length === 0 ? (
-          <p className="text-sm text-muted">{kind === "homework" ? t.noHw : t.noLessons}</p>
+          <p className="text-sm text-muted">{t.noLessons}</p>
         ) : (
           <ul className="space-y-2">
             {filtered.map((l) => {

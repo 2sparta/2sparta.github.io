@@ -46,7 +46,7 @@ test("A premove waits, executes once after the reply, and clears on invalidation
     assert.equal(document.querySelector("output")!.textContent, "empty");
     await click(button("Скинути"));
     await click(square("g1")); await click(square("f3"));
-    await act(async () => window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })));
+    await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })); });
     assert.equal(document.querySelector("output")!.textContent, "empty");
   } finally { await act(async () => root.unmount()); useChessPreferences.getState().reset(); }
 });
