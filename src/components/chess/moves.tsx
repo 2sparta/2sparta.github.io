@@ -20,7 +20,13 @@ export function MoveList({
           {Math.ceil(history.length / 2)} {uk ? "ходів" : "moves"}
         </span>
       </div>
-      <div className="chess-move-list" aria-label={uk ? "Історія ходів" : "Move history"}>
+      <div className="chess-move-list" tabIndex={0} aria-label={uk ? "Історія ходів" : "Move history"}
+        onKeyDown={(event) => {
+          const next = event.key === "ArrowLeft" ? Math.max(0, ply - 1)
+            : event.key === "ArrowRight" ? Math.min(history.length, ply + 1)
+            : event.key === "Home" ? 0 : event.key === "End" ? history.length : null;
+          if (next !== null) { event.preventDefault(); event.stopPropagation(); onPly(next); }
+        }}>
         {!history.length && (
           <p className="px-3 py-8 text-center text-sm text-muted">
             {uk ? "Партія починається з першого ходу." : "Every game starts with a first move."}

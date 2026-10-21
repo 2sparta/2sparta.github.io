@@ -35,7 +35,12 @@
     "test:chess-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/chess-ui.test.tsx",
     "test:chess-service": "node --import tsx --test functions/tests/service.test.ts",
     "test:chess-rules": "node tests/chess-rules.test.mjs",
-    "build:chess-functions": "npm --prefix functions run build"
+    "build:chess-functions": "npm --prefix functions run build",
+    "test:homework": "node --experimental-strip-types --test tests/homework.test.ts",
+    "test:homework-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/homework-ui.test.tsx",
+    "test:chess-interactions": "node --experimental-strip-types --test tests/chess-interactions.test.ts",
+    "test:chess-interactions-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/chess-interactions-ui.test.tsx",
+    "check:classroom-chess-ui": "node scripts/check-classroom-chess-ui.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",

@@ -1,0 +1,59 @@
+name: Homework and chess checks
+on:
+  pull_request:
+    paths:
+      - "src/components/chess*/**"
+      - "src/components/chess-club.tsx"
+      - "src/lib/chess/**"
+      - "src/components/homework-stream*"
+      - "src/lib/school/homework.ts"
+      - "src/routes/app/homework.tsx"
+      - "src/routes/app/tasks.tsx"
+      - "tests/*homework*"
+      - "tests/chess*"
+      - "scripts/*review*"
+      - "scripts/check-classroom-chess-ui.mjs"
+      - "package*.json"
+      - ".github/workflows/homework-chess.yml"
+permissions:
+  contents: read
+concurrency:
+  group: homework-chess-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Types and behavior
+        run: |
+          npm run typecheck
+          npm run test:homework
+          npm run test:homework-ui
+          npm run test:chess-interactions
+          npm run test:chess-interactions-ui
+          npm run test:chess
+          npm run test:chess-ui
+          npm run test:chess-service
+      - run: npx playwright install --with-deps chromium
+      - name: Browser review and production build
+        env:
+          REVIEW_INLINE_IMAGES: ${{ github.head_ref == 'codex/homework-chess-upgrade' && '1' || '' }}
+        run: |
+          sudo install -d -m 0777 /workspace/screenshots
+          npm run check:classroom-chess-ui
+          npm run typecheck
+      - name: Review evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: homework-chess-review
+          path: /workspace/screenshots
+          if-no-files-found: ignore
+          retention-days: 14

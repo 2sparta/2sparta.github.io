@@ -40,6 +40,9 @@ import { evaluate } from "@/lib/chess/engine";
 import { useChessEngine } from "./chess/use-engine";
 import { OnlineLobby } from "./chess/online";
 import { ChessTournaments } from "./chess/tournaments";
+import { ChessPreferences } from "./chess/preferences";
+import { useChessPreferences } from "@/lib/chess/preferences";
+import { usePremove } from "./chess/use-premove";
 import "./chess/chess.css";
 export type ChessTab = "play" | "openings" | "analysis" | "tournaments";
 export type ChessNavigation = { tab: ChessTab; gameId?: string; tournamentId?: string };
@@ -241,6 +244,7 @@ export function ChessClub({
   onNavigate?: (n: ChessNavigation) => void;
   api?: ChessApi;
 }) {
+  const chessPreferences = useChessPreferences();
   const uk = usePrefs((s) => s.lang) === "uk",
     profile = useMeQuery().data?.profile;
   const [tab, setTab] = useState<ChessTab>(requestedTab),
@@ -516,6 +520,7 @@ export function ChessClub({
       )
     )
       return;
+    premove.cancel();
     const next = { ...local, ...options, moves: [], initialFen: DEFAULT_POSITION, resigned: null };
     setLocal(next);
     setLocalPly(0);
@@ -638,6 +643,25 @@ export function ChessClub({
     gamePly === game.moves.length &&
     !pending,
   );
+  const premovePlayer = activeOnline ? myColor : mode === "bot" ? local.human : null;
+  const premovePosition = activeOnline ? onlineFull : localFull;
+  const premoveActive = Boolean(tab === "play" && premovePlayer && (
+    activeOnline ? game?.status === "active" && gamePly === game.moves.length
+      : mode === "bot" && restored && !localFinished && localPly === local.moves.length
+  ));
+  const playOnBoard = (move: string) => {
+    if (activeOnline) {
+      if (game && canOnlineMove) void action({ action: "move", id: game.id, move, revision: game.revision });
+    } else applyLocal(move);
+  };
+  const premove = usePremove({
+    fen: premovePosition.fen(), color: premovePlayer,
+    context: tab + ":" + mode + ":" + (activeOnline ? selectedGame : storageKey + ":" + local.human + ":" + local.initialFen),
+    ply: activeOnline ? game?.moves.length ?? 0 : local.moves.length,
+    active: premoveActive, enabled: chessPreferences.premoves,
+    ready: !activeOnline || !pending, onPlay: playOnBoard,
+  });
+  const canPremove = premoveActive && chessPreferences.premoves && premovePosition.turn() !== premovePlayer && (!activeOnline || !pending);
   const localResult = local.resigned ? (local.resigned === "w" ? "0-1" : "1-0") : localEnd?.result;
   const gameStatus = activeOnline
     ? game?.status === "waiting"
@@ -726,6 +750,7 @@ export function ChessClub({
           </button>
         ))}
       </nav>
+      <ChessPreferences uk={uk} />
       {error && (
         <div className="chess-error" role="alert">
           <span className="flex-1">{error}</span>
@@ -838,6 +863,10 @@ export function ChessClub({
                   orientation={orientation}
                   uk={uk}
                   hint={hintMove}
+                  premoveColor={canPremove ? premovePlayer ?? undefined : undefined}
+                  queuedPremove={premove.move}
+                  onPremove={canPremove ? premove.queue : undefined}
+                  onCancelPremove={premove.cancel}
                   lastMove={
                     ply > 0
                       ? uciOf(
@@ -852,25 +881,15 @@ export function ChessClub({
                     tab === "openings" ||
                     (tab === "play" &&
                       (activeOnline
-                        ? !canOnlineMove
+                        ? !canOnlineMove && !canPremove
                         : localFinished ||
                           localPly !== local.moves.length ||
-                          (mode === "bot" && localFull.turn() !== local.human)))
+                          (mode === "bot" && localFull.turn() !== local.human && !canPremove)))
                   }
                   onMove={
                     tab === "analysis"
                       ? analysisMove
-                      : activeOnline
-                        ? (move) => {
-                            if (game)
-                              void action({
-                                action: "move",
-                                id: game.id,
-                                move,
-                                revision: game.revision,
-                              });
-                          }
-                        : applyLocal
+                      : playOnBoard
                   }
                 />
                 <CapturedPieces
@@ -908,6 +927,11 @@ export function ChessClub({
                 onFlip={() => setOrientation((c) => (c === "w" ? "b" : "w"))}
                 onReset={tab === "play" && !activeOnline ? () => newLocal() : undefined}
               />
+              {premove.move && tab === "play" && <div className="chess-premove-notice" role="status">
+                <span>{tr("Премув: ", "Premove: ")}<b>{premove.move.slice(0, 2)} → {premove.move.slice(2, 4)}{premove.move.slice(4).toUpperCase()}</b>
+                  {" · "}{tr("очікуємо ходу суперника", "waiting for your opponent")}</span>
+                <button type="button" onClick={premove.cancel}>{tr("Скасувати премув", "Cancel premove")}</button>
+              </div>}
               {tab === "play" && (
                 <>
                   <div className="chess-position-status" role="status">
@@ -1085,6 +1109,7 @@ export function ChessClub({
                       className="chess-text-button"
                       disabled={!local.moves.length || bot.busy}
                       onClick={() => {
+                        premove.cancel();
                         const count = mode === "bot" && localFull.turn() === local.human ? 2 : 1;
                         const moves = local.moves.slice(0, Math.max(0, local.moves.length - count));
                         setLocal((old) => ({ ...old, moves, resigned: null }));
@@ -1309,6 +1334,7 @@ export function ChessClub({
                   <button
                     className="chess-primary mt-4 w-full"
                     onClick={() => {
+                      premove.cancel();
                       const moves = openingMoves.slice(0, openingPly);
                       setLocal({ ...fresh(), moves, human: openingBoard.turn() });
                       setLocalPly(moves.length);
