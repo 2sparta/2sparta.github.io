@@ -28,7 +28,7 @@ import { ContentInteractions } from "@/components/content-interactions";
 import { MaterialEditor } from "@/components/material-editor";
 import { HistoricalAtlas } from "@/components/historical-atlas";
 import { type AtlasView } from "@/lib/atlas/model";
-import { validateAtlasSearchDate } from "@/lib/atlas/date";
+import { validateWorldSearchDate } from "@/lib/atlas/world";
 import { LEARNING_TOOLS, validateToolSearch, type LearningTool } from "@/lib/learning-tools";
 import type { PeriodicLayout } from "@/lib/periodic/model";
 import { Hint, Panel, PanelTitle, PillButton, Select, TextInput } from "@/components/ui/panel";
@@ -62,34 +62,8 @@ export const Route = createFileRoute("/app/materials")({
       : "overview",
     ...(typeof search.id === "string" ? { id: search.id } : {}),
     ...validateToolSearch(search),
-    ...validateAtlasSearchDate(search),
-    ...([
-      "rus",
-      "europe",
-      "world",
-      "byzantium",
-      "franks",
-      "mongols",
-      "hordes",
-      "mughals",
-      "france",
-      "poland",
-      "lithuania",
-      "commonwealth",
-      "cossacks",
-      "spain",
-      "spanish-empire",
-      "england",
-      "scotland",
-      "wales",
-      "ireland",
-      "isles",
-      "antiquity",
-      "germany",
-      "napoleon",
-    ].includes(String(search.view))
-      ? { view: search.view as AtlasView }
-      : {}),
+    ...validateWorldSearchDate(search),
+    view: "world",
   }),
   component: Page,
 });
@@ -183,7 +157,7 @@ function Page() {
             year={year ?? 1000}
             month={month ?? 1}
             day={day ?? 1}
-            view={view ?? "rus"}
+            view="world"
             onChange={(year, view, date) =>
               void navigate({
                 search: {

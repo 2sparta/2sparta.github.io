@@ -12,96 +12,48 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
-import { ATLAS_EVENTS, ATLAS_PERIODS, ATLAS_PLACES, ATLAS_SOURCES } from "@/lib/atlas/content";
+import { ATLAS_EVENTS, ATLAS_PLACES, ATLAS_SOURCES } from "@/lib/atlas/content";
+import { ANTIQUITY_EVENTS, ANTIQUITY_PLACES, formatAtlasYear } from "@/lib/atlas/antiquity";
+import { GERMANY_EVENTS, GERMANY_PLACES } from "@/lib/atlas/germany";
+import { NAPOLEON_EVENTS, NAPOLEON_PLACES } from "@/lib/atlas/napoleon";
+import { ISLES_PLACES, islesEventsFor } from "@/lib/atlas/isles";
+import { BYZANTINE_EVENTS, BYZANTINE_PLACES } from "@/lib/atlas/byzantine";
+import { FRANKISH_EVENTS, FRANKISH_PLACES } from "@/lib/atlas/frankish";
+import { RUS_EVENTS, RUS_PLACES } from "@/lib/atlas/rus";
+import { MONGOL_EVENTS, mongolPlacesAt, campaignPlaces } from "@/lib/atlas/mongols";
+import { FRANCE_EVENTS, FRANCE_PLACES } from "@/lib/atlas/france";
 import {
-  ANTIQUITY_EVENTS,
-  ANTIQUITY_MIN_YEAR,
-  ANTIQUITY_PLACES,
-  ANTIQUITY_YEARS,
-  antiquityPeriod,
-  antiquitySnapshot,
-  clampSharedYear,
-  formatAtlasYear,
-  overlayAntiquity,
-  validateAntiquityData,
-} from "@/lib/atlas/antiquity";
-import {
-  GERMANY_EVENTS,
-  GERMANY_MIN_YEAR,
-  GERMANY_PLACES,
-  GERMANY_YEARS,
-  germanyPeriod,
-  germanySnapshot,
-  overlayGermany,
-  validateGermanyData,
-} from "@/lib/atlas/germany";
-import {
-  NAPOLEON_EVENTS,
-  NAPOLEON_MAX_YEAR,
-  NAPOLEON_MIN_YEAR,
-  NAPOLEON_PLACES,
-  NAPOLEON_YEARS,
-  napoleonPeriod,
-  napoleonSnapshot,
-  overlayNapoleon,
-  validateNapoleonData,
-} from "@/lib/atlas/napoleon";
-import {
-  ISLES_MAX_YEAR,
-  ISLES_PLACES,
-  clampIslesYear,
-  isBritishView,
-  islesEventsFor,
-  islesPeriod,
-  islesSnapshot,
-  overlayBritishIsles,
-  overseasSnapshot,
-  validateIslesData,
-  validateOverseasData,
-} from "@/lib/atlas/isles";
-import {
-  BYZANTINE_EVENTS,
-  BYZANTINE_PERIODS,
-  BYZANTINE_PLACES,
-  type ByzantineData,
-} from "@/lib/atlas/byzantine";
+  COMMONWEALTH_EVENTS,
+  COMMONWEALTH_PLACES,
+  cossackPlacesAt,
+  occupationPlacesAt,
+} from "@/lib/atlas/commonwealth";
+import { SPAIN_EVENTS, SPAIN_PLACES, spanishCampaignPlaces } from "@/lib/atlas/spain";
+import { ENGLAND_EVENTS, ENGLAND_PLACES } from "@/lib/atlas/england";
 import {
   activePlaces,
-  ATLAS_YEARS,
-  ATLAS_MIN_YEAR,
-  ATLAS_MAX_YEAR,
-  BYZANTINE_YEARS,
-  byzantineSnapshot,
-  overviewSnapshot,
-  combineHistoricalLayers,
-  clampAtlasYear,
-  featureNote,
   historicalName,
-  placeEpoch,
+  polityColor,
   validateHistoricalCollection,
-  type AtlasPlace,
   type AtlasView,
+  type AtlasPlace,
   type HistoricalFeature,
 } from "@/lib/atlas/model";
 import {
-  FRANKISH_EVENTS,
-  FRANKISH_PERIODS,
-  FRANKISH_PLACES,
-  type FrankishData,
-} from "@/lib/atlas/frankish";
-import { FRANKISH_YEARS, frankishSnapshot } from "@/lib/atlas/model";
-import { RUS_YEARS, rusSnapshot } from "@/lib/atlas/model";
-import { RUS_EVENTS, RUS_PERIODS, RUS_PLACES, validateRusData } from "@/lib/atlas/rus";
-import {
-  MONGOL_EVENTS,
-  validateMongolData,
-  mongolFrameAt,
-  mongolCollectionAt,
-  mongolPlacesAt,
-  mongolPeriod,
-  campaignPlaces,
-  markInvadedRus,
-} from "@/lib/atlas/mongols";
+  applyWorldPatch,
+  compareWorldDates,
+  formatWorldDate,
+  shiftWorldDay,
+  uniqueWorldPlaces,
+  validateWorldManifest,
+  validateWorldPatch,
+  worldDate,
+  worldDateKey,
+  worldFrameAt,
+  WORLD_MIN_YEAR,
+  WORLD_MAX_YEAR,
+} from "@/lib/atlas/world";
+import type { AtlasDate } from "@/lib/atlas/date";
 import { useMeQuery } from "./session-gate";
 import { AtlasEditingPanel, useAtlasEditor } from "./atlas-editing-panel";
 import { loadSchoolAtlas, saveSchoolAtlas } from "@/lib/atlas/edits-api";
@@ -113,85 +65,29 @@ import {
   type AtlasEdit,
 } from "@/lib/atlas/edits";
 import { saveSharedBorders } from "@/lib/atlas/borders";
-import {
-  addFranceLayer,
-  franceSnapshot,
-  validateFranceData,
-  FRANCE_EVENTS,
-  FRANCE_PERIODS,
-  FRANCE_PLACES,
-} from "@/lib/atlas/france";
-import {
-  addCommonwealthLayer,
-  commonwealthSnapshot,
-  COMMONWEALTH_TRANSITIONS,
-  commonwealthFrameAt,
-  validateCommonwealthData,
-  COMMONWEALTH_EVENTS,
-  COMMONWEALTH_PERIODS,
-  COMMONWEALTH_PLACES,
-  cossackPlacesAt,
-  occupationPlacesAt,
-  isCommonwealthView,
-} from "@/lib/atlas/commonwealth";
 import { HistoricalMapCanvas } from "./historical-map-canvas";
 import { Panel, PillButton, TextInput } from "./ui/panel";
-import {
-  addSpainLayer,
-  isSpainView,
-  spainFrameAt,
-  validateSpainData,
-  SPAIN_EVENTS,
-  SPAIN_PERIODS,
-  SPAIN_PLACES,
-  spanishCampaignPlaces,
-} from "@/lib/atlas/spain";
-import {
-  ENGLAND_EVENTS,
-  ENGLAND_PERIODS,
-  ENGLAND_PLACES,
-  ENGLAND_YEARS,
-  clampEnglandYear,
-  englandDate,
-  englandDateKey,
-  englandSnapshot,
-  formatEnglandDate,
-  shiftEnglandDay,
-  validateEnglandData,
-} from "@/lib/atlas/england";
-import {
-  normalizeAtlasDate,
-  atlasDateKey,
-  atlasDateOrdinal,
-  atlasDateFromOrdinal,
-  ATLAS_LAST_DAY,
-  daysInAtlasMonth,
-  shiftAtlasDay,
-  formatAtlasDate,
-  parseAtlasDate,
-  type AtlasDate,
-} from "@/lib/atlas/date";
 
 async function jsonFile(path: string, signal: AbortSignal) {
-  const r = await fetch(path, { signal });
-  if (!r.ok) throw new Error("ATLAS_DOWNLOAD");
-  return r.json();
+  const response = await fetch(path, { signal });
+  if (!response.ok) throw new Error("ATLAS_DOWNLOAD");
+  return response.json();
 }
 function Sources({ ids }: { ids: string[] }) {
   return (
     <ul className="mt-3 space-y-2 text-xs">
       {[...new Set(ids)]
         .map((id) => ATLAS_SOURCES.find((s) => s.id === id))
-        .filter((s) => Boolean(s))
-        .map((s) => (
-          <li key={s!.id}>
+        .filter(Boolean)
+        .map((source) => (
+          <li key={source!.id}>
             <a
-              href={s!.url}
+              href={source!.url}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-forest-mid underline underline-offset-4"
             >
-              {s!.title}
+              {source!.title}
               <ExternalLink className="size-3 shrink-0" />
             </a>
           </li>
@@ -199,90 +95,157 @@ function Sources({ ids }: { ids: string[] }) {
     </ul>
   );
 }
+const ALL_PLACES = [
+  ...ATLAS_PLACES,
+  ...BYZANTINE_PLACES,
+  ...FRANKISH_PLACES,
+  ...RUS_PLACES,
+  ...FRANCE_PLACES,
+  ...COMMONWEALTH_PLACES,
+  ...SPAIN_PLACES,
+  ...ENGLAND_PLACES,
+  ...ISLES_PLACES,
+  ...ANTIQUITY_PLACES,
+  ...GERMANY_PLACES,
+  ...NAPOLEON_PLACES,
+];
+const ALL_EVENTS = [
+  ...ATLAS_EVENTS,
+  ...BYZANTINE_EVENTS,
+  ...FRANKISH_EVENTS,
+  ...RUS_EVENTS,
+  ...FRANCE_EVENTS,
+  ...COMMONWEALTH_EVENTS,
+  ...SPAIN_EVENTS,
+  ...ENGLAND_EVENTS,
+  ...islesEventsFor("isles"),
+  ...ANTIQUITY_EVENTS,
+  ...GERMANY_EVENTS,
+  ...NAPOLEON_EVENTS,
+  ...MONGOL_EVENTS,
+];
+const SOURCE_NAMES: Record<string, [string, string]> = {
+  world: ["Світова основа", "World background"],
+  mongols: ["Монгольські держави та Моголи", "Mongol realms and Mughals"],
+  byzantium: ["Візантія", "Byzantium"],
+  franks: ["Франкські держави", "Frankish realms"],
+  rus: ["Русь", "Rus"],
+  commonwealth: ["Польща, Литва та українські землі", "Poland, Lithuania and Ukrainian lands"],
+  spain: ["Іспанія", "Spain"],
+  front: ["Фронти в Іспанії", "Spanish fronts"],
+};
+/** Legacy view URLs open this same map; geography is navigated directly on the canvas. */
 export function HistoricalAtlas({
   year,
   month = 1,
   day = 1,
-  view,
   onChange: onNavigate,
 }: {
   year: number;
   month?: number;
   day?: number;
-  view: AtlasView;
+  view?: AtlasView;
   onChange: (year: number, view: AtlasView, date?: Pick<AtlasDate, "month" | "day">) => void;
 }) {
   const uk = usePrefs((s) => s.lang) === "uk";
-  const englandView = view === "england";
-  const wideTimeline =
-    view === "europe" || view === "world" || view === "antiquity" || view === "germany" || view === "napoleon";
-  const date = englandView
-    ? englandDate(year, month, day)
-    : wideTimeline
-      ? { year: clampSharedYear(year), month: 1, day: 1 }
-      : normalizeAtlasDate(year, month, day);
-  const dateKey = englandView
-    ? englandDateKey(date)
-    : wideTimeline
-      ? `wide:${date.year}`
-      : atlasDateKey(date);
-  const onChange = (
-    nextYear: number,
-    nextView: AtlasView,
-    parts = { month: date.month, day: date.day },
-  ) => {
-    const wide =
-      nextView === "europe" ||
-      nextView === "world" ||
-      nextView === "antiquity" ||
-      nextView === "germany" ||
-      nextView === "napoleon";
-    const next = wide
-      ? { year: clampSharedYear(nextYear), month: 1, day: 1 }
-      : nextView === "england"
-        ? englandDate(nextYear, parts.month, parts.day)
-        : normalizeAtlasDate(nextYear, parts.month, parts.day);
-    const nextKey = wide
-      ? `wide:${next.year}`
-      : nextView === "england"
-        ? englandDateKey(next)
-        : atlasDateKey(next);
-    if (editor.draft && (nextKey !== dateKey || nextView !== view)) {
+  const date = worldDate(year, month, day),
+    dateKey = worldDateKey(date);
+  const editor = useAtlasEditor();
+  const profile = useMeQuery().data?.profile;
+  const qc = useQueryClient();
+  const draftRevision = useRef<number | null>(null);
+  const [manualError, setManualError] = useState("");
+  const [yearText, setYearText] = useState(String(date.year));
+  const [dayText, setDayText] = useState(String(date.day));
+  const [borders, setBorders] = useState(true);
+  const [cities, setCities] = useState(true);
+  const [areas, setAreas] = useState(false);
+  const [rivers, setRivers] = useState(true);
+  const [lands, setLands] = useState(false);
+  const [occupations, setOccupations] = useState(true);
+  const [cossacks, setCossacks] = useState(true);
+  const [reconquista, setReconquista] = useState(false);
+  const [colonies, setColonies] = useState(true);
+  const [fronts, setFronts] = useState(true);
+  const [search, setSearch] = useState("");
+  const [mapReset, setMapReset] = useState(0);
+  const [selection, setSelection] = useState<
+    { kind: "place"; id: string } | { kind: "polity"; id: string } | null
+  >(null);
+  const navigate = (next: AtlasDate) => {
+    next = worldDate(next.year, next.month, next.day);
+    if (editor.draft && worldDateKey(next) !== dateKey) {
       if (
         !window.confirm(
           uk
-            ? "Відкинути незбережену правку перед зміною дати чи регіону?"
-            : "Discard the unsaved edit before changing date or region?",
+            ? "Відкинути незбережену правку перед зміною дати?"
+            : "Discard the unsaved edit before changing the date?",
         )
       )
-        return;
+        return false;
       editor.dispatch({ type: "cancel" });
     }
-    onNavigate(next.year, nextView, { month: next.month, day: next.day });
+    onNavigate(next.year, "world", { month: next.month, day: next.day });
+    return true;
   };
-  const spanishView = isSpainView(view);
-  const [reconquista, setReconquista] = useState(true);
-  const [colonies, setColonies] = useState(true);
-  const [civilFronts, setCivilFronts] = useState(true);
-  const spain = useQuery({
-    queryKey: ["historical-atlas-spain"],
+  useEffect(() => {
+    setYearText(String(date.year));
+    setDayText(String(date.day));
+    setSelection(null);
+  }, [dateKey]);
+  useEffect(() => {
+    editor.dispatch({ type: "cancel" });
+  }, [profile?.schoolId, profile?.userId]);
+  const manifest = useQuery({
+    queryKey: ["historical-atlas-world-manifest"],
     queryFn: async ({ signal }) =>
-      validateSpainData(await jsonFile("/atlas/spain/frames.json", signal)),
+      validateWorldManifest(await jsonFile("/atlas/world/manifest.json", signal)),
     staleTime: Infinity,
-    enabled: typeof window !== "undefined" && year >= 700,
+    enabled: typeof window !== "undefined",
     retry: 1,
   });
-  const spainFrame = useMemo(
-    () => spainFrameAt(spain.data, date, { reconquista, colonies, fronts: civilFronts }),
-    [spain.data, dateKey, reconquista, colonies, civilFronts],
+  const frame = worldFrameAt(manifest.data, date);
+  const baseRecord = manifest.data?.baseFiles.find((f) => f.year === frame?.baseYear);
+  const base = useQuery({
+    queryKey: ["historical-atlas-world-base", baseRecord?.year],
+    queryFn: async ({ signal }) =>
+      validateHistoricalCollection(await jsonFile(`/atlas/world/${baseRecord!.path}`, signal)),
+    enabled: Boolean(baseRecord),
+    staleTime: Infinity,
+    retry: 1,
+  });
+  const patch = useQuery({
+    queryKey: ["historical-atlas-world-patch", frame?.path],
+    queryFn: async ({ signal }) => {
+      const raw = validateWorldPatch(await jsonFile(`/atlas/world/${frame!.path}`, signal));
+      if (raw.baseYear !== frame!.baseYear) throw new Error("INVALID_WORLD_PATCH");
+      return raw;
+    },
+    enabled: Boolean(frame),
+    staleTime: Infinity,
+    retry: 1,
+  });
+  const composed = useMemo(() => {
+    if (!base.data || !patch.data) return undefined;
+    return applyWorldPatch(base.data, patch.data);
+  }, [base.data, patch.data]);
+  const filtered = useMemo(
+    () =>
+      composed && {
+        ...composed,
+        features: composed.features.filter((f) => {
+          const p = f.properties;
+          return (
+            (p.layer !== "land" || (p.worldOverlay === "reconquista" ? reconquista : lands)) &&
+            (p.layer !== "occupation" || occupations) &&
+            (p.layer !== "cossack" || cossacks) &&
+            (p.layer !== "colony" || colonies) &&
+            (p.worldOverlay !== "front" || fronts)
+          );
+        }),
+      },
+    [composed, lands, occupations, cossacks, reconquista, colonies, fronts],
   );
-  const [dayText, setDayText] = useState(String(date.day));
-  useEffect(() => setDayText(String(date.day)), [dateKey]);
-  const profile = useMeQuery().data?.profile;
-  const qc = useQueryClient();
-  const editor = useAtlasEditor();
-  const draftRevision = useRef<number | null>(null);
-  const [manualError, setManualError] = useState("");
   const manualKey = ["atlas-manual", profile?.schoolId, profile?.userId];
   const manual = useQuery({
     queryKey: manualKey,
@@ -296,8 +259,13 @@ export function HistoricalAtlas({
   useEffect(() => {
     draftRevision.current = editor.draft ? (manual.data?.revision ?? null) : null;
   }, [editor.draft?.id, profile?.schoolId]);
+  const historical = useMemo(
+    () => applyAtlasEdits(filtered, manual.data?.entries ?? [], date.year),
+    [filtered, manual.data?.entries, date.year],
+  );
   const saveEntries = async (entries: AtlasEdit[]) => {
-    if (!manual.data?.canEdit || manual.isError || saveManual.isPending) return false;
+    if (!manual.data?.canEdit || manual.isError || saveManual.isPending || loading || failed)
+      return false;
     try {
       const result = await saveManual.mutateAsync({
         schoolId: manual.data.schoolId,
@@ -310,16 +278,13 @@ export function HistoricalAtlas({
       setManualError("");
       toast.success(uk ? "Території збережено для школи" : "School territories saved");
       return true;
-    } catch (e) {
-      const message = atlasEditError(e, uk);
+    } catch (error) {
+      const message = atlasEditError(error, uk);
       setManualError(message);
       toast.error(message);
       return false;
     }
   };
-  useEffect(() => {
-    editor.dispatch({ type: "cancel" });
-  }, [profile?.schoolId, profile?.userId]);
   const saveDraft = async () => {
     if (!editor.draft || !manual.data) return;
     try {
@@ -327,313 +292,12 @@ export function HistoricalAtlas({
         saveSharedBorders(manual.data.entries, editor.draft, historical, editor.moves),
       );
       if (await saveEntries(entries)) editor.dispatch({ type: "cancel" });
-    } catch (e) {
-      const message = atlasEditError(e, uk);
+    } catch (error) {
+      const message = atlasEditError(error, uk);
       setManualError(message);
       toast.error(message);
     }
   };
-  const [ukrainianLands, setUkrainianLands] = useState(true);
-  const [occupations, setOccupations] = useState(true);
-  const [cossackHistory, setCossackHistory] = useState(true);
-  const regionalView = isCommonwealthView(view);
-  const easternHistory = regionalView || (view === "rus" && year > 1240);
-  const commonwealthYear = commonwealthSnapshot({ year, month, day });
-  const commonwealth = useQuery({
-    queryKey: ["historical-atlas-commonwealth"],
-    queryFn: async ({ signal }) =>
-      validateCommonwealthData(await jsonFile("/atlas/commonwealth/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && commonwealthYear !== undefined,
-    retry: 1,
-  });
-  const commonwealthFrame = useMemo(
-    () =>
-      commonwealthFrameAt(
-        commonwealth.data,
-        { year, month, day },
-        {
-          lands: ukrainianLands,
-          occupations,
-          cossacks: cossackHistory,
-        },
-      ),
-    [commonwealth.data, year, month, day, ukrainianLands, occupations, cossackHistory],
-  );
-  const franceYear = franceSnapshot(year);
-  const france = useQuery({
-    queryKey: ["historical-atlas-france"],
-    queryFn: async ({ signal }) =>
-      validateFranceData(await jsonFile("/atlas/france/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && franceYear !== undefined,
-    retry: 1,
-  });
-  const franceFrame =
-    year >= 1940 && year <= 1944
-      ? undefined
-      : france.data?.frames.find((f) => f.year === franceYear);
-  const englandYear = englandSnapshot(englandView ? date.year : year);
-  const england = useQuery({
-    queryKey: ["historical-atlas-england"],
-    queryFn: async ({ signal }) =>
-      validateEnglandData(await jsonFile("/atlas/england/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && englandView,
-    retry: 1,
-  });
-  const englandFrame = england.data?.frames.find((f) => f.year === englandYear);
-  const snapshot = overviewSnapshot(year);
-  const byzYear = year >= ATLAS_MIN_YEAR && year <= 1453 ? byzantineSnapshot(year) : undefined;
-  const frYear = frankishSnapshot(year);
-  const rusYear = rusSnapshot(year);
-  const mongolDetail = true;
-  const campaignStep = "";
-  const newView = ["mongols", "hordes", "mughals"].includes(view);
-  const britishView = isBritishView(view) && view !== "england";
-  const sharedMap =
-    view === "europe" || view === "world" || view === "antiquity" || view === "germany" || view === "napoleon";
-  const showBritish = britishView || sharedMap;
-  const yearMin = sharedMap ? ANTIQUITY_MIN_YEAR : ATLAS_MIN_YEAR;
-  const yearMax = showBritish ? ISLES_MAX_YEAR : ATLAS_MAX_YEAR;
-  const clampViewYear = (value: number, nextView: AtlasView) =>
-    nextView === "europe" ||
-    nextView === "world" ||
-    nextView === "antiquity" ||
-    nextView === "germany" ||
-    nextView === "napoleon"
-      ? clampSharedYear(value)
-      : isBritishView(nextView)
-        ? clampIslesYear(value)
-        : clampAtlasYear(value);
-  const invasion =
-    year >= 1223 && year <= 1242 && (view === "rus" || view === "mongols" || view === "hordes");
-  const rusDetail = true;
-  const frankishDetail = true;
-  const detailed = true;
-  const [originalLayer, setOriginalLayer] = useState(false);
-  const [yearText, setYearText] = useState(String(year));
-  const [search, setSearch] = useState("");
-  const [cities, setCities] = useState(true);
-  const [areas, setAreas] = useState(true);
-  const [borders, setBorders] = useState(true);
-  const [rivers, setRivers] = useState(true);
-  const [selection, setSelection] = useState<
-    { kind: "place"; id: string } | { kind: "polity"; feature: HistoricalFeature } | null
-  >(null);
-  useEffect(() => {
-    setYearText(String(year));
-  }, [year]);
-  useEffect(
-    () => setSelection(null),
-    [snapshot, byzYear, detailed, frYear, frankishDetail, rusYear, rusDetail],
-  );
-  const data = useQuery({
-    queryKey: ["historical-atlas", snapshot],
-    queryFn: async ({ signal }) =>
-      validateHistoricalCollection(await jsonFile(`/atlas/world-${snapshot}.geojson`, signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && snapshot !== undefined,
-    retry: 1,
-  });
-  const byzantine = useQuery({
-    queryKey: ["historical-atlas-byzantine"],
-    queryFn: async ({ signal }) => {
-      const raw = (await jsonFile("/atlas/byzantium/frames.json", signal)) as ByzantineData;
-      if (!raw || !Array.isArray(raw.frames) || raw.frames.length !== BYZANTINE_YEARS.length)
-        throw new Error("INVALID_BYZANTINE_DATA");
-      for (const frame of raw.frames) validateHistoricalCollection(frame.collection);
-      return raw;
-    },
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && detailed && year >= ATLAS_MIN_YEAR && year <= 1453,
-    retry: 1,
-  });
-  const frankish = useQuery({
-    queryKey: ["historical-atlas-franks"],
-    queryFn: async ({ signal }) => {
-      const raw = (await jsonFile("/atlas/franks/frames.json", signal)) as FrankishData;
-      if (!raw || !Array.isArray(raw.frames) || raw.frames.length !== FRANKISH_YEARS.length)
-        throw new Error("INVALID_FRANKISH_DATA");
-      for (const frame of raw.frames) validateHistoricalCollection(frame.collection);
-      return raw;
-    },
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && frankishDetail && frYear !== undefined,
-    retry: 1,
-  });
-  const frFrame = frankish.data?.frames.find((f) => f.year === frYear);
-  const rus = useQuery({
-    queryKey: ["historical-atlas-rus"],
-    queryFn: async ({ signal }) =>
-      validateRusData(await jsonFile("/atlas/rus/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && rusDetail && rusYear !== undefined,
-    retry: 1,
-  });
-  const rusFrame = rus.data?.frames.find((f) => f.year === rusYear);
-  const byzFrame =
-    year >= ATLAS_MIN_YEAR && year <= 1453
-      ? byzantine.data?.frames.find((f) => f.year === byzYear)
-      : undefined;
-  const mongols = useQuery({
-    queryKey: ["historical-atlas-mongols"],
-    queryFn: async ({ signal }) =>
-      validateMongolData(await jsonFile("/atlas/mongols/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && mongolDetail && year >= 1206,
-    retry: 1,
-  });
-  const mongolFrame = mongolFrameAt(
-    mongols.data,
-    year,
-    view === "mughals" ? "mughals" : view === "hordes" ? "hordes" : undefined,
-  );
-  const mongolCollection = useMemo(
-    () => (mongolDetail ? mongolCollectionAt(mongols.data, year) : undefined),
-    [mongolDetail, mongols.data, year],
-  );
-  const campaignMarkers = useMemo(
-    () => (invasion && mongolDetail ? campaignPlaces(year, campaignStep) : []),
-    [invasion, mongolDetail, year, campaignStep],
-  );
-  useEffect(() => setSelection(null), [dateKey, campaignStep, mongolDetail]);
-  const regionalHistorical = useMemo(
-    () =>
-      addCommonwealthLayer(
-        addFranceLayer(
-          combineHistoricalLayers(
-            snapshot !== undefined ? data.data : undefined,
-            detailed ? byzFrame?.collection : undefined,
-            frankishDetail && frYear !== undefined ? frFrame?.collection : undefined,
-            rusDetail && rusYear !== undefined
-              ? invasion && mongolDetail
-                ? markInvadedRus(rusFrame?.collection, year, campaignStep)
-                : rusFrame?.collection
-              : undefined,
-            mongolCollection,
-          ),
-          franceFrame?.collection,
-        ),
-        commonwealthFrame?.collection,
-      ),
-    [
-      snapshot,
-      data.data,
-      detailed,
-      byzFrame,
-      frankishDetail,
-      frYear,
-      frFrame,
-      rusDetail,
-      rusYear,
-      rusFrame,
-      invasion,
-      mongolDetail,
-      year,
-      campaignStep,
-      mongolCollection,
-      franceFrame,
-      commonwealthFrame,
-    ],
-  );
-  const sourceHistorical = useMemo(
-    () => addSpainLayer(regionalHistorical, spainFrame?.collection),
-    [regionalHistorical, spainFrame],
-  );
-  const isles = useQuery({
-    queryKey: ["historical-atlas-isles"],
-    queryFn: async ({ signal }) =>
-      validateIslesData(await jsonFile("/atlas/isles/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && showBritish,
-    retry: 1,
-  });
-  const overseas = useQuery({
-    queryKey: ["historical-atlas-overseas"],
-    queryFn: async ({ signal }) =>
-      validateOverseasData(await jsonFile("/atlas/isles/overseas.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && showBritish,
-    retry: 1,
-  });
-  const isleYear = showBritish ? islesSnapshot(year) : undefined;
-  const overseasYear = showBritish ? overseasSnapshot(year) : undefined;
-  const isleFrame =
-    showBritish && isleYear ? isles.data?.isles.find((frame) => frame.year === isleYear) : undefined;
-  const overseasFrame =
-    showBritish && overseasYear
-      ? overseas.data?.frames.find((frame) => frame.year === overseasYear)
-      : undefined;
-  const antiquityYear = sharedMap ? antiquitySnapshot(year) : undefined;
-  const antiquity = useQuery({
-    queryKey: ["historical-atlas-antiquity"],
-    queryFn: async ({ signal }) =>
-      validateAntiquityData(await jsonFile("/atlas/antiquity/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && sharedMap,
-    retry: 1,
-  });
-  const antiquityFrame =
-    antiquityYear !== undefined
-      ? antiquity.data?.frames.find((frame) => frame.year === antiquityYear)
-      : undefined;
-  const germanyYear = sharedMap ? germanySnapshot(year) : undefined;
-  const germany = useQuery({
-    queryKey: ["historical-atlas-germany"],
-    queryFn: async ({ signal }) =>
-      validateGermanyData(await jsonFile("/atlas/germany/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && sharedMap,
-    retry: 1,
-  });
-  const germanyFrame =
-    germanyYear !== undefined
-      ? germany.data?.frames.find((frame) => frame.year === germanyYear)
-      : undefined;
-  const napoleonYear = sharedMap ? napoleonSnapshot(year) : undefined;
-  const napoleon = useQuery({
-    queryKey: ["historical-atlas-napoleon"],
-    queryFn: async ({ signal }) =>
-      validateNapoleonData(await jsonFile("/atlas/napoleon/frames.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined" && sharedMap,
-    retry: 1,
-  });
-  const napoleonFrame =
-    napoleonYear !== undefined
-      ? napoleon.data?.frames.find((frame) => frame.year === napoleonYear)
-      : undefined;
-  const layered = useMemo(() => {
-    const withBritain =
-      showBritish && isles.data
-        ? overlayBritishIsles(
-            sourceHistorical,
-            isleFrame?.collection,
-            overseas.data ? overseasFrame?.collection : undefined,
-          )
-        : sourceHistorical;
-    const withAntiquity = antiquityFrame
-      ? overlayAntiquity(withBritain, antiquityFrame.collection)
-      : withBritain;
-    const withGermany =
-      germanyFrame && !napoleonFrame ? overlayGermany(withAntiquity, germanyFrame.collection) : withAntiquity;
-    return napoleonFrame ? overlayNapoleon(withGermany, napoleonFrame.collection) : withGermany;
-  }, [
-    showBritish,
-    isles.data,
-    sourceHistorical,
-    isleFrame,
-    overseas.data,
-    overseasFrame,
-    antiquityFrame,
-    germanyFrame,
-    napoleonFrame,
-  ]);
-  const historical = useMemo(
-    () => applyAtlasEdits(layered, manual.data?.entries ?? [], year),
-    [layered, manual.data?.entries, year],
-  );
   const physical = useQuery({
     queryKey: ["historical-atlas-physical"],
     queryFn: async ({ signal }) => {
@@ -647,359 +311,126 @@ export function HistoricalAtlas({
     enabled: typeof window !== "undefined",
     retry: 1,
   });
-  const allPlaces = useMemo(
-    () => [
-      ...ATLAS_PLACES,
-      ...BYZANTINE_PLACES,
-      ...FRANKISH_PLACES,
-      ...RUS_PLACES,
-      ...FRANCE_PLACES,
-      ...COMMONWEALTH_PLACES,
-      ...SPAIN_PLACES,
-      ...ENGLAND_PLACES,
-      ...ISLES_PLACES,
-      ...ANTIQUITY_PLACES,
-      ...GERMANY_PLACES,
-      ...NAPOLEON_PLACES,
-    ],
-    [],
-  );
-  const markerEpoch = year < ATLAS_MIN_YEAR ? year : placeEpoch(allPlaces, year);
   const available = useMemo(
     () =>
-      [
-        ...activePlaces(allPlaces, markerEpoch),
-        ...(mongolDetail ? mongolPlacesAt(year) : []),
-        ...campaignMarkers,
-        ...(cossackHistory ? cossackPlacesAt(year) : []),
-        ...(occupations ? occupationPlacesAt(year) : []),
-        ...spanishCampaignPlaces(date),
-      ].filter((p) =>
-        britishView
-          ? Boolean(
-              p.isles &&
-                (view === "isles" ||
-                  (view === "ireland" && p.irish) ||
-                  (view === "scotland" && p.scottish) ||
-                  (view === "wales" && p.welsh)),
-            )
-          : spanishView
-          ? p.spanish && (colonies || !p.colonial)
-          : englandView
-            ? p.english
-            : view === "cossacks"
-            ? p.ruthenian
-            : view === "commonwealth"
-              ? p.commonwealth
-              : view === "poland"
-                ? p.polish || p.ruthenian
-                : view === "lithuania"
-                  ? p.lithuanian
-                  : view === "france"
-                    ? p.french
-                    : newView
-                      ? p.mongol
-                      : view === "franks"
-                        ? p.frankish
-                        : view === "byzantium"
-                          ? p.byzantine
-                          : view !== "rus" || (!p.europe && !p.spanish) || p.ruthenian,
-      ),
-    [
-      markerEpoch,
-      view,
-      year,
-      mongolDetail,
-      campaignMarkers,
-      newView,
-      cossackHistory,
-      occupations,
-      dateKey,
-      spanishView,
-      englandView,
-      britishView,
-      colonies,
-    ],
+      uniqueWorldPlaces([
+        ...activePlaces(ALL_PLACES, date.year),
+        ...mongolPlacesAt(date.year),
+        ...(date.year >= 1223 && date.year <= 1242 ? campaignPlaces(date.year, "") : []),
+        ...(cossacks ? cossackPlacesAt(date.year) : []),
+        ...(occupations ? occupationPlacesAt(date.year) : []),
+        ...(date.year >= 395 ? spanishCampaignPlaces(date) : []),
+      ]).filter((p) => colonies || !p.colonial),
+    [date.year, dateKey, cossacks, occupations, colonies],
   );
   const drawn = useMemo(
-    () => available.filter((p) => (p.type === "city" ? cities : areas)),
+    () =>
+      available.filter((p) =>
+        p.type === "city" ? cities : areas || p.cossack || p.occupation || p.campaign,
+      ),
     [available, cities, areas],
   );
-  const choosePlace = useCallback((place: AtlasPlace) => {
-    if (place.type === "city") setCities(true);
+  const choosePlace = useCallback((p: AtlasPlace) => {
+    if (p.type === "city") setCities(true);
     else setAreas(true);
-    setSelection({ kind: "place", id: place.id });
+    setSelection({ kind: "place", id: p.id });
   }, []);
   const choosePolity = useCallback(
-    (feature: HistoricalFeature) => {
-      if (!editor.draft) setSelection({ kind: "polity", feature });
+    (f: HistoricalFeature) => {
+      if (!editor.draft) setSelection({ kind: "polity", id: String(f.id) });
     },
     [Boolean(editor.draft)],
   );
-  const mapHistorical = englandView ? englandFrame?.collection : historical;
   const selectedPlace =
     selection?.kind === "place" ? available.find((p) => p.id === selection.id) : undefined;
   const selectedPolity =
-    selection?.kind === "polity" &&
-    mapHistorical?.features.some((f) => f.id === selection.feature.id)
-      ? mapHistorical.features.find((f) => f.id === selection.feature.id)
+    selection?.kind === "polity"
+      ? historical?.features.find((f) => String(f.id) === selection.id)
       : undefined;
-  const period = view === "napoleon"
-    ? napoleonPeriod(year)
-    : view === "germany"
-      ? germanyPeriod(year)
-      : britishView && isBritishView(view)
-        ? islesPeriod(view, year)
-        : sharedMap && year < ATLAS_MIN_YEAR
-          ? antiquityPeriod(year)
-          : spanishView
-            ? SPAIN_PERIODS.find((p) => year >= p.from && year <= p.to)!
-            : englandView
-              ? ENGLAND_PERIODS.find((p) => date.year >= p.from && date.year <= p.to)!
-              : newView
-                ? mongolPeriod(year, view)
-                : ((easternHistory
-                    ? COMMONWEALTH_PERIODS
-                    : view === "france"
-                      ? FRANCE_PERIODS
-                      : view === "rus"
-                        ? RUS_PERIODS
-                        : view === "franks"
-                          ? FRANKISH_PERIODS
-                          : view === "byzantium"
-                            ? BYZANTINE_PERIODS
-                            : ATLAS_PERIODS
-                  ).find((p) => year >= p.from && year <= p.to) ?? {
-                    from: 1454,
-                    to: showBritish ? ISLES_MAX_YEAR : ATLAS_MAX_YEAR,
-                    title:
-                      showBritish && year > 1400
-                        ? uk
-                          ? "Острови й заморські володіння"
-                          : "Isles and overseas possessions"
-                        : uk
-                          ? "Пізніші століття"
-                          : "Later centuries",
-                    description:
-                      showBritish && year > 1400
-                        ? uk
-                          ? "Оглядові країни після 1400 року ще не всі налаштовані. На тій самій мапі лишаються Британські острови, Німеччина, наполеонівські зрізи й пізніша колоніальна схема."
-                          : "Some countries after 1400 are not configured. The same map still shows the British Isles, Germany, the Napoleonic frames and a later colonial schematic."
-                        : uk
-                          ? "Для цього регіону пізніші територіальні шари ще не налаштовано. Історія ханств і Великих Моголів доступна в окремих масштабах."
-                          : "Later territorial layers are not configured for this region. The khanates and Mughals have their own scales.",
-                    sources: showBritish && year > 1400 ? ["isles-eh", "isles-empire"] : ["mongol-met"],
-                  });
-  const matches = available.filter((p) =>
-    `${p.name} ${p.description}`.toLowerCase().includes(search.trim().toLowerCase()),
+  const term = search.trim().toLocaleLowerCase(uk ? "uk" : "en");
+  const matchingPlaces = available.filter((p) =>
+    `${p.name} ${p.description}`.toLocaleLowerCase(uk ? "uk" : "en").includes(term),
   );
-  const nearby = (
-    view === "napoleon"
-      ? NAPOLEON_EVENTS
-      : view === "germany"
-        ? GERMANY_EVENTS
-        : britishView && isBritishView(view)
-          ? islesEventsFor(view)
-          : sharedMap && year < ATLAS_MIN_YEAR
-            ? ANTIQUITY_EVENTS
-            : spanishView
-              ? SPAIN_EVENTS
-              : englandView
-                ? ENGLAND_EVENTS
-                : easternHistory
-                  ? COMMONWEALTH_EVENTS
-                  : view === "france"
-                    ? FRANCE_EVENTS
-                    : newView
-                      ? MONGOL_EVENTS
-                      : view === "rus"
-                        ? [
-                            ...RUS_EVENTS,
-                            ...(invasion
-                              ? MONGOL_EVENTS.filter((e) => e.sources.includes("mongol-invasion"))
-                              : []),
-                          ]
-                        : view === "franks"
-                          ? FRANKISH_EVENTS
-                          : view === "byzantium"
-                            ? [
-                                ...BYZANTINE_EVENTS,
-                                ...ATLAS_EVENTS.filter((e) => e.sources.includes("met-byzantium")),
-                              ]
-                            : [
-                                ...ATLAS_EVENTS,
-                                ...BYZANTINE_EVENTS,
-                                ...FRANKISH_EVENTS,
-                                ...FRANCE_EVENTS,
-                                ...COMMONWEALTH_EVENTS,
-                                ...SPAIN_EVENTS,
-                                ...(showBritish ? islesEventsFor("isles") : []),
-                                ...GERMANY_EVENTS,
-                                ...NAPOLEON_EVENTS,
-                              ]
-  )
-    .filter((e) => view !== "rus" || !e.europe || e.ruthenian)
-    .filter((e) => Math.abs(e.year - year) <= 150)
-    .sort((a, b) =>
-      englandView || wideTimeline
-        ? Math.abs(a.year - date.year) - Math.abs(b.year - date.year)
-        : Math.abs(
-            atlasDateOrdinal(normalizeAtlasDate(a.year, a.month, a.day)) - atlasDateOrdinal(date),
-          ) -
-          Math.abs(
-            atlasDateOrdinal(normalizeAtlasDate(b.year, b.month, b.day)) - atlasDateOrdinal(date),
-          ),
-    )
-    .slice(0, 6)
-    .sort((a, b) =>
-      englandView || wideTimeline
-        ? a.year - b.year
-        : atlasDateKey(normalizeAtlasDate(a.year, a.month, a.day)).localeCompare(
-            atlasDateKey(normalizeAtlasDate(b.year, b.month, b.day)),
-          ),
-    );
-  const commitDay = () => {
-    if (wideTimeline) return;
-    const next = englandView
-      ? englandDate(year, date.month, dayText.trim() ? Number(dayText) : date.day)
-      : normalizeAtlasDate(year, date.month, dayText.trim() ? Number(dayText) : date.day);
-    setDayText(String(next.day));
-    onChange(year, view, next);
-  };
-  const warQuickDates = [
-    "1931-04-14",
-    "1936-07-17",
-    "1936-07-31",
-    "1936-09-30",
-    "1937-10-31",
-    "1938-11-30",
-    "1939-02-28",
-    "1939-04-01",
+  const matchingPolities =
+    historical?.features.filter((f) =>
+      `${historicalName(f.properties.name, uk)} ${f.properties.name} ${historicalName(f.properties.subject, uk)}`
+        .toLocaleLowerCase(uk ? "uk" : "en")
+        .includes(term),
+    ) ?? [];
+  const eventDate = (e: { year: number; month?: number; day?: number }) =>
+    worldDate(e.year, e.month, e.day);
+  const nearby = [
+    ...new Map(
+      ALL_EVENTS.map((e) => [`${e.year}-${e.month ?? 1}-${e.day ?? 1}-${e.title}`, e]),
+    ).values(),
+  ]
+    .filter((e) => Math.abs(e.year - date.year) <= 150)
+    .sort((a, b) => Math.abs(a.year - date.year) - Math.abs(b.year - date.year))
+    .slice(0, 8)
+    .sort((a, b) => compareWorldDates(eventDate(a), eventDate(b)));
+  const frames = manifest.data?.frames ?? [];
+  const previousFrame = [...frames].reverse().find((f) => compareWorldDates(f, date) < 0);
+  const nextFrame = frames.find((f) => compareWorldDates(f, date) > 0);
+  const quickDates = frames
+    .filter((f) => Math.abs(f.year - date.year) <= 50)
+    .sort((a, b) => Math.abs(a.year - date.year) - Math.abs(b.year - date.year))
+    .slice(0, 8)
+    .sort(compareWorldDates);
+  const queries = [manifest, base, patch, physical];
+  const failed = queries.some((q) => q.isError);
+  const loading =
+    manifest.isPending ||
+    Boolean(frame && (base.isPending || patch.isPending)) ||
+    physical.isPending;
+  const sourceFront = frame?.sources.find((s) => s.name === "front");
+  const states =
+    historical?.features.filter((f) => f.properties.layer === "state" || !f.properties.layer) ?? [];
+  const legend = [
+    ...new Map(
+      states
+        .filter(
+          (f) => f.properties.region === "commonwealth" && f.properties.name.includes("partition"),
+        )
+        .map((f) => [f.properties.subject, f]),
+    ).values(),
   ];
-  const quickDates = wideTimeline
-    ? [
-        ...new Set([
-          ...ANTIQUITY_YEARS,
-          ...GERMANY_YEARS,
-          ...NAPOLEON_YEARS,
-          ...ATLAS_YEARS,
-          395,
-          1453,
-          1603,
-          1707,
-          1801,
-          1858,
-          1922,
-          1994,
-        ]),
-      ]
-        .sort((a, b) => a - b)
-        .map((y) => ({ year: y, month: 1, day: 1 }))
-    : spanishView && year >= 1936 && year <= 1939
-      ? warQuickDates.map((key) => parseAtlasDate(key)!)
-      : (spanishView
-          ? [711, 750, 1050, 1090, 1220, 1492, 1530, 1650, 1783, 1825, 1899, 1936, 1939, 1976]
-          : englandView
-            ? [...ENGLAND_YEARS]
-          : regionalView
-            ? view === "cossacks"
-              ? [1591, 1594, 1625, 1630, 1635, 1637, 1638, 1648, 1649, 1651, 1655, 1667]
-              : [1000, 1279, 1387, 1530, 1569, 1618, 1655, 1667, 1772, 1793, 1795, 1938, 1994]
-            : ATLAS_YEARS
-        ).map((y) =>
-          spanishView && [1492, 1899, 1936, 1939, 1976].includes(y)
-            ? parseAtlasDate(
-                (
-                  {
-                    1492: "1492-01-02",
-                    1899: "1899-04-11",
-                    1936: "1936-07-31",
-                    1939: "1939-02-28",
-                    1976: "1976-02-26",
-                  } as Record<number, string>
-                )[y],
-              )!
-            : regionalView && COMMONWEALTH_TRANSITIONS[y]
-              ? parseAtlasDate(COMMONWEALTH_TRANSITIONS[y])!
-              : englandView
-                ? englandDate(y)
-                : normalizeAtlasDate(y),
-        );
-  const commitYear = () => {
-    const next = englandView
-      ? clampEnglandYear(yearText.trim() ? Number(yearText) : year)
-      : clampViewYear(yearText.trim() ? Number(yearText) : year, view);
-    setYearText(String(next));
-    onChange(next, view);
-  };
-  const warnings: string[] = [];
-  if (snapshot === undefined)
-    warnings.push(
-      "Кордони інших країн для цього проміжку ще не налаштовані. Нейтральний суходіл не означає відсутності держав або населення.",
-    );
-  if (detailed && year >= 1204 && year < 1205)
-    warnings.push(
-      "1204 — перехідний рік після захоплення Константинополя. Найближчі авторські зрізи: 1203 (до події) та 1205 (держави-наступниці); проміжні кордони не вигадуються.",
-    );
-  if (detailed && year >= 1261 && year < 1262)
-    warnings.push(
-      "Константинополь повернуто 1261 року; перший доступний авторський зріз після цієї події — 1262. До нього показаний попередній зріз, а не реконструйовані річні кордони.",
-    );
-  if (detailed && year <= 1453 && byzYear === 1453)
-    warnings.push(
-      "Мапа 1453 року показує володіння до захоплення Константинополя 29 травня. Вона не відображає стан після падіння столиці.",
-    );
-  if (snapshot === 800)
-    warnings.push(
-      "«Руський каганат» у цьому зрізі — гіпотетична реконструкція, не встановлена територія держави.",
-    );
-  if (snapshot === 1200 && !(rusDetail && rusYear !== undefined && rusFrame))
-    warnings.push(
-      "Частину руських князівств джерело об’єднує в одну геометрію. Регіональні картки розрізняють основні осередки.",
-    );
-  if (snapshot === 1279 || snapshot === 1300)
-    warnings.push(
-      "Галицько-Волинська держава не названа окремо у геометрії джерела. Це прогалина мапи, а не свідчення її зникнення.",
-    );
-  if (snapshot === 1400)
-    warnings.push(
-      "Полігон Poland-Lithuania узагальнює дві держави під династичною унією. Це не Річ Посполита, що постала 1569 р.",
-    );
-  if (germanyFrame && !napoleonFrame)
-    warnings.push(
-      germanyYear === 1937
-        ? "Німецькі межі схематичні. Зріз 1937 року не включає аншлюс, Судети й окупації 1938–1945."
-        : "Німецькі межі схематичні й тримаються до наступного зрізу, без щорочної перемальовки.",
-    );
-  if (sharedMap && year < ATLAS_MIN_YEAR)
-    warnings.push(
-      "Античні межі схематичні. Берег зрізано за сучасним суходолом. Зріз не змінюється щороку: Карфаген зникає 146 року до н. е., Британія з’являється на зрізі 117 року.",
-    );
-  if (napoleonFrame)
-    warnings.push(
-      napoleonYear === 1812
-        ? "Наполеонівські межі схематичні. Штрих до Москви — похід 1812 року, не анексія Росії."
-        : "Наполеонівські межі схематичні й тримаються до наступного зрізу. Штрих означає неповну владу, а не звичайну провінцію.",
-    );
-  if (showBritish && year >= ATLAS_MIN_YEAR)
-    warnings.push(
-      "Британські острови й заморські володіння намальовані на тій самій мапі. Внутрішні межі схематичні; берег зрізано за сучасним суходолом Natural Earth.",
-    );
+  const checkboxes: [string, boolean, (v: boolean) => void][] = [
+    [uk ? "Держави й кордони" : "States and borders", borders, setBorders],
+    [uk ? "Міста" : "Cities", cities, setCities],
+    [uk ? "Річки" : "Rivers", rivers, setRivers],
+    [uk ? "Регіональні осередки" : "Regional references", areas, setAreas],
+    [uk ? "Історичні українські землі" : "Historical Ukrainian lands", lands, setLands],
+    [uk ? "Окупації · штрихування" : "Occupations · hatching", occupations, setOccupations],
+    [
+      uk ? "Козацька автономія та повстання" : "Cossack autonomy and uprisings",
+      cossacks,
+      setCossacks,
+    ],
+    [
+      uk ? "Реконкіста · оглядові ареали" : "Reconquista · survey areas",
+      reconquista,
+      setReconquista,
+    ],
+    [uk ? "Колоніальні володіння" : "Colonial possessions", colonies, setColonies],
+    [uk ? "Фронти громадянської війни" : "Civil War fronts", fronts, setFronts],
+  ];
   const share = async () => {
     const url = new URL(window.location.href);
-    url.searchParams.set("section", "useful");
-    url.searchParams.set("year", String(year));
-    url.searchParams.set("month", String(date.month));
-    url.searchParams.set("day", String(date.day));
-    url.searchParams.set("view", view);
+    for (const [key, value] of Object.entries({
+      section: "useful",
+      tool: "atlas",
+      view: "world",
+      year: date.year,
+      month: date.month,
+      day: date.day,
+    }))
+      url.searchParams.set(key, String(value));
     try {
       await navigator.clipboard.writeText(url.href);
       toast.success(uk ? "Посилання скопійовано" : "Link copied");
     } catch {
       toast.info(
-        uk
-          ? "Копіювання недоступне. Дата й масштаб збережені в адресному рядку."
-          : "Copy unavailable. The address bar retains your date and view.",
+        uk ? "Дата збережена в адресному рядку." : "The selected date is in the address bar.",
       );
     }
   };
@@ -1008,20 +439,18 @@ export function HistoricalAtlas({
       <Panel>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-forest-mid">
-              {wideTimeline
-                ? `${formatAtlasYear(yearMin, uk)}–${yearMax}`
-                : englandView
-                  ? "43–1994"
-                  : "395–1994"} · {uk ? "навчальний атлас" : "learning atlas"}
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-forest-mid">
+              <Globe2 className="size-4" />
+              {uk ? "Єдина історична мапа" : "One historical map"} · 500 {uk ? "до н. е." : "BCE"}
+              –1994
             </p>
             <h2 className="mt-1 font-display text-2xl font-extrabold">
-              {uk ? "Світ і держави крізь час" : "World and states through time"}
+              {uk ? "Світ крізь час" : "The world through time"}
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-muted">
               {uk
-                ? "Історичний атлас із датованими територіями, містами й джерелами. Англія: від Римської Британії до сучасного поділу островів. Іспанія: завоювання, Реконкіста, колоніальні володіння та громадянська війна. До 395 року на спільній мапі є Рим, Карфаген і Персія, з 962 — Німеччина, а в 1792–1815 — наполеонівські війни. Кнопки лише наближають камеру."
-                : "Detailed source maps of Rus, Byzantium, the Franks, France, Spain and England. Before 395 the shared map shows Rome, Carthage and Persia, from 962 Germany, and in 1792–1815 the Napoleonic Wars. The buttons only move the camera."}
+                ? "Оберіть дату й досліджуйте весь світ на одній мапі. Наближайте потрібну територію або знаходьте держави й міста через пошук."
+                : "Choose a date and explore the world on one map. Zoom into a region or search for a state or city."}
             </p>
           </div>
           <PillButton type="button" tone="ghost" onClick={() => void share()}>
@@ -1034,14 +463,20 @@ export function HistoricalAtlas({
             {uk ? "Рік подій" : "Event year"}
             <TextInput
               type="number"
-              min={englandView ? 43 : yearMin}
-              max={englandView ? 1994 : yearMax}
-              step={1}
+              min={WORLD_MIN_YEAR}
+              max={WORLD_MAX_YEAR}
               value={yearText}
               onChange={(e) => setYearText(e.target.value)}
-              onBlur={commitYear}
+              onBlur={() => {
+                const next = worldDate(
+                  yearText.trim() ? Number(yearText) : date.year,
+                  date.month,
+                  date.day,
+                );
+                setYearText(String(navigate(next) ? next.year : date.year));
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") commitYear();
+                if (e.key === "Enter") e.currentTarget.blur();
               }}
               className="mt-1 block w-28"
             />
@@ -1050,45 +485,16 @@ export function HistoricalAtlas({
             {uk ? "Місяць подій" : "Event month"}
             <select
               aria-label={uk ? "Місяць подій" : "Event month"}
-              disabled={wideTimeline}
               value={date.month}
-              onChange={(e) =>
-                onChange(year, view, { month: Number(e.target.value), day: date.day })
-              }
+              onChange={(e) => navigate(worldDate(date.year, Number(e.target.value), date.day))}
               className="mt-1 block min-h-11 w-36 rounded-full border border-hairline bg-surface-2 px-3 text-sm"
             >
-              {(uk
-                ? [
-                    "Січень",
-                    "Лютий",
-                    "Березень",
-                    "Квітень",
-                    "Травень",
-                    "Червень",
-                    "Липень",
-                    "Серпень",
-                    "Вересень",
-                    "Жовтень",
-                    "Листопад",
-                    "Грудень",
-                  ]
-                : [
-                    "January",
-                    "February",
-                    "March",
-                    "April",
-                    "May",
-                    "June",
-                    "July",
-                    "August",
-                    "September",
-                    "October",
-                    "November",
-                    "December",
-                  ]
-              ).map((name, i) => (
-                <option key={name} value={i + 1}>
-                  {name}
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i} value={i + 1}>
+                  {new Intl.DateTimeFormat(uk ? "uk" : "en", {
+                    month: "long",
+                    timeZone: "UTC",
+                  }).format(new Date(Date.UTC(2000, i, 1)))}
                 </option>
               ))}
             </select>
@@ -1098,579 +504,231 @@ export function HistoricalAtlas({
             <TextInput
               type="number"
               min={1}
-              max={daysInAtlasMonth(year, date.month)}
-              step={1}
-              disabled={wideTimeline}
+              max={31}
               value={dayText}
               onChange={(e) => setDayText(e.target.value)}
-              onBlur={commitDay}
+              onBlur={() => {
+                const next = worldDate(
+                  date.year,
+                  date.month,
+                  dayText.trim() ? Number(dayText) : date.day,
+                );
+                setDayText(String(navigate(next) ? next.day : date.day));
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") commitDay();
+                if (e.key === "Enter") e.currentTarget.blur();
               }}
               className="mt-1 block w-20"
             />
           </label>
-          <div className="flex items-center gap-1">
+          <div className="flex gap-1">
             <button
               type="button"
-              aria-label={
-                wideTimeline
-                  ? uk
-                    ? "Попередній рік"
-                    : "Previous year"
-                  : uk
-                    ? "Попередній день"
-                    : "Previous day"
-              }
-              disabled={
-                wideTimeline
-                  ? year <= yearMin
-                  : englandView
-                    ? date.year === 43 && date.month === 1 && date.day === 1
-                    : atlasDateOrdinal(date) === 0
-              }
-              onClick={() => {
-                if (wideTimeline) {
-                  onChange(clampSharedYear(year - 1), view);
-                  return;
-                }
-                const d = englandView ? shiftEnglandDay(date, -1) : shiftAtlasDay(date, -1);
-                onChange(d.year, view, d);
-              }}
+              aria-label={uk ? "Попередній день" : "Previous day"}
+              disabled={date.year === WORLD_MIN_YEAR && date.month === 1 && date.day === 1}
+              onClick={() => navigate(shiftWorldDay(date, -1))}
               className="grid size-11 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
             >
               <ChevronLeft className="size-4" />
             </button>
             <button
               type="button"
-              aria-label={
-                wideTimeline
-                  ? uk
-                    ? "Наступний рік"
-                    : "Next year"
-                  : uk
-                    ? "Наступний день"
-                    : "Next day"
-              }
-              disabled={
-                wideTimeline
-                  ? year >= yearMax
-                  : englandView
-                    ? date.year === 1994 && date.month === 12 && date.day === 31
-                    : atlasDateOrdinal(date) === ATLAS_LAST_DAY
-              }
-              onClick={() => {
-                if (wideTimeline) {
-                  onChange(clampSharedYear(year + 1), view);
-                  return;
-                }
-                const d = englandView ? shiftEnglandDay(date, 1) : shiftAtlasDay(date, 1);
-                onChange(d.year, view, d);
-              }}
+              aria-label={uk ? "Наступний день" : "Next day"}
+              disabled={date.year === WORLD_MAX_YEAR && date.month === 12 && date.day === 31}
+              onClick={() => navigate(shiftWorldDay(date, 1))}
               className="grid size-11 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
             >
               <ChevronRight className="size-4" />
             </button>
           </div>
-          <div className="flex w-full min-w-0 basis-full items-center gap-2 lg:w-auto lg:flex-1 lg:basis-0">
-            <button
-              type="button"
-              aria-label={uk ? "На 10 років назад" : "Back 10 years"}
-              disabled={year <= (englandView ? 43 : yearMin)}
-              onClick={() =>
-                onChange(
-                  englandView ? clampEnglandYear(year - 10) : clampViewYear(year - 10, view),
-                  view,
-                )
-              }
-              className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <input
-              type="range"
-              aria-label={
-                wideTimeline
-                  ? uk
-                    ? `Часова шкала ${formatAtlasYear(yearMin, uk)}–${yearMax}`
-                    : `Timeline ${formatAtlasYear(yearMin, false)}–${yearMax}`
-                  : englandView
-                    ? uk
-                      ? "Часова шкала 43–1994"
-                      : "Timeline 43–1994"
-                    : uk
-                      ? "Часова шкала 395–1994"
-                      : "Timeline 395–1994"
-              }
-              min={wideTimeline ? yearMin : englandView ? 43 : 0}
-              max={wideTimeline ? yearMax : englandView ? 1994 : ATLAS_LAST_DAY}
-              step={1}
-              value={wideTimeline || englandView ? date.year : atlasDateOrdinal(date)}
-              aria-valuetext={
-                wideTimeline
-                  ? formatAtlasYear(date.year, uk)
-                  : englandView
-                    ? formatEnglandDate(date)
-                    : formatAtlasDate(date)
-              }
-              onChange={(e) => {
-                if (wideTimeline) {
-                  onChange(clampSharedYear(Number(e.target.value)), view);
-                  return;
-                }
-                if (englandView) {
-                  onChange(clampEnglandYear(Number(e.target.value)), view, {
-                    month: date.month,
-                    day: date.day,
-                  });
-                  return;
-                }
-                const d = atlasDateFromOrdinal(Number(e.target.value));
-                onChange(d.year, view, d);
-              }}
-              className="min-w-20 flex-1 accent-forest-mid"
-            />
-            <button
-              type="button"
-              aria-label={uk ? "На 10 років уперед" : "Forward 10 years"}
-              disabled={year >= (englandView ? 1994 : yearMax)}
-              onClick={() =>
-                onChange(
-                  englandView ? clampEnglandYear(year + 10) : clampViewYear(year + 10, view),
-                  view,
-                )
-              }
-              className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 disabled:opacity-30"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-        </div>
-        <div
-          className="mt-3 flex flex-wrap gap-1.5"
-          aria-label={uk ? "Картографічні зрізи" : "Map snapshots"}
-        >
-          {quickDates.map((d) => (
-            <button
-              key={englandView ? englandDateKey(d) : wideTimeline ? `wide:${d.year}` : atlasDateKey(d)}
-              type="button"
-              onClick={() => onChange(d.year, view, d)}
-              aria-pressed={dateKey === (englandView ? englandDateKey(d) : wideTimeline ? `wide:${d.year}` : atlasDateKey(d))}
-              className={`min-h-9 rounded-full px-3 text-xs font-bold ${dateKey === (englandView ? englandDateKey(d) : wideTimeline ? `wide:${d.year}` : atlasDateKey(d)) ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
-            >
-              {wideTimeline
-                ? formatAtlasYear(d.year, uk)
-                : englandView
-                  ? String(d.year)
-                  : formatAtlasDate(
-                      d,
-                      (spanishView && year >= 1936 && year <= 1939) ||
-                        (regionalView && COMMONWEALTH_TRANSITIONS[d.year])
-                        ? "day"
-                        : "year",
-                    )}
-            </button>
-          ))}
-        </div>
-        <div className="mt-4 rounded-xl border border-forest-mid/25 bg-forest-mid/5 p-3 text-sm">
-          <strong>
-            {uk ? "Дата подій" : "Event date"}:{" "}
-            <span data-testid="atlas-event-date">
-              {wideTimeline
-                ? formatAtlasYear(year, uk)
-                : englandView
-                  ? formatEnglandDate(date)
-                  : formatAtlasDate(date)}
-            </span>{" "}
-            ·{" "}
-            {spanishView || regionalView || englandView
-              ? uk
-                ? "Зріз регіону"
-                : "Regional snapshot"
-              : uk
-                ? "Світ"
-                : "World"}
-            :{" "}
-            {spanishView
-              ? spainFrame
-                ? formatAtlasDate(parseAtlasDate(spainFrame.date)!, spainFrame.precision)
-                : "—"
-              : englandView
-                ? (englandFrame?.year ?? "—")
-                : regionalView
-                  ? commonwealthFrame?.date
-                    ? commonwealthFrame.date.split("-").reverse().join(".")
-                    : (commonwealthFrame?.year ?? "—")
-                  : (snapshot ?? "—")}
-            {!(spanishView || englandView) &&
-              detailed &&
-              year <= 1453 &&
-              ` · ${uk ? "Візантія" : "Byzantium"}: ${byzYear}`}
-            {!(spanishView || englandView) &&
-              frankishDetail &&
-              frYear !== undefined &&
-              ` · ${uk ? "Франки" : "Franks"}: ${frYear}`}
-            {!(spanishView || englandView) &&
-              rusDetail &&
-              rusFrame &&
-              rusYear !== undefined &&
-              ` · ${uk ? "Русь" : "Rus"}: ${rusFrame.sourceYear}${rusYear === 1240 ? (uk ? " (до навали)" : " (before invasion)") : ""}`}
-            {antiquityYear !== undefined && ` · ${uk ? "Античність" : "Antiquity"}: ${formatAtlasYear(antiquityYear, uk)}`}
-            {germanyYear !== undefined && !napoleonYear && ` · ${uk ? "Німеччина" : "Germany"}: ${germanyYear}`}
-            {napoleonYear !== undefined && ` · ${uk ? "Наполеон" : "Napoleon"}: ${napoleonYear}`}
-            {showBritish && isleYear !== undefined && ` · ${uk ? "Острови" : "Isles"}: ${isleYear}`}
-            {showBritish &&
-              (overseasYear !== undefined
-                ? ` · ${uk ? "Володіння" : "Possessions"}: ${overseasYear}`
-                : year >= 1558 && year < 1655
-                  ? uk
-                    ? " · Кале втрачено, колоній ще немає"
-                    : " · Calais lost; colonies not yet drawn"
-                  : "")}
+          <strong className="ml-auto py-2 text-sm text-forest-mid" data-testid="atlas-event-date">
+            {formatWorldDate(date, uk)}
           </strong>
-          <p className="mt-1 text-xs text-muted">
-            {englandView
-              ? uk
-                ? "Берег збігається з суходолом атласу. Внутрішні межі схематичні: між зрізами кордони не інтерполюються. Штрихування — залежність або неповний контроль."
-                : "The coastline matches the atlas land mask. Internal borders are schematic and are not interpolated between snapshots. Hatching marks dependency or incomplete control."
-              : spanishView
-              ? uk
-                ? "Дата подій може бути точною до дня; політичні та воєнні карти мають власну річну або місячну точність. Проміжні щоденні фронти не вигадуються."
-                : "Events may have exact dates; political and military maps retain their own annual or monthly precision. Daily fronts are not interpolated."
-              : regionalView
-                ? uk
-                  ? "Державні межі, історичні землі й форми контролю мають окремі шари. Перевіряйте дату та джерело в картці території."
-                  : "State borders, historical lands and forms of control are separate layers. Check each territory’s source and date."
-                : snapshot === undefined
-                  ? antiquityFrame
-                    ? uk
-                      ? "Показано античний зріз на тій самій мапі. Інші країни цього часу ще не налаштовані, тож суходіл поза шаром лишається нейтральним."
-                      : "An antiquity frame is drawn on the same map. Other countries of this date are not configured, so land outside the layer stays neutral."
-                    : uk
-                      ? "Для інших країн цей період ще не налаштовано."
-                      : "Other countries are not configured for this period."
-                  : year === snapshot
-                    ? uk
-                      ? "Оглядовий картографічний зріз цього року; межі приблизні."
-                      : "Overview snapshot for this year; boundaries are approximate."
-                    : uk
-                      ? `Світ: найближчий оглядовий зріз (${snapshot}). Візантія: останній доступний авторський зріз не пізніше обраного року. Кордони не інтерполюються.`
-                      : `Nearest available snapshot (${snapshot}). Borders are not interpolated; regional notes use event year ${year}.`}
-          </p>
-          {antiquityFrame && <p className="mt-1 text-xs text-muted">{antiquityFrame.note}</p>}
-          {germanyFrame && !napoleonFrame && (
-            <p className="mt-1 text-xs text-muted">{germanyFrame.note}</p>
-          )}
-          {napoleonFrame && <p className="mt-1 text-xs text-muted">{napoleonFrame.note}</p>}
-          {showBritish && isleFrame && <p className="mt-1 text-xs text-muted">{isleFrame.note}</p>}
-          {showBritish && overseasFrame && (
-            <p className="mt-1 text-xs text-muted">{overseasFrame.note}</p>
-          )}
-          {warnings
-            .filter(
-              (note) =>
-                !(regionalView || spanishView || englandView) ||
-                !note.startsWith("Кордони інших країн"),
-            )
-            .map((note) => (
-              <p key={note} className="mt-2 text-xs text-terracotta">
-                {note}
-              </p>
-            ))}
+        </div>
+        <label className="mt-4 block">
+          <span className="sr-only">{uk ? "Шкала часу" : "Timeline"}</span>
+          <input
+            type="range"
+            min={WORLD_MIN_YEAR}
+            max={WORLD_MAX_YEAR}
+            step={1}
+            value={date.year}
+            onChange={(e) =>
+              navigate(
+                worldDate(Number(e.target.value) || (date.year > 0 ? -1 : 1), date.month, date.day),
+              )
+            }
+            className="block w-full accent-forest"
+          />
+        </label>
+        <div className="mt-1 flex justify-between text-xs text-muted">
+          <span>500 {uk ? "до н. е." : "BCE"}</span>
+          <span>500</span>
+          <span>1000</span>
+          <span>1500</span>
+          <span>1994</span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          {(
-            [
-              ["rus", uk ? "Русь-Україна" : "Rus’-Ukraine"],
-              ["byzantium", uk ? "Візантія" : "Byzantium"],
-              ["france", uk ? "Франція" : "France"],
-              ["england", uk ? "Англія" : "England"],
-              ["spain", uk ? "Іспанія" : "Spain"],
-              ["spanish-empire", uk ? "Іспанська імперія" : "Spanish Empire"],
-              ["poland", uk ? "Польща" : "Poland"],
-              ["lithuania", uk ? "Литва" : "Lithuania"],
-              ["commonwealth", uk ? "Річ Посполита" : "Commonwealth"],
-              ["cossacks", uk ? "Українські землі · козацтво" : "Ukrainian lands · Cossacks"],
-              ["franks", uk ? "Франкська держава" : "Frankish realms"],
-              ["antiquity", uk ? "Античність" : "Antiquity"],
-              ["germany", uk ? "Німеччина" : "Germany"],
-              ["napoleon", uk ? "Наполеон" : "Napoleon"],
-              ["europe", uk ? "Європа" : "Europe"],
-              ["world", uk ? "Світ" : "World"],
-              ["scotland", uk ? "Шотландія" : "Scotland"],
-              ["wales", uk ? "Вельс" : "Wales"],
-              ["ireland", uk ? "Ірландія" : "Ireland"],
-              ["isles", uk ? "Британські острови" : "British Isles"],
-              ["mongols", uk ? "Монгольська імперія" : "Mongol Empire"],
-              ["hordes", uk ? "Орди й ханства" : "Hordes and khanates"],
-              ["mughals", uk ? "Великі Моголи · Індія" : "Mughals · India"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={view === key}
-              onClick={() =>
-                onChange(
-                  key === "england"
-                    ? year
-                    : key === "antiquity" && year >= ATLAS_MIN_YEAR
-                      ? 117
-                      : key === "germany" && year < GERMANY_MIN_YEAR
-                        ? GERMANY_MIN_YEAR
-                        : key === "napoleon" &&
-                            (year < NAPOLEON_MIN_YEAR || year > NAPOLEON_MAX_YEAR)
-                          ? 1812
-                          : clampViewYear(year, key),
-                  key,
-                )
-              }
-              className={`flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold ${view === key ? "bg-forest text-paper" : "bg-surface-2 text-ink"}`}
-            >
-              <Globe2 className="size-4" />
-              {label}
-            </button>
-          ))}
+          <PillButton
+            type="button"
+            tone="ghost"
+            disabled={!previousFrame}
+            onClick={() => previousFrame && navigate(previousFrame)}
+          >
+            <ChevronLeft className="mr-1 size-3" />
+            {uk ? "Попередній зріз" : "Previous snapshot"}
+          </PillButton>
+          <PillButton
+            type="button"
+            tone="ghost"
+            disabled={!nextFrame}
+            onClick={() => nextFrame && navigate(nextFrame)}
+          >
+            {uk ? "Наступний зріз" : "Next snapshot"}
+            <ChevronRight className="ml-1 size-3" />
+          </PillButton>
           <span className="ml-auto text-xs text-muted">
             {uk
-              ? "Перетягуйте мапу; + / − або два пальці — масштаб"
-              : "Drag to pan; + / − or pinch to zoom"}
+              ? "Перетягуйте мапу · + / − або два пальці — масштаб"
+              : "Drag to pan · + / − or pinch to zoom"}
           </span>
         </div>
-        <div className="my-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
-          {[
-            [uk ? "Держави й ареали" : "Polities and areas", borders, setBorders],
-            [uk ? "Міста" : "Towns", cities, setCities],
-            [uk ? "Регіональні осередки" : "Regional references", areas, setAreas],
-            [uk ? "Річки" : "Rivers", rivers, setRivers],
-          ].map(([label, value, set]) => (
-            <label key={String(label)} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={value as boolean}
-                onChange={(e) => (set as (value: boolean) => void)(e.target.checked)}
-              />
-              {label as string}
+        {quickDates.length > 1 && (
+          <details className="mt-3 text-xs">
+            <summary className="cursor-pointer text-forest-mid">
+              {uk ? "Доступні зрізи поруч із вибраною датою" : "Snapshots near this date"}
+            </summary>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {quickDates.map((f) => (
+                <button
+                  type="button"
+                  key={f.path}
+                  onClick={() => navigate(f)}
+                  className="min-h-9 rounded-full bg-surface-2 px-3"
+                >
+                  {formatWorldDate(f, uk)}
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+        <div
+          className="my-4 rounded-2xl border border-hairline bg-surface-2/50 px-4 py-3 text-xs"
+          data-testid="world-source-date"
+        >
+          <strong>
+            {uk ? "Світова основа" : "World background"}:{" "}
+            {frame ? formatAtlasYear(frame.baseYear, uk) : "…"}
+          </strong>
+          <span className="ml-2 text-muted">
+            {uk
+              ? "Показано останній доступний зріз до вибраної дати. Регіональні уточнення мають власні дати; кордони між зрізами не інтерполюються."
+              : "The last available snapshot before the selected date. Regional refinements retain their own dates; borders are not interpolated."}
+          </span>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-forest-mid">
+              {uk ? "Дати шарів і точність" : "Layer dates and accuracy"}
+            </summary>
+            <ul className="mt-2 space-y-2">
+              {frame?.sources.map((s) => (
+                <li key={`${s.name}-${s.year}`}>
+                  <strong>
+                    {SOURCE_NAMES[s.name]?.[uk ? 0 : 1] ?? s.name}:{" "}
+                    {s.date ? s.date.split("-").reverse().join(".") : formatAtlasYear(s.year, uk)}
+                  </strong>
+                  {s.note && <p className="mt-1 text-muted">{s.note}</p>}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-muted">
+              {uk
+                ? "Світова основа — оглядові історичні контури, не точні щоденні кордони. Нейтральні ділянки позначають прогалини даних. Береги та річки — сучасні фізичні орієнтири."
+                : "The world background contains historical overview contours, not exact daily borders. Neutral areas indicate data gaps. Coasts and rivers are modern physical references."}
+            </p>
+          </details>
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+          {checkboxes.slice(0, 3).map(([label, checked, set]) => (
+            <label key={label} className="flex min-h-9 items-center gap-2">
+              <input type="checkbox" checked={checked} onChange={(e) => set(e.target.checked)} />
+              {label}
             </label>
           ))}
+          <PillButton
+            type="button"
+            tone="ghost"
+            className="ml-auto"
+            onClick={() => setMapReset((n) => n + 1)}
+          >
+            <Globe2 className="mr-2 size-4" />
+            {uk ? "Показати весь світ" : "Show the whole world"}
+          </PillButton>
         </div>
-        {view === "france" && franceYear !== undefined && (
-          <p className="mb-3 rounded-xl bg-surface-2 p-3 text-sm">
-            {year >= 1940 && year <= 1944
-              ? uk
-                ? "1940–1944: окупаційні зони не реконструйовано; довоєнну геометрію приховано."
-                : "1940–1944: occupation zones are not reconstructed; prewar geometry is hidden."
-              : uk
-                ? `Франція: джерельний зріз ${franceYear} р. Показано останню доступну карту, без щорічної інтерполяції; європейські володіння без колоній. Королівський домен і васалітет у середньовічних зрізах можуть поєднуватися.`
-                : `France: source snapshot ${franceYear}. Last available map, without annual interpolation; European possessions without colonies. Medieval snapshots may combine crown lands and fiefs.`}
+        <details className="mb-4 rounded-xl border border-hairline px-4 py-2 text-xs">
+          <summary className="cursor-pointer py-1 font-bold text-forest-mid">
+            {uk ? "Додаткові історичні шари" : "Additional historical layers"}
+          </summary>
+          <div className="mt-2 grid gap-x-5 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+            {checkboxes.slice(3).map(([label, checked, set]) => (
+              <label key={label} className="flex min-h-9 items-center gap-2">
+                <input type="checkbox" checked={checked} onChange={(e) => set(e.target.checked)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          {sourceFront && (
+            <p className="mt-2" data-testid="spain-snapshot">
+              {uk ? "Джерельний зріз фронту" : "Front source snapshot"}:{" "}
+              {sourceFront.date?.slice(5, 7)}.{sourceFront.date?.slice(0, 4)} ·{" "}
+              {uk ? "місячна точність" : "monthly precision"}
+            </p>
+          )}
+          <p className="mt-2 text-muted">
+            {uk
+              ? "Міста з’являються під час наближення. Штрихування показує залежність, автономію або неповний контроль. Оглядові історичні землі не є державними кордонами."
+              : "Cities appear as you zoom in. Hatching indicates dependency, autonomy or partial control. Historical reference areas are not state borders."}
+          </p>
+        </details>
+        {loading && (
+          <p role="status" className="mb-3 text-xs text-muted">
+            {uk ? "Завантаження картографічних шарів…" : "Loading map layers…"}
           </p>
         )}
-        {spanishView && (
-          <section
-            className="mt-3 rounded-xl border border-hairline bg-surface-2 p-3 text-xs leading-5"
-            aria-label={uk ? "Шари історії Іспанії" : "Spanish history layers"}
-          >
-            <div className="flex flex-wrap gap-x-5 gap-y-2 font-bold">
-              <label className="flex min-h-9 items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={reconquista}
-                  onChange={(e) => setReconquista(e.target.checked)}
-                />
-                {uk ? "Реконкіста · оглядові ареали" : "Reconquista · survey areas"}
-              </label>
-              <label className="flex min-h-9 items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={colonies}
-                  onChange={(e) => setColonies(e.target.checked)}
-                />
-                {uk ? "Колоніальні володіння" : "Colonial possessions"}
-              </label>
-              <label className="flex min-h-9 items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={civilFronts}
-                  onChange={(e) => setCivilFronts(e.target.checked)}
-                />
-                {uk ? "Фронти громадянської війни" : "Civil War fronts"}
-              </label>
-            </div>
-            <p className="mt-2" data-testid="spain-snapshot">
-              {spainFrame
-                ? `${uk ? "Джерельний зріз" : "Source snapshot"}: ${formatAtlasDate(parseAtlasDate(spainFrame.date)!, spainFrame.precision)} · ${uk ? "точність" : "precision"}: ${{ year: uk ? "рік" : "year", month: uk ? "місяць" : "month", day: uk ? "день" : "day" }[spainFrame.precision]}.`
-                : uk
-                  ? "Для цієї дати придатного контуру ще немає."
-                  : "No suitable contour for this date."}
-            </p>
-            {spainFrame?.reconquistaDate && (
-              <p className="mt-1 text-muted">
-                {uk ? "Політичний контур" : "Political contour"}:{" "}
-                {spainFrame.politicalDate?.slice(0, 4)} ·{" "}
-                {uk ? "Ареали Реконкісти" : "Reconquista areas"}:{" "}
-                {spainFrame.reconquistaDate.slice(0, 4)}
-              </p>
-            )}
-            <details className="mt-2">
-              <summary className="cursor-pointer font-bold">
-                {uk ? "Легенда, джерела й точність" : "Legend, sources and accuracy"}
-              </summary>
-              <p className="mt-2">{spainFrame?.note}</p>
-              <p className="mt-2">
-                {uk
-                  ? "Реконкіста: золотий — християнські володіння кількох держав, зелений — мусульманські. Громадянська війна: охра — заколотницькі / франкістські війська, рожевий — республіканці. Колонії й залежності мають штрихування. Річні та місячні карти зберігають точність джерела; введення дня не створює точного щоденного фронту. Історичні дати подано за джерелами без перерахунку юліанського й григоріанського календарів."
-                  : "Reconquista: gold Christian realms, green Muslim realms. Civil War: ochre rebel/Franco forces, pink Republicans. Colonies and dependencies are hatched. Annual/monthly maps retain source precision; exact date selection does not invent a daily front. Historical dates follow source calendars without Julian/Gregorian conversion."}
-              </p>
-              <a
-                href="/atlas/spain/NOTICE.md"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-block text-forest-mid underline"
-              >
-                {uk ? "Методика, автори й ліцензії" : "Methods, authors and licenses"}
-              </a>
-            </details>
-          </section>
-        )}
-        {(regionalView || (view === "rus" && year > 1240)) && (
-          <section
-            className="mb-3 space-y-3 rounded-xl border border-hairline bg-surface-2 p-3"
-            aria-label={
-              uk
-                ? "Шари Польщі, Литви й українських земель"
-                : "Poland, Lithuania and Ukrainian layers"
-            }
-          >
-            <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-bold">
-              <label className="inline-flex min-h-11 items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ukrainianLands}
-                  onChange={(e) => setUkrainianLands(e.target.checked)}
-                />
-                {uk ? "Історичні українські землі" : "Ukrainian historical lands"}
-              </label>
-              <label className="inline-flex min-h-11 items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={cossackHistory}
-                  onChange={(e) => setCossackHistory(e.target.checked)}
-                />
-                {uk ? "Козацька автономія та повстання" : "Cossack autonomy and uprisings"}
-              </label>
-              <label className="inline-flex min-h-11 items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={occupations}
-                  onChange={(e) => setOccupations(e.target.checked)}
-                />
-                {uk ? "Окупації · штрихування" : "Occupations · hatching"}
-              </label>
-            </div>
-            <p className="text-xs leading-5" data-testid="commonwealth-snapshot">
-              {commonwealthFrame
-                ? `${uk ? "Політичний зріз" : "Political snapshot"}: ${commonwealthFrame.date ? commonwealthFrame.date.split("-").reverse().join(".") : commonwealthFrame.year}.`
-                : uk
-                  ? "Для обраного року немає придатного політичного зрізу цього регіону. Довоєнні та попередні державні кордони не підставляються в роки, які вони не описують."
-                  : "No suitable political snapshot for this year. Earlier borders are not used for unrepresented periods."}
-            </p>
-            <details className="text-xs leading-5 text-muted">
-              <summary className="min-h-9 cursor-pointer font-bold">
-                {uk ? "Легенда й точність" : "Legend and accuracy"}
-              </summary>
-              {commonwealthFrame && <p className="mb-2">{commonwealthFrame.note}</p>}
-              <p>
-                {uk
-                  ? "Кольорові українські землі — оглядові історичні ареали, не точні адміністративні чи етнічні межі. Синій штрих — шведська окупація; фіолетовий — московське військове зайняття; бірюзовий — козацька автономія; коричневий — османське Поділля. Позначки повстань — осередки подій, а не державні кордони."
-                  : "Ukrainian lands are approximate historical areas, not exact administrative or ethnic borders. Blue hatching: Swedish occupation; purple: Muscovite wartime occupation; teal: Cossack autonomy; brown: Ottoman Podolia. Uprising markers indicate events, not state borders."}
-              </p>
-            </details>
-          </section>
-        )}
-        {(spain.isError ||
-          commonwealth.isError ||
-          france.isError ||
-          data.isError ||
-          physical.isError ||
-          (detailed && byzantine.isError) ||
-          (frankishDetail && frankish.isError) ||
-          (rusDetail && rus.isError) ||
-          (mongolDetail && mongols.isError) ||
-          (showBritish && (isles.isError || overseas.isError)) ||
-          (sharedMap && (antiquity.isError || germany.isError || napoleon.isError))) && (
-          <div
-            role="alert"
-            className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-terracotta/10 p-3 text-sm"
-          >
-            {uk
-              ? "Частину картографічних даних не завантажено."
-              : "Some map data could not be loaded."}
+        {failed && (
+          <div role="alert" className="mb-3 rounded-xl bg-terracotta/10 p-3 text-sm">
+            {uk ? "Не вдалося завантажити частину мапи." : "Some map data could not be loaded."}
             <PillButton
               type="button"
               tone="ghost"
-              onClick={() => {
-                if (snapshot !== undefined) void data.refetch();
-                void physical.refetch();
-                if (franceYear !== undefined) void france.refetch();
-                if (commonwealthYear !== undefined) void commonwealth.refetch();
-                if (year >= 700) void spain.refetch();
-                if (detailed) void byzantine.refetch();
-                if (frankishDetail) void frankish.refetch();
-                if (rusDetail) void rus.refetch();
-                if (mongolDetail) void mongols.refetch();
-                if (showBritish) {
-                  void isles.refetch();
-                  void overseas.refetch();
-                }
-                if (sharedMap) {
-                  void antiquity.refetch();
-                  void germany.refetch();
-                  void napoleon.refetch();
-                }
-              }}
+              onClick={() =>
+                queries.forEach((q) => {
+                  if (q.isError) void q.refetch();
+                })
+              }
             >
               {uk ? "Повторити" : "Retry"}
             </PillButton>
           </div>
         )}
-        {((year >= 700 && spain.isPending) ||
-          (commonwealthYear !== undefined && commonwealth.isPending) ||
-          (franceYear !== undefined && france.isPending) ||
-          (snapshot !== undefined && data.isPending) ||
-          physical.isPending ||
-          (detailed && year <= 1453 && byzantine.isPending) ||
-          (frankishDetail && frYear !== undefined && frankish.isPending) ||
-          (rusDetail && rusYear !== undefined && rus.isPending) ||
-          (showBritish && (isles.isPending || overseas.isPending)) ||
-          (sharedMap && (antiquity.isPending || germany.isPending || napoleon.isPending))) && (
-          <p role="status" className="mb-2 text-xs text-muted">
-            {uk ? "Завантаження картографічних шарів…" : "Loading atlas…"}
-          </p>
-        )}
-        {profile?.schoolId && manual.isPending && (
-          <p role="status" className="mb-2 text-xs text-muted">
-            {uk ? "Завантаження ручних територій школи…" : "Loading school territories…"}
-          </p>
-        )}
         {manual.isError && (
           <div role="alert" className="mb-3 rounded-xl bg-terracotta/10 p-3 text-sm">
             {uk
-              ? "Ручні шари школи не завантажилися. Вихідна карта доступна; збереження правок вимкнене до завантаження."
-              : "School layers failed to load. Source maps remain available; saving is disabled until the layers load."}
+              ? "Ручні території школи не завантажилися. Збереження правок тимчасово недоступне."
+              : "School territories did not load. Saving is temporarily unavailable."}
             <PillButton type="button" tone="ghost" onClick={() => void manual.refetch()}>
               {uk ? "Повторити" : "Retry"}
             </PillButton>
           </div>
         )}
-        {manual.data && (
+        {manual.data && date.year >= 395 && (
           <AtlasEditingPanel
             editor={editor}
             entries={manual.data.entries}
             base={historical}
-            year={year}
+            year={date.year}
             uk={uk}
-            saving={saveManual.isPending || manual.isError}
-            canEdit={manual.data.canEdit}
+            saving={saveManual.isPending || manual.isError || loading}
+            canEdit={manual.data.canEdit && !failed && !loading}
             onSave={saveEntries}
             onRemove={async (id) => {
               const ok = await saveEntries(manual.data.entries.filter((e) => e.id !== id));
@@ -1685,649 +743,343 @@ export function HistoricalAtlas({
             error={manualError}
           />
         )}
-        {spanishView && manual.data?.canEdit && (
-          <p className="mb-3 text-xs text-muted">
-            {uk
-              ? "Ручні правки спільного атласу мають річні інтервали: зміна місячного фронту застосовуватиметься до всього вибраного року."
-              : "Shared atlas edits use annual intervals: editing a monthly front applies throughout the selected year."}
-          </p>
-        )}
-        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="min-w-0">
-            {editor.draft && manual.data?.canEdit && (
-              <div className="atlas-editor mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-forest-mid/30 bg-surface p-2">
-                <PillButton
-                  type="button"
-                  tone="ghost"
-                  disabled={saveManual.isPending}
-                  onClick={() =>
-                    editor.dispatch({
-                      type: "mode",
-                      mode: editor.mode === "draw" ? "edit" : "draw",
-                    })
-                  }
-                >
-                  {editor.mode === "draw"
-                    ? uk
-                      ? "Завершити малювання"
-                      : "Finish drawing"
-                    : uk
-                      ? "Додавати точки"
-                      : "Add vertices"}
-                </PillButton>
-                <PillButton
-                  type="button"
-                  tone="ghost"
-                  disabled={saveManual.isPending || !editor.past.length}
-                  onClick={() => editor.dispatch({ type: "undo" })}
-                >
-                  {uk ? "Скасувати точку" : "Undo geometry"}
-                </PillButton>
-                <PillButton
-                  type="button"
-                  disabled={saveManual.isPending || manual.isError}
-                  onClick={() => void saveDraft()}
-                >
-                  {saveManual.isPending
-                    ? uk
-                      ? "Збереження…"
-                      : "Saving…"
-                    : uk
-                      ? "Зберегти територію"
-                      : "Save territory"}
-                </PillButton>
-                <PillButton
-                  type="button"
-                  tone="ghost"
-                  onClick={() =>
-                    document
-                      .getElementById("atlas-editor-fields")
-                      ?.scrollIntoView({ block: "start", behavior: "smooth" })
-                  }
-                >
-                  {uk ? "Назва, роки та джерело" : "Name, dates and source"}
-                </PillButton>
-              </div>
-            )}
-            <HistoricalMapCanvas
-              historical={mapHistorical}
-              edit={
-                manual.data?.canEdit && editor.canvas
-                  ? { ...editor.canvas, disabled: saveManual.isPending || manual.isError }
-                  : undefined
+        {editor.draft && (
+          <div className="atlas-editor mb-2 flex flex-wrap gap-2 rounded-xl border border-hairline p-2">
+            <PillButton
+              type="button"
+              tone="ghost"
+              disabled={saveManual.isPending}
+              onClick={() =>
+                editor.dispatch({ type: "mode", mode: editor.mode === "draw" ? "edit" : "draw" })
               }
+            >
+              {editor.mode === "draw"
+                ? uk
+                  ? "Завершити малювання"
+                  : "Finish drawing"
+                : uk
+                  ? "Додавати точки"
+                  : "Add vertices"}
+            </PillButton>
+            <PillButton
+              type="button"
+              tone="ghost"
+              disabled={!editor.past.length || saveManual.isPending}
+              onClick={() => editor.dispatch({ type: "undo" })}
+            >
+              {uk ? "Скасувати точку" : "Undo geometry"}
+            </PillButton>
+            <PillButton
+              type="button"
+              disabled={saveManual.isPending || manual.isError || loading}
+              onClick={() => void saveDraft()}
+            >
+              {uk ? "Зберегти територію" : "Save territory"}
+            </PillButton>
+            <PillButton
+              type="button"
+              tone="ghost"
+              onClick={() => editor.dispatch({ type: "cancel" })}
+            >
+              {uk ? "Скасувати редагування" : "Cancel editing"}
+            </PillButton>
+            <p className="w-full px-2 text-xs text-muted">
+              {uk
+                ? "Ручні правки мають річні інтервали: редагування місячного фронту застосовується до всього вибраного року."
+                : "Manual edits use annual intervals: a monthly front edit applies throughout the selected year."}
+            </p>
+          </div>
+        )}
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="min-w-0">
+            <HistoricalMapCanvas
+              historical={historical}
               land={physical.data?.land}
               rivers={physical.data?.rivers}
               places={drawn}
-              view={view}
+              view="world"
+              resetKey={mapReset}
               uk={uk}
               borders={borders}
               riverLayer={rivers}
-              selected={selectedPlace?.id ?? (selectedPolity?.id as string | undefined)}
+              selected={selectedPlace?.id ?? String(selectedPolity?.id ?? "")}
               onPlace={choosePlace}
               onPolity={choosePolity}
-              sourceRaster={
-                originalLayer && detailed && borders && year <= 1453 ? byzFrame?.raster : undefined
+              edit={
+                manual.data?.canEdit && editor.canvas
+                  ? {
+                      ...editor.canvas,
+                      disabled: saveManual.isPending || manual.isError || loading,
+                    }
+                  : undefined
               }
             />
-            {spanishView && (
-              <div className="mt-2 space-y-1 text-xs text-muted">
-                {year < 1492 && reconquista && (
-                  <p>
-                    <span style={{ color: "#b17a22" }}>■</span>{" "}
-                    {uk ? "Християнські володіння" : "Christian realms"} ·{" "}
-                    <span style={{ color: "#68a086" }}>■</span>{" "}
-                    {uk ? "Мусульманські володіння" : "Muslim realms"}
-                  </p>
-                )}
-                {year >= 1936 && year <= 1939 && civilFronts && (
-                  <p>
-                    <span style={{ color: "#c49c53" }}>■</span>{" "}
-                    {uk ? "Заколотники / війська Франко" : "Rebel / Franco forces"} ·{" "}
-                    <span style={{ color: "#bc7694" }}>■</span>{" "}
-                    {uk ? "Республіканці" : "Republicans"}
-                  </p>
-                )}
-                <p>
-                  ▨{" "}
-                  {uk
-                    ? "Колонії та залежності — нерівномірний контроль або імперські претензії."
-                    : "Colonies and dependencies: uneven control or imperial claims."}
-                </p>
-                <a
-                  href="/atlas/spain/NOTICE.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Kaidor, Rowanwindwhistler, FDRMRZUSA {uk ? "та співавтори" : "and contributors"} ·
-                  CC BY-SA 4.0 · Historical Basemaps GPL-3.0
-                </a>
-              </div>
-            )}
-            {regionalView &&
-              commonwealthFrame &&
-              commonwealthFrame.year >= 1771 &&
-              commonwealthFrame.year <= 1795 && (
-                <div
-                  className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft"
-                  aria-label={uk ? "Легенда поділів Речі Посполитої" : "Partitions legend"}
-                >
-                  {[
-                    ...new Map(
-                      commonwealthFrame.collection.features
-                        .filter((f) => f.properties.layer === "state")
-                        .map((f) => [f.properties.subject, f]),
-                    ).values(),
-                  ].map((f) => (
-                    <span key={f.properties.subject} className="inline-flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="inline-block size-4 shrink-0 rounded-sm border border-ink/20"
-                        style={{ backgroundColor: f.properties.color }}
-                      />
-                      {historicalName(f.properties.subject, uk)}
-                    </span>
-                  ))}
-                </div>
-              )}
-            {!(spanishView || englandView) && commonwealthFrame && (
+            {legend.length > 0 && (
               <div
-                className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft"
-                aria-label={uk ? "Легенда штрихованих шарів" : "Hatched layer legend"}
+                className="mt-3 flex flex-wrap gap-3 text-xs"
+                aria-label={uk ? "Легенда поділів Речі Посполитої" : "Partitions legend"}
               >
-                {commonwealthFrame.collection.features
-                  .filter((f) => f.properties.control === "relative")
-                  .map((f) => (
-                    <span key={f.id} className="inline-flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="inline-block size-4 shrink-0 border"
-                        style={{
-                          borderColor: f.properties.color,
-                          backgroundImage: `repeating-linear-gradient(135deg,${f.properties.color} 0 2px,transparent 2px 6px)`,
-                        }}
-                      />
-                      {historicalName(f.properties.name, uk)}
-                    </span>
-                  ))}
+                {legend.map((f) => (
+                  <span key={f.properties.subject} className="inline-flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="size-3 rounded-sm"
+                      style={{
+                        backgroundColor: f.properties.color ?? polityColor(f.properties.subject),
+                      }}
+                    />
+                    {historicalName(f.properties.subject, uk)}
+                  </span>
+                ))}
               </div>
             )}
             <p className="mt-2 text-xs text-muted">
               <span className="atlas-hatch-swatch" aria-hidden="true" />{" "}
               {uk
-                ? "Штрихування — окупація, автономія, залежність або неповний контроль. Суцільний колір — державний контур чи історичний ареал."
-                : "Hatching: occupation, autonomy, dependency or partial control. Solid fill: a state contour or historical area."}
-            </p>
-            {!(spanishView || englandView) &&
-              commonwealthFrame &&
-              commonwealthFrame.collection.features.length > 0 && (
-                <p className="mt-2 text-xs text-muted">
-                  <a
-                    href="/atlas/commonwealth/NOTICE.md"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline"
-                  >
-                    {uk
-                      ? "Польща, Литва й Річ Посполита: Mathiasrex, Halibutt, Grandiose, NordNordWest, Sneecs, Rowanwindwhistler · CC BY / CC BY-SA · джерела й перетворення"
-                      : "Poland, Lithuania and Commonwealth: Mathiasrex, Halibutt, Grandiose, NordNordWest, Sneecs, Rowanwindwhistler · CC BY / CC BY-SA · sources and adaptations"}
-                  </a>
-                </p>
-              )}
-            {editor.draft && (
-              <p role="status" className="mt-2 rounded-xl bg-forest-mid/10 p-3 text-xs">
-                {editor.mode === "draw"
-                  ? uk
-                    ? "Малювання: натискайте на мапу, щоб додавати точки. Для переміщення мапи тягніть порожню ділянку."
-                    : "Drawing: click the map to add vertices. Drag empty space to pan."
-                  : uk
-                    ? "Редагування: перетягуйте сині точки або вставляйте нові через «+». Чернетка ще не збережена."
-                    : "Editing: drag blue handles or insert vertices with +. The draft is not saved yet."}
-              </p>
-            )}
-            <p className="mt-2 text-xs text-muted">
-              {uk
-                ? "■ Столичний осередок · ● Місто / поселення · ◌ Орієнтир регіону · Пунктир: оглядова межа. Фізична основа сучасна; деталізований шар відтворює берегові контури джерела."
-                : "● Settlement · ◌ Regional reference, not a boundary · Dashed borders: approximate. Coastlines and rivers are modern physical references."}
+                ? "Штрихування — форми контролю · Суцільна заливка — політичні контури · Натисніть на територію, щоб дізнатися більше."
+                : "Hatching: forms of control · Solid fill: political contours · Select a territory for details."}
             </p>
           </div>
           <aside className="min-w-0 space-y-4">
-            <div className="rounded-2xl border border-hairline bg-surface-2/40 p-4">
-              <p className="text-xs font-bold text-forest-mid">
-                {year} · {period.from}–{period.to}
-              </p>
-              <h3 className="mt-1 font-display font-extrabold">{period.title}</h3>
-              <p className="mt-2 text-xs leading-5">{period.description}</p>
-              <Sources ids={period.sources} />
-            </div>
-            {selectedPlace ? (
-              <div className="rounded-2xl border border-forest-mid/30 p-4">
-                <p className="text-xs font-bold text-forest-mid">
-                  {selectedPlace.type === "city" ? "Місто / поселення" : "Регіональний осередок"}
-                </p>
-                <h3 className="mt-1 font-display text-lg font-extrabold">{selectedPlace.name}</h3>
-                <p className="mt-2 text-xs font-semibold">{selectedPlace.dateLabel}</p>
-                <p className="mt-2 text-sm leading-6">{selectedPlace.description}</p>
-                <p className="mt-2 text-xs text-muted">
-                  {uk
-                    ? "Координата — орієнтир міста або регіону; вона не задає точний археологічний центр чи кордон."
-                    : "Coordinates mark a reference location, not a surveyed archaeological site or territorial boundary."}
-                </p>
-                <Sources ids={selectedPlace.sources} />
-              </div>
-            ) : selectedPolity ? (
-              <div className="rounded-2xl border border-forest-mid/30 p-4">
-                <p className="text-xs font-bold text-forest-mid">
-                  {uk ? "Дані зрізу" : "Snapshot data"}{" "}
-                  {selectedPolity.properties.region === "spain"
-                    ? selectedPolity.properties.layer === "front" && spainFrame
-                      ? formatAtlasDate(parseAtlasDate(spainFrame.date)!, spainFrame.precision)
-                      : selectedPolity.properties.sourceYear
-                    : selectedPolity.properties.region === "antiquity" ||
-                        selectedPolity.properties.region === "isles" ||
-                        selectedPolity.properties.region === "germany" ||
-                        selectedPolity.properties.region === "napoleon"
-                      ? formatAtlasYear(selectedPolity.properties.sourceYear ?? year, uk)
-                      : selectedPolity.properties.custom
-                        ? `${selectedPolity.properties.validFrom}–${selectedPolity.properties.validTo}`
-                        : (selectedPolity.properties.sourceYear ?? snapshot)}
-                </p>
-                <h3 className="mt-1 font-display text-lg font-extrabold">
-                  {historicalName(selectedPolity.properties.name, uk)}
-                </h3>
-                <p className="mt-2 text-xs text-muted">
-                  {selectedPolity.properties.name} ·{" "}
-                  {selectedPolity.properties.region === "england"
-                    ? uk
-                      ? "Навчальний контур, берег за суходолом атласу"
-                      : "School contour clipped to the atlas coastline"
-                    : selectedPolity.properties.region === "spain"
-                      ? uk
-                        ? "Датований джерельний контур"
-                        : "Dated source contour"
-                      : selectedPolity.properties.region === "antiquity" ||
-                          selectedPolity.properties.region === "isles" ||
-                          selectedPolity.properties.region === "germany" ||
-                          selectedPolity.properties.region === "napoleon"
-                        ? uk
-                          ? "Навчальна схема на спільній мапі. Берег за Natural Earth, внутрішні межі приблизні."
-                          : "School schematic on the shared map. Coast follows Natural Earth; internal borders are approximate."
-                        : selectedPolity.properties.custom
-                      ? uk
-                        ? "Ручний шар школи"
-                        : "School manual layer"
-                      : selectedPolity.properties.region === "france"
-                        ? uk
-                          ? selectedPolity.properties.description
-                          : "Dated overview of France in Europe. Source year is shown; medieval crown lands and fiefs may be combined. Overseas colonies are excluded."
-                        : selectedPolity.properties.region === "mongols"
-                          ? uk
-                            ? "Контур джерела; приблизні межі"
-                            : "Source contour; approximate boundaries"
-                          : selectedPolity.properties.detailed
-                            ? uk
-                              ? selectedPolity.properties.region === "commonwealth"
-                                ? selectedPolity.properties.layer === "land"
-                                  ? "Оглядовий історичний ареал"
-                                  : "Датований джерельний контур"
-                                : selectedPolity.properties.region === "rus"
-                                  ? "Контур карти Русі"
-                                  : selectedPolity.properties.region === "franks"
-                                    ? "Контур з векторної карти"
-                                    : "Контур з авторського растра"
-                              : "Digitized source contour"
-                            : `${uk ? "Рівень точності джерела" : "Source precision"}: ${selectedPolity.properties.precision}/3`}
-                </p>
-                <p className="mt-2 text-sm leading-6">
-                  {selectedPolity.properties.region === "england"
-                    ? selectedPolity.properties.description
-                    : selectedPolity.properties.region === "spain"
-                    ? selectedPolity.properties.description ||
-                      selectedPolity.properties.relation ||
-                      spainFrame?.note ||
-                      (uk ? "Датований оглядовий контур" : "Dated survey contour")
-                    : selectedPolity.properties.region === "antiquity" ||
-                        selectedPolity.properties.region === "isles" ||
-                        selectedPolity.properties.region === "germany" ||
-                        selectedPolity.properties.region === "napoleon"
-                      ? selectedPolity.properties.description
-                      : selectedPolity.properties.custom
-                        ? selectedPolity.properties.description ||
-                          (uk ? "Опис ще не додано." : "No description provided.")
-                        : selectedPolity.properties.region === "france"
-                        ? uk
-                          ? selectedPolity.properties.description
-                          : "Dated overview of France in Europe. Source year is shown; medieval crown lands and fiefs may be combined. Overseas colonies are excluded."
-                        : selectedPolity.properties.region === "mongols"
-                          ? uk
-                            ? `Карта-джерело ${selectedPolity.properties.sourceYear}; показано приблизний історичний контур. Пряме управління і васальна залежність у джерелі можуть поєднуватися. ${selectedPolity.properties.validTo ? `Цей полігон застосований не пізніше ${selectedPolity.properties.validTo} року; це дата обмеження реконструкції, не завжди дата зникнення держави.` : ""}`
-                            : "Dated source contour; direct rule and vassal dependency may be combined. Expiry limits the reconstruction, and is not necessarily the end of the state."
-                          : selectedPolity.properties.detailed
-                            ? uk
-                              ? selectedPolity.properties.region === "commonwealth"
-                                ? selectedPolity.properties.description ||
-                                  "Датований джерельний контур; внутрішні історичні ареали оглядові. Перевіряйте дату, форму підпорядкування та методику джерела."
-                                : selectedPolity.properties.region === "rus"
-                                  ? `${rusFrame?.note ?? "Картографічна реконструкція Русі."} Колір збережено за джерелом; картки об’єднаних земель не означають єдиного князівства. Дрібні уділи доступні в оригіналі.`
-                                  : selectedPolity.properties.region === "franks"
-                                    ? "Політична область перенесена безпосередньо з SVG джерела зі збереженням вигинів і анклавів. Контури суміщено за містами або береговими орієнтирами; це картографічна реконструкція, а не точні щорічні кордони. Перевіряйте кольори й залежні території за легендою оригіналу."
-                                    : "Оцифрована кольорова область карти Lucius. Острови й берегові вигини збережені з мінімальним спрощенням; можливі артефакти дрібних підписів і вузьких територій. Звіряйте спірні місця з оригіналом. Детальніші лінії адміністративного поділу доступні в авторському шарі."
-                              : selectedPolity.properties.region === "commonwealth"
-                                ? "Dated source contour; internal historical areas are approximate. Check its date, status and source method."
-                                : selectedPolity.properties.region === "rus"
-                                  ? "Rus source contour with original colours. Registration is approximate. Some period maps group appanages; see the original legend. The 1240 endpoint uses the 1237 pre-invasion map."
-                                  : selectedPolity.properties.region === "franks"
-                                    ? "Political area transferred directly from source SVG, preserving bends and enclaves. Registration uses towns or coastal landmarks; check the original legend and snapshot date."
-                                    : "Digitized Lucius color area; small labels and narrow territories may leave raster artifacts. Check the original; administrative lines are available in the source layer."
-                            : featureNote(
-                                selectedPolity.properties.name,
-                                selectedPolity.properties.sourceYear ?? snapshot!,
-                              )}
-                </p>
-                {(selectedPolity.properties.custom ||
-                  selectedPolity.properties.region === "commonwealth" ||
-                  selectedPolity.properties.region === "spain" ||
-                  selectedPolity.properties.region === "england") && (
-                  <div className="mt-2 space-y-2 text-xs">
-                    <p>
-                      {uk ? "Контролер" : "Controller"}:{" "}
-                      {historicalName(selectedPolity.properties.subject, uk)} ·{" "}
-                      {selectedPolity.properties.control === "relative"
-                        ? selectedPolity.properties.relation
-                        : selectedPolity.properties.layer === "front"
-                          ? uk
-                            ? "військовий контроль за джерельним зрізом"
-                            : "military control in the source snapshot"
-                          : uk
-                            ? "основна територія"
-                            : "core territory"}
-                    </p>
-                    {selectedPolity.properties.sourceUrl && (
-                      <a
-                        className="inline-block text-forest-mid underline"
-                        href={selectedPolity.properties.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {selectedPolity.properties.custom
-                          ? uk
-                            ? "Джерело ручної правки"
-                            : "Manual edit source"
-                          : uk
-                            ? "Картографічне джерело"
-                            : "Cartographic source"}
-                      </a>
-                    )}
-                  </div>
-                )}
-                {manual.data?.canEdit && (
-                  <div className="atlas-editor mt-3 flex flex-wrap gap-2">
-                    <PillButton
-                      type="button"
-                      tone="ghost"
-                      onClick={() => {
-                        const saved = manual.data.entries.find(
-                          (e) => `manual-${e.id}` === selectedPolity.id,
-                        );
-                        const draft = saved ?? newAtlasEdit(year, selectedPolity);
-                        if (!saved) {
-                          draft.name = historicalName(draft.name, uk);
-                          draft.subject = historicalName(draft.subject, uk);
-                        }
-                        editor.start(draft);
-                        setBorders(true);
-                        setOriginalLayer(false);
-                        setSelection(null);
-                      }}
-                    >
-                      {uk ? "Редагувати країну й кордони" : "Edit country and borders"}
-                    </PillButton>
-                    <PillButton
-                      type="button"
-                      tone="ghost"
-                      onClick={() => {
-                        const draft = newAtlasEdit(year, selectedPolity, true);
-                        draft.name =
-                          (uk ? "Залежна територія: " : "Dependent territory: ") +
-                          historicalName(selectedPolity.properties.name, uk);
-                        draft.subject = historicalName(draft.subject, uk);
-                        editor.start(draft);
-                        setBorders(true);
-                        setOriginalLayer(false);
-                        setSelection(null);
-                      }}
-                    >
-                      {uk ? "Додати штриховану залежність" : "Add hatched dependency"}
-                    </PillButton>
-                  </div>
-                )}
-                {selectedPolity.properties.invaded && (
-                  <p className="mt-2 rounded-xl bg-terracotta/10 p-3 text-xs text-terracotta">
-                    {uk
-                      ? "Головний князівський осередок уже захоплено й розорено на цьому етапі. Передмонгольський контур показано для орієнтації; він не визначає окупаційну межу. Місцева державність і династія могли продовжити існування."
-                      : "The principal centre was captured and sacked by this stage. The pre-invasion outline is a reference, not an occupation boundary; local statehood and dynasty could survive."}
-                  </p>
-                )}
-                <Sources
-                  ids={[
-                    selectedPolity.properties.sourceId ??
-                      (selectedPolity.properties.detailed ? "lucius" : "basemaps"),
-                  ]}
-                />
-              </div>
-            ) : (
-              <p className="rounded-xl bg-cream p-3 text-xs text-muted">
-                {uk
-                  ? "Натисніть на територію або позначку, щоб відкрити її картку. Нижче є пошук та вибір з клавіатури."
-                  : "Select a territory or marker for details. Search and keyboard selection are available below."}
-              </p>
-            )}
-          </aside>
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div>
             <label className="relative block">
               <span className="sr-only">
-                {uk ? "Пошук міста або осередку" : "Search settlements or references"}
+                {uk ? "Пошук держави або міста" : "Search states or cities"}
               </span>
               <Search className="absolute top-3.5 left-3 size-4 text-muted" />
               <TextInput
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={
-                  uk ? "Місто, князівство, спільнота…" : "Town, principality, community…"
-                }
+                placeholder={uk ? "Держава або місто…" : "State or city…"}
                 className="w-full pl-9"
               />
             </label>
-            <div className="mt-2 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
-              {matches.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => choosePlace(p)}
-                  className="flex min-h-10 items-center gap-1 rounded-xl bg-surface-2 px-3 text-left text-xs font-bold"
-                >
-                  <MapPin className="size-3 shrink-0" />
-                  {p.name}
-                </button>
-              ))}
-              {!matches.length && (
-                <p className="p-2 text-xs text-muted">
-                  {uk
-                    ? "Немає позначок для цього року й пошуку. Перша згадка не є датою заснування."
-                    : "No references for this year and search. First record is not a foundation date."}
-                </p>
-              )}
-            </div>
-          </div>
-          <label className="block text-xs font-bold">
-            {uk ? `Територія на мапі ${year}` : `Territory on overview map ${snapshot}`}
-            <select
-              aria-label={
-                uk ? `Територія на мапі ${year}` : `Territory on overview map ${snapshot}`
-              }
-              className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
-              value={selectedPolity?.id ?? ""}
-              disabled={!historical || !borders}
-              onChange={(e) => {
-                const f = historical?.features.find((f) => f.id === e.target.value);
-                if (f) choosePolity(f);
-              }}
-            >
-              <option value="">{uk ? "Виберіть територію" : "Select territory"}</option>
-              {historical?.features
-                .slice()
-                .sort((a, b) =>
-                  historicalName(a.properties.name, uk).localeCompare(
-                    historicalName(b.properties.name, uk),
-                  ),
-                )
-                .map((f) => (
-                  <option key={f.id} value={f.id}>
+            {term && (
+              <div
+                className="max-h-52 space-y-1 overflow-y-auto"
+                aria-label={uk ? "Результати пошуку" : "Search results"}
+              >
+                {matchingPolities.slice(0, 10).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className="block min-h-9 w-full rounded-xl bg-surface-2 px-3 text-left text-xs"
+                    onClick={() => {
+                      setBorders(true);
+                      choosePolity(f);
+                    }}
+                  >
+                    <Globe2 className="mr-1 inline size-3" />
                     {historicalName(f.properties.name, uk)}
-                  </option>
+                  </button>
                 ))}
-            </select>
-            <p className="mt-2 text-xs font-normal text-muted">
-              {uk
-                ? "Спільна мапа поєднує датовані державні контури, оглядові історичні ареали та шари контролю. На ній же — Рим до 395 року, Німеччина з 962 і наполеонівські війни 1792–1815. Джерело й точність кожної території наведено в її картці."
-                : "This shared map combines dated state contours, approximate historical areas and forms of control, including Rome before 395, Germany from 962 and the Napoleonic Wars of 1792–1815. Each territory’s card shows its source and accuracy."}
-            </p>
-          </label>
-        </div>
-      </Panel>
-      <Panel>
-        <h2 className="font-display text-xl font-extrabold">
-          {uk ? "Поруч на часовій шкалі" : "Nearby on the timeline"}
-        </h2>
-        <p className="mt-1 text-xs text-muted">
-          {uk
-            ? "Події до й після обраної дати. Натисніть дату, щоб перейти до неї; ≈ означає умовне або дискусійне датування."
-            : "Events before and after the selected year. Select a date to visit it; ≈ marks approximate or disputed dating."}
-        </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {nearby.map((e) => (
-            <article key={`${e.year}:${e.title}`} className="rounded-xl border border-hairline p-3">
-              <button
-                type="button"
-                onClick={() => onChange(e.year, view, { month: e.month ?? 1, day: e.day ?? 1 })}
-                className="min-h-9 rounded-full bg-forest/10 px-3 text-sm font-extrabold text-forest-mid"
+                {matchingPlaces.slice(0, 10).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="block min-h-9 w-full rounded-xl bg-surface-2 px-3 text-left text-xs"
+                    onClick={() => choosePlace(p)}
+                  >
+                    <MapPin className="mr-1 inline size-3" />
+                    {p.name}
+                  </button>
+                ))}
+                {!matchingPlaces.length && !matchingPolities.length && (
+                  <p className="text-xs text-muted">
+                    {uk ? "Для цієї дати нічого не знайдено." : "No results for this date."}
+                  </p>
+                )}
+              </div>
+            )}
+            <label className="block text-xs font-bold">
+              {uk ? `Територія на мапі ${date.year}` : `Territory on the map ${date.year}`}
+              <select
+                aria-label={
+                  uk ? `Територія на мапі ${date.year}` : `Territory on the map ${date.year}`
+                }
+                value={selectedPolity?.id ?? ""}
+                disabled={!historical || !borders}
+                onChange={(e) => {
+                  const f = historical?.features.find((f) => String(f.id) === e.target.value);
+                  if (f) choosePolity(f);
+                  else setSelection(null);
+                }}
+                className="mt-1 block min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
               >
-                {e.approximate ? "≈ " : ""}
-                {e.year < ATLAS_MIN_YEAR
-                  ? formatAtlasYear(e.year, uk)
-                  : formatAtlasDate(
-                      normalizeAtlasDate(e.year, e.month, e.day),
-                      e.day ? "day" : e.month ? "month" : "year",
-                    )}
-              </button>
-              <h3 className="mt-2 text-sm font-extrabold">{e.title}</h3>
-              <p className="mt-2 text-xs leading-5">{e.description}</p>
-              <Sources ids={e.sources} />
-            </article>
-          ))}
-        </div>
-      </Panel>
-      <Panel>
-        <details>
-          <summary className="cursor-pointer font-display text-lg font-extrabold">
-            {uk ? "Джерела й методика" : "Sources and method"} ({ATLAS_SOURCES.length})
-          </summary>
-          <div className="mt-4 space-y-4 text-sm">
-            <p>
-              {uk
-                ? "Це навчальний атлас: 11 оглядових зрізів світу, 39 детальних карт Візантії, 10 зрізів франків і 6 картографічних зрізів Русі з завершенням 1240. Детальні шари використовують останню доступну карту не пізніше обраного року; світ — найближчий оглядовий зріз. Річні кордони не інтерполюються. Культурний ареал, данина, князівські права та пряме управління могли перекриватися."
-                : "This educational reconstruction has 11 overview maps, 39 Byzantine, 10 Frankish and 6 Rus source frames with a 1240 endpoint. It does not provide independently verified borders for every year; cultural areas, tribute, dynastic rights and direct rule can overlap."}
-            </p>
-            <p>
-              {uk
-                ? "Візантію перенесено з наданих PNG: перетини градусної сітки → підбір конічної проєкції → контроль берегів і річок → виділення кольорових областей → векторні контури. Оригінальні підписи й феми окремо перепроєктовано в локальний растровий шар. Похибка суміщення сітки не означає історичну точність кордонів; дрібні острови та вузькі анклави можуть втрачатися під час виділення кольору."
-                : "Uploaded PNG graticule → fitted conic projection → coastline/river registration → color segmentation → vector contours. Original annotations are also reprojected into a local raster layer. Registration residual is not historical border accuracy; small islands and narrow enclaves may be missed."}
-            </p>
-            <p>
-              {uk
-                ? "Франки: оригінальні SVG Sémhur, Romain0 і Trasamundo → міста та берегові контрольні точки → геоприв’язка → пряме семплювання кривих Безьє → полігони. Церковні провінції 561 року не видаються за держави; залежні області 814 й спірну Аквітанію 843 показано окремо. Точність суміщення не є доказом історичної точності. Невизначені області оглядової бази вилучено: вони лишаються нейтральним суходолом."
-                : "Frankish original SVGs → city/coastal controls → geographic registration → direct Bézier sampling → polygons. Church provinces are not polities; dependent territories and disputed Aquitaine are distinct. Unspecified overview regions are omitted, leaving neutral land."}{" "}
-              <a
-                href="/atlas/franks/NOTICE.md"
-                className="underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {uk ? "Походження й ліцензії" : "Provenance and licenses"}
-              </a>
-            </p>
-            <p>
-              {uk
-                ? "Русь: пряме перенесення політичних SVG і контурів кольорових областей растрів; геоприв’язка за містами, з контрольними точками поза підбором. Північні зони впливу, етнічні ареали й пізніші анклави не видано за одночасні державні кордони. 1240 — завершення з картою 1237 до навали."
-                : "Rus: direct SVG and raster-colour contours registered against city markers, with held-out control points. Influence zones, ethnic ranges and retrospective enclaves are not treated as contemporary state borders. The 1240 endpoint retains the 1237 pre-invasion map."}{" "}
-              <a
-                href="/atlas/rus/NOTICE.md"
-                className="underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {uk ? "Походження й ліцензії Русі" : "Rus provenance and licenses"}
-              </a>
-            </p>
-            <p>
-              {uk
-                ? "Маркери міст фільтруються за документованими етапами; перша письмова згадка не дорівнює заснуванню. Числові межі показу племінних ареалів є оглядовою періодизацією. Природні русла й береги з часом змінювалися. Для академічної роботи звіряйте конкретне твердження з указаним джерелом."
-                : "First written mentions are not founding dates. Tribal marker ranges are broad periodization. Rivers and coasts changed over time. Check each claim against its linked scholarly source."}
-            </p>
-            <p>
-              {uk
-                ? "Британські острови, англійські володіння у Франції до 1558 року і колоніальна імперія накладені на Європу та світ, а не винесені в окремий шар. Зріз — останній не пізніше обраного року; між втратою Кале і 1655 роком заморських полігонів немає. Штрихування означає неповний контроль, зокрема Гасконь як ф’єф і Землю Руперта. Домініони після Вестмінстерського статуту на зрізі 1947 року вже не зафарбовані."
-                : "The British Isles, English possessions in France until 1558 and the colonial empire are drawn on Europe and the world, not as a separate atlas. Each frame is the latest one not after the chosen year. There is no overseas polygon between the loss of Calais and 1655. Hatching means incomplete control, including Gascony as a fief and Rupert’s Land. Dominions are no longer filled on the 1947 frame."}{" "}
-              <a
-                href="/atlas/isles/NOTICE.md"
-                className="underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {uk ? "Як зібрано острови й імперію" : "How the isles and empire were drawn"}
-              </a>
-            </p>
-            <p className="text-xs text-muted">
-              {uk
-                ? "Оновлено 13.10.2026. Франки: Sémhur, Trasamundo (CC BY-SA 3.0), Romain0 (public domain), векторний перенос; походження та контрольні точки наведені в окремому описі. Оглядові карти: Historical Basemaps, GPL-3.0 (спрощення 0,02°); фізична основа: Natural Earth, public domain. Візантія: надані користувачем карти ©Lucius, конічна геоприв’язка, контури спрощено на 1,25 пікселя оригіналу. Друкарські позначення приглушено лише в копії для розпізнавання заливки; авторський шар зберігає їх. Ці величини не визначають історичну точність."
-                : "Prepared 2026-10-12. Overview: Historical Basemaps GPL-3.0, simplification 0.02°. Physical reference: Natural Earth, public domain. Byzantium: user-supplied ©Lucius PNGs, conic georeferencing, 1.25 source-pixel contour simplification; typography suppressed only in classification, preserved in displayed raster. These tolerances do not define historical accuracy."}{" "}
-              <a
-                className="underline"
-                href="/atlas/NOTICE.md"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {uk ? "Походження даних" : "Data provenance"}
-              </a>{" "}
-              ·{" "}
-              <a
-                className="underline"
-                href="/atlas/historical-basemaps-LICENSE.txt"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GPL-3.0
-              </a>
-            </p>
-            <ul className="grid gap-3 md:grid-cols-2">
-              {ATLAS_SOURCES.map((s) => (
-                <li key={s.id} className="rounded-xl bg-surface-2 p-3">
+                <option value="">{uk ? "Виберіть територію" : "Select territory"}</option>
+                {historical?.features
+                  .slice()
+                  .sort((a, b) =>
+                    historicalName(a.properties.name, uk).localeCompare(
+                      historicalName(b.properties.name, uk),
+                    ),
+                  )
+                  .map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {historicalName(f.properties.name, uk)}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            {selectedPlace ? (
+              <div className="rounded-2xl border border-hairline p-4">
+                <p className="text-xs font-bold text-forest-mid">
+                  {uk ? "Місто або історичний осередок" : "City or historical reference"}
+                </p>
+                <h3 className="mt-1 font-display text-lg font-extrabold">{selectedPlace.name}</h3>
+                <p className="mt-2 text-xs font-semibold">{selectedPlace.dateLabel}</p>
+                <p className="mt-2 text-sm leading-6">{selectedPlace.description}</p>
+                <Sources ids={selectedPlace.sources} />
+              </div>
+            ) : selectedPolity ? (
+              <div className="rounded-2xl border border-forest-mid/30 p-4">
+                <p className="text-xs font-bold text-forest-mid">
+                  {uk ? "Територія" : "Territory"}
+                </p>
+                <h3 className="mt-1 font-display text-lg font-extrabold">
+                  {historicalName(selectedPolity.properties.name, uk)}
+                </h3>
+                <p className="mt-2 text-xs font-semibold">
+                  {uk ? "Джерельний зріз" : "Source snapshot"}:{" "}
+                  {formatAtlasYear(selectedPolity.properties.sourceYear ?? frame!.baseYear, uk)}
+                </p>
+                <p className="mt-2 text-xs">
+                  {uk ? "Контролер" : "Controller"}:{" "}
+                  {historicalName(selectedPolity.properties.subject, uk)}
+                  {selectedPolity.properties.relation && ` · ${selectedPolity.properties.relation}`}
+                </p>
+                {selectedPolity.properties.description && (
+                  <p className="mt-2 text-sm leading-6">{selectedPolity.properties.description}</p>
+                )}
+                <p className="mt-2 text-xs text-muted">
+                  {uk
+                    ? "Оглядовий контур за датованим джерелом. Дата події та точність геометрії можуть відрізнятися."
+                    : "Overview contour from a dated source. The event date and geometry precision may differ."}
+                </p>
+                {selectedPolity.properties.sourceUrl && (
                   <a
-                    href={s.url}
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-forest-mid underline"
+                    href={selectedPolity.properties.sourceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-bold text-forest-mid underline underline-offset-4"
                   >
-                    {s.title}
+                    {uk ? "Картографічне джерело" : "Cartographic source"}
+                    <ExternalLink className="size-3" />
                   </a>
-                  <p className="mt-1 text-xs text-muted">{s.note}</p>
-                </li>
-              ))}
-            </ul>
+                )}
+                {manual.data?.canEdit && date.year >= 395 && !loading && (
+                  <PillButton
+                    type="button"
+                    tone="ghost"
+                    className="mt-3"
+                    onClick={() => {
+                      const saved = manual.data.entries.find(
+                        (e) => `manual-${e.id}` === selectedPolity.id,
+                      );
+                      editor.start(saved ?? newAtlasEdit(date.year, selectedPolity));
+                      setBorders(true);
+                      setSelection(null);
+                    }}
+                  >
+                    {uk ? "Редагувати країну й кордони" : "Edit country and borders"}
+                  </PillButton>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-surface-2 p-4 text-xs leading-5 text-muted">
+                {uk
+                  ? "Натисніть на територію або знайдіть її через пошук. Мапа зберігає масштаб під час зміни дати."
+                  : "Select a territory or find it using search. The map keeps its zoom when you change the date."}
+              </div>
+            )}
+            <div className="rounded-2xl border border-hairline p-4 text-xs">
+              <strong className="text-forest-mid">{uk ? "На мапі" : "On the map"}</strong>
+              <p className="mt-1">
+                {states.length} {uk ? "територій та ареалів" : "territories and regions"}
+              </p>
+              <p className="mt-2 leading-5 text-muted">
+                {uk
+                  ? "Прогалини джерел залишаються нейтральними. Це навчальний атлас зі зрізами різної точності."
+                  : "Source gaps remain neutral. This is a learning atlas with snapshots of varying precision."}
+              </p>
+            </div>
+          </aside>
+        </div>
+        <details className="mt-4 text-xs">
+          <summary className="cursor-pointer font-bold text-forest-mid">
+            {uk
+              ? "Міста та історичні осередки цієї дати"
+              : "Cities and historical references for this date"}
+          </summary>
+          <div className="mt-2 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+            {available.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => choosePlace(p)}
+                className="flex min-h-10 items-center gap-1 rounded-xl bg-surface-2 px-3 text-left text-xs"
+              >
+                <MapPin className="size-3 shrink-0" />
+                {p.name}
+              </button>
+            ))}
           </div>
+        </details>
+      </Panel>
+      <Panel className="mt-4">
+        <h3 className="font-display font-extrabold">
+          {uk ? "Події поруч із вибраною датою" : "Events near the selected date"}
+        </h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {nearby.map((e) => (
+            <button
+              type="button"
+              key={`${e.year}-${e.title}`}
+              onClick={() => navigate(eventDate(e))}
+              className="rounded-2xl border border-hairline bg-surface-2/50 p-4 text-left"
+            >
+              <strong className="text-xs text-forest-mid">
+                {e.month || e.day ? formatWorldDate(eventDate(e), uk) : formatAtlasYear(e.year, uk)}
+              </strong>
+              <h4 className="mt-1 text-sm font-bold">{e.title}</h4>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                {e.description
+                  .split(/(?<=[.!?])\s+/)
+                  .filter(
+                    (sentence) =>
+                      !/зріз|шар|схем|на мап|на карт|snapshot|layer|schematic/i.test(sentence),
+                  )
+                  .join(" ")}
+              </p>
+            </button>
+          ))}
+          {!nearby.length && (
+            <p className="text-sm text-muted">
+              {uk ? "Для цього проміжку подій ще немає." : "No curated events in this period yet."}
+            </p>
+          )}
+        </div>
+      </Panel>
+      <Panel className="mt-4">
+        <details>
+          <summary className="cursor-pointer font-display font-bold">
+            {uk ? "Джерела й методика" : "Sources and method"}
+          </summary>
+          <p className="mt-3 text-sm leading-6">
+            {uk
+              ? "Єдина світова основа Historical Basemaps охоплює 500 рік до н. е. — 1994 рік. Джерельні полігони нормалізовано, а регіональні уточнення геометрично вирізають перекриття сусідніх територій. Прямокутні регіональні схеми не використовуються. Оглядові зрізи не дають щоденної точності."
+              : "The unified Historical Basemaps background spans 500 BCE–1994. Source polygons are normalized; regional refinements geometrically remove overlaps with neighbouring territories. Rectangular regional schematics are not used. Overview snapshots do not provide daily precision."}
+          </p>
+          <a
+            href="/atlas/world/NOTICE.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block text-sm text-forest-mid underline"
+          >
+            {uk
+              ? "Походження даних, ліцензії та межі точності"
+              : "Data provenance, licenses and accuracy"}
+          </a>
+          <Sources ids={["basemaps", "natural-earth", "lucius", "france-basemaps"]} />
         </details>
       </Panel>
     </>

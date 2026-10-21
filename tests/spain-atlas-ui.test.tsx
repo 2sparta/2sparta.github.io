@@ -8,7 +8,7 @@ import { HistoricalAtlas } from "../src/components/historical-atlas";
 import { normalizeAtlasDate, type AtlasDate } from "../src/lib/atlas/date.ts";
 import type { AtlasView } from "../src/lib/atlas/model.ts";
 const delay = () => new Promise((r) => setTimeout(r, 35));
-test("The real atlas changes days/months, fronts and views while retaining the selected date", async () => {
+test("The unified atlas changes days/months and fronts without country tabs", async () => {
   const fetch = globalThis.fetch;
   globalThis.fetch = async (input) => {
     const path = String(input);
@@ -70,15 +70,22 @@ test("The real atlas changes days/months, fronts and views while retaining the s
     await click(document.querySelector('[aria-label="Наступний день"]')!);
     assert.equal(selected(), "30.09.1936");
     assert.match(document.querySelector('[data-testid="spain-snapshot"]')!.textContent!, /09.1936/);
-    await click(button("Іспанська імперія"));
+    assert.equal(button("Іспанська імперія"), undefined);
     assert.equal(selected(), "30.09.1936");
     await click(label("Фронти громадянської війни").querySelector("input")!);
     assert.equal(document.querySelector('option[value="es-civil-republic"]'), null);
     await click(label("Фронти громадянської війни").querySelector("input")!);
     assert.ok(document.querySelector('option[value="es-civil-republic"]'));
-    await click(button("01.04.1939"));
+    await act(async () => {
+      jump({ year: 1939, month: 4, day: 1 });
+      await delay();
+    });
     assert.equal(selected(), "01.04.1939");
     assert.equal(document.querySelector('option[value="es-civil-republic"]'), null);
+    for (let i = 0; i < 40 && !document.querySelector('option[value="es-civil-victory"]'); i++)
+      await act(async () => {
+        await delay();
+      });
     assert.ok(document.querySelector('option[value="es-civil-victory"]'));
     await act(async () => {
       jump({ year: 1936, month: 2, day: 29 });
@@ -104,6 +111,10 @@ test("The real atlas changes days/months, fronts and views while retaining the s
       jump({ year: 1783, month: 1, day: 1 });
       await delay();
     });
+    for (let i = 0; i < 40 && !document.querySelector('option[value^="es-1783-"]'); i++)
+      await act(async () => {
+        await delay();
+      });
     assert.ok(
       [...document.querySelectorAll("option")].some(
         (o) => o.value.startsWith("es-1783-") && o.textContent?.includes("Перу"),
