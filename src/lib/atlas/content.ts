@@ -8,6 +8,10 @@ import { FRANCE_SOURCES } from "./france.ts";
 import { SPAIN_SOURCES } from "./spain.ts";
 import { ENGLAND_SOURCES } from "./england.ts";
 import { MONGOL_SOURCES } from "./mongols.ts";
+import { ISLES_SOURCES } from "./isles.ts";
+import { ANTIQUITY_SOURCES } from "./antiquity.ts";
+import { GERMANY_SOURCES } from "./germany.ts";
+import { NAPOLEON_SOURCES } from "./napoleon.ts";
 
 export const ATLAS_SOURCES: AtlasSource[] = [
   {
@@ -24,6 +28,10 @@ export const ATLAS_SOURCES: AtlasSource[] = [
   ...COMMONWEALTH_SOURCES,
   ...SPAIN_SOURCES,
   ...ENGLAND_SOURCES,
+  ...ISLES_SOURCES,
+  ...ANTIQUITY_SOURCES,
+  ...GERMANY_SOURCES,
+  ...NAPOLEON_SOURCES,
   {
     id: "basemaps",
     title: "Historical Basemaps — André Ourednik",

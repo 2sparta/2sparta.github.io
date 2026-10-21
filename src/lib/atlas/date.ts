@@ -1,4 +1,5 @@
 import { ATLAS_MIN_YEAR, ATLAS_MAX_YEAR, clampAtlasYear } from "./model.ts";
+import { clampSharedYear } from "./antiquity.ts";
 
 export type AtlasDate = { year: number; month: number; day: number };
 export function daysInAtlasMonth(year: number, month: number) {
@@ -48,6 +49,10 @@ export function formatAtlasDate(date: AtlasDate, precision: "year" | "month" | "
 export function validateAtlasSearchDate(search: Record<string, unknown>) {
   if (search.year === undefined && search.month === undefined && search.day === undefined)
     return {};
+  const wide = ["europe", "world", "antiquity", "germany", "napoleon"].includes(String(search.view));
+  if (wide) {
+    return { year: clampSharedYear(Number(search.year ?? 117)), month: 1, day: 1 };
+  }
   if (search.view === "england") {
     const year = Math.max(
       43,

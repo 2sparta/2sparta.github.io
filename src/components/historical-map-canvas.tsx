@@ -86,6 +86,34 @@ export const ATLAS_BOUNDS: Record<AtlasView, Leaflet.LatLngBoundsExpression> = {
     [-57, -170],
     [78, 180],
   ],
+  scotland: [
+    [54.6, -8.0],
+    [61.3, -0.6],
+  ],
+  wales: [
+    [51.2, -5.7],
+    [53.6, -2.6],
+  ],
+  ireland: [
+    [51.2, -11.0],
+    [55.6, -5.2],
+  ],
+  isles: [
+    [49.0, -11.2],
+    [61.3, 2.0],
+  ],
+  antiquity: [
+    [15, -12],
+    [56, 75],
+  ],
+  germany: [
+    [43.0, 3.0],
+    [55.8, 23.5],
+  ],
+  napoleon: [
+    [36.2, -12],
+    [62, 41],
+  ],
 };
 export function HistoricalMapCanvas({
   historical,
@@ -158,6 +186,18 @@ export function HistoricalMapCanvas({
         );
         instance.attributionControl.addAttribution(
           '<a href="/atlas/mongols/NOTICE.md" target="_blank" rel="noopener noreferrer">Монголи / Моголи: Cattette, Gabagool, Elvonudinium, Avantiputra7, Joppen · CC BY / BY-SA</a>',
+        );
+        instance.attributionControl.addAttribution(
+          '<a href="/atlas/isles/NOTICE.md" target="_blank" rel="noopener noreferrer">Британські острови: навчальні схеми, берег за Natural Earth</a>',
+        );
+        instance.attributionControl.addAttribution(
+          '<a href="/atlas/antiquity/NOTICE.md" target="_blank" rel="noopener noreferrer">Античність: навчальні схеми Риму, Карфагена і сусідів</a>',
+        );
+        instance.attributionControl.addAttribution(
+          '<a href="/atlas/germany/NOTICE.md" target="_blank" rel="noopener noreferrer">Німеччина: навчальні схеми від імперії 962 року</a>',
+        );
+        instance.attributionControl.addAttribution(
+          '<a href="/atlas/napoleon/NOTICE.md" target="_blank" rel="noopener noreferrer">Наполеонівські війни: навчальні схеми 1792–1815</a>',
         );
         instance.createPane("atlas-original").style.zIndex = "410";
         instance.getPane("atlas-original")!.style.pointerEvents = "none";
@@ -362,7 +402,80 @@ export function HistoricalMapCanvas({
           layer.bindTooltip(label);
         },
       }).addTo(layers);
-    if (!sourceRaster && (view === "byzantium" || view === "europe")) {
+    if (
+      !sourceRaster &&
+      (view === "england" || view === "scotland" || view === "wales" || view === "ireland" || view === "isles")
+    ) {
+      const seas =
+        view === "ireland"
+          ? ([[53.5, -5.6, uk ? "Ірландське море" : "Irish Sea"]] as const)
+          : view === "wales"
+            ? ([[52.6, -4.9, uk ? "Ірландське море" : "Irish Sea"]] as const)
+            : view === "scotland"
+              ? ([[56.6, -0.8, uk ? "Північне море" : "North Sea"]] as const)
+              : ([
+                  [53.5, -5.15, uk ? "Ірландське море" : "Irish Sea"],
+                  [56.4, 0.4, uk ? "Північне море" : "North Sea"],
+                  [50.15, -1.4, uk ? "Ла-Манш" : "English Channel"],
+                ] as const);
+      for (const [lat, lng, name] of seas) {
+        const label = document.createElement("span");
+        label.textContent = name;
+        L.marker([lat, lng], {
+          interactive: false,
+          keyboard: false,
+          pane: "atlas-markers",
+          icon: L.divIcon({
+            className: "atlas-sea-label",
+            html: label,
+            iconSize: [140, 20],
+            iconAnchor: [70, 10],
+          }),
+        }).addTo(layers);
+      }
+    }
+    if (!sourceRaster && view === "germany") {
+      for (const [lat, lng, name] of [
+        [54.7, 4.6, uk ? "Північне море" : "North Sea"],
+        [55.2, 16.5, uk ? "Балтійське море" : "Baltic Sea"],
+      ] as const) {
+        const label = document.createElement("span");
+        label.textContent = name;
+        L.marker([lat, lng], {
+          interactive: false,
+          keyboard: false,
+          pane: "atlas-markers",
+          icon: L.divIcon({
+            className: "atlas-sea-label",
+            html: label,
+            iconSize: [140, 20],
+            iconAnchor: [70, 10],
+          }),
+        }).addTo(layers);
+      }
+    }
+    if (!sourceRaster && view === "napoleon") {
+      for (const [lat, lng, name] of [
+        [42.5, 16.5, uk ? "Середземне море" : "Mediterranean Sea"],
+        [56.2, 18.5, uk ? "Балтійське море" : "Baltic Sea"],
+        [51.5, -2.2, uk ? "Атлантика" : "Atlantic"],
+      ] as const) {
+        const label = document.createElement("span");
+        label.textContent = name;
+        L.marker([lat, lng], {
+          interactive: false,
+          keyboard: false,
+          pane: "atlas-markers",
+          icon: L.divIcon({
+            className: "atlas-sea-label",
+            html: label,
+            iconSize: [160, 20],
+            iconAnchor: [80, 10],
+          }),
+        }).addTo(layers);
+      }
+    }
+    if (!sourceRaster && (view === "byzantium" || view === "europe" || view === "antiquity")) {
       for (const [lat, lng, name] of [
         [42, 34, uk ? "Чорне море" : "Black Sea"],
         [37, 24.5, uk ? "Егейське море" : "Aegean Sea"],

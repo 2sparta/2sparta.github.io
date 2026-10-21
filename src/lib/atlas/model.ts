@@ -24,7 +24,14 @@ export type AtlasView =
   | "cossacks"
   | "spain"
   | "spanish-empire"
-  | "england";
+  | "england"
+  | "scotland"
+  | "wales"
+  | "ireland"
+  | "isles"
+  | "antiquity"
+  | "germany"
+  | "napoleon";
 export type HistoricalProperties = {
   name: string;
   subject: string;
@@ -32,7 +39,18 @@ export type HistoricalProperties = {
   detailed?: boolean;
   sourceYear?: number;
   sourceId?: string;
-  region?: "franks" | "rus" | "mongols" | "france" | "commonwealth" | "spain" | "england";
+  region?:
+    | "franks"
+    | "rus"
+    | "mongols"
+    | "france"
+    | "commonwealth"
+    | "spain"
+    | "england"
+    | "isles"
+    | "antiquity"
+    | "germany"
+    | "napoleon";
   layer?: "state" | "land" | "dependency" | "occupation" | "cossack" | "colony" | "front";
   validUntilDate?: string;
   validTo?: number;
@@ -76,6 +94,11 @@ export type AtlasPlace = {
   capital?: boolean;
   mongol?: boolean;
   campaign?: "battle" | "sack" | "withdrawal";
+  isles?: boolean;
+  irish?: boolean;
+  scottish?: boolean;
+  welsh?: boolean;
+  english?: boolean;
 };
 export type AtlasEvent = {
   year: number;
@@ -369,6 +392,74 @@ export function historicalName(name: string, uk = true) {
     "Lower Burgundy": "Нижня Бургундія",
     "Upper Burgundy": "Верхня Бургундія",
     "Holy Roman Empire": "Священна Римська імперія",
+    "Duchy of Lotharingia": "Лотаринзьке герцогство",
+    "Duchy of Franconia": "Франконське герцогство",
+    "Duchy of Swabia": "Швабське герцогство",
+    "Duchy of Bavaria": "Баварське герцогство",
+    "Duchy of Saxony": "Саксонське герцогство",
+    Bohemia: "Чехія",
+    "Duchy of Austria": "Австрійське герцогство",
+    "Margraviate of Brandenburg": "Бранденбурзька марка",
+    "Kingdom of Burgundy": "Бургундське королівство",
+    "Swabian lands": "Швабські землі",
+    "Low Countries": "Нідерландські лени",
+    "County Palatine of the Rhine": "Рейнський Пфальц",
+    "Electoral Saxony": "Саксонське курфюрство",
+    "Imperial Italy": "Імперська Італія",
+    "Habsburg lands": "Землі Габсбургів",
+    "Duchy of Prussia": "Герцогство Пруссія",
+    "Dutch Republic": "Голландська республіка",
+    "Swiss Confederacy": "Швейцарська конфедерація",
+    "Brandenburg-Prussia": "Бранденбург-Пруссія",
+    "Kingdom of Prussia": "Прусське королівство",
+    "East Prussia": "Східна Пруссія",
+    "Confederation of the Rhine": "Рейнський союз",
+    "Austrian Empire": "Австрійська імперія",
+    "Kingdom of Bavaria": "Баварське королівство",
+    "Kingdom of Saxony": "Саксонське королівство",
+    "Kingdom of Hanover": "Ганноверське королівство",
+    "Kingdom of Württemberg": "Вюртемберзьке королівство",
+    "Grand Duchy of Baden": "Велике герцогство Баден",
+    "Guelph lands": "Землі Вельфів",
+    "North German Confederation": "Північнонімецький союз",
+    "Alsace-Lorraine": "Ельзас-Лотарингія",
+    "Imperial Alsace": "Імперський Ельзас",
+    "Weimar Germany": "Веймарська Німеччина",
+    "Saar Basin": "Саарський басейн",
+    "German Reich": "Німецький Райх",
+    "Federal Republic of Germany": "Федеративна Республіка Німеччина",
+    "German Democratic Republic": "Німецька Демократична Республіка",
+    Germany: "Німеччина",
+    "French Republic": "Французька республіка",
+    "French Empire": "Французька імперія",
+    "Kingdom of France": "Французьке королівство",
+    "Austrian Netherlands": "Австрійські Нідерланди",
+    "Batavian Republic": "Батавська республіка",
+    "United Netherlands": "Об’єднане королівство Нідерландів",
+    "Cisalpine Republic": "Цизальпійська республіка",
+    "Ligurian Republic": "Лігурійська республіка",
+    "Kingdom of Naples": "Неаполітанське королівство",
+    "Kingdom of the Two Sicilies": "Королівство обох Сицилій",
+    "Electorate of Hanover": "Ганноверське курфюрство",
+    "Rhineland states": "Держави Рейнланду",
+    "Kingdom of Westphalia": "Вестфальське королівство",
+    "Grand Duchy of Berg": "Велике герцогство Берг",
+    "Grand Duchy of Hesse": "Велике герцогство Гессен",
+    "Kingdom of Bohemia": "Чеське королівство",
+    "Kingdom of Galicia": "Королівство Галичини",
+    "Denmark-Norway": "Данія-Норвегія",
+    "Sweden-Norway": "Швеція-Норвегія",
+    "Duchy of Warsaw": "Варшавське герцогство",
+    "Illyrian Provinces": "Іллірійські провінції",
+    "Free City of Danzig": "Вільне місто Данциг",
+    "Free City of Kraków": "Вільне місто Краків",
+    "Congress Poland": "Царство Польське",
+    "Allied Belgium": "Бельгія під союзниками",
+    "Russian campaign": "Похід на Росію",
+    "Republic of Venice": "Венеційська республіка",
+    "Kingdom of Etruria": "Етрурське королівство",
+    "Kingdom of Sardinia": "Сардинське королівство",
+    "Grand Duchy of Tuscany": "Велике герцогство Тоскана",
     "Kingdom of Poland": "Польське королівство",
     Poland: "Польща",
     "Kingdom of Hungary": "Угорське королівство",
@@ -381,6 +472,80 @@ export function historicalName(name: string, uk = true) {
     "Avar Khaganate": "Аварський каганат",
     Sclaveni: "Склавини",
     Antes: "Анти",
+    "Sub-Roman Britain": "Післяримська Британія",
+    "Ireland (state)": "Ірландія",
+    Ulaid: "Улад",
+    Ailech: "Айлех",
+    Airgialla: "Айргіалла",
+    Breifne: "Брейфне",
+    Connacht: "Коннахт",
+    Mide: "Міде",
+    Leinster: "Ленстер",
+    Osraige: "Осрайге",
+    Munster: "Манстер",
+    Dublin: "Дублін",
+    Waterford: "Ватерфорд",
+    Limerick: "Лімерик",
+    "Gaelic lordships": "Гельські володіння",
+    Thomond: "Томонд",
+    "Northern Ireland": "Північна Ірландія",
+    "Dál Riata": "Дал Ріада",
+    Strathclyde: "Стратклайд",
+    "Lords of Galloway": "Володарі Галловея",
+    "English Mercia": "Англійська Мерсія",    Cornwall: "Корнуол",    Gwynedd: "Гвінед",
+    Powys: "Повіс",
+    Deheubarth: "Дехейбарт",
+    Dyfed: "Дівед",
+    Ceredigion: "Кередігіон",
+    Morgannwg: "Морганнуг",
+    Gwent: "Гвент",
+    "Marcher lordships": "Марки Вельсу",
+    "Principality of Wales": "Князівство Вельсу",
+    "Duchy of Normandy": "Герцогство Нормандія",
+    "County of Maine": "Графство Мен",
+    "County of Anjou": "Графство Анжу",
+    "Duchy of Aquitaine": "Герцогство Аквітанія",
+    "Duchy of Gascony": "Герцогство Гасконь",
+    "Pale of Calais": "Кале",
+    "English Île-de-France": "Англійська Іль-де-Франс",
+    "Thirteen Colonies": "Тринадцять колоній",
+    "British Canada": "Британська Канада",
+    "British Florida": "Британська Флорида",
+    Bengal: "Бенгалія",
+    "British India": "Британська Індія",
+    Ceylon: "Цейлон",
+    Australia: "Австралія",
+    "New Zealand": "Нова Зеландія",
+    "Cape Colony": "Капська колонія",
+    "Rupert's Land": "Земля Руперта",
+    "British West Indies": "Британська Вест-Індія",
+    "British West Africa": "Британська Західна Африка",
+    "British East Africa": "Британська Східна Африка",
+    "Union of South Africa": "Південно-Африканський Союз",
+    Rhodesia: "Родезія",
+    "British Malaya": "Британська Малайя",
+    "Hong Kong": "Гонконг",
+    Gibraltar: "Гібралтар",
+    "Falkland Islands": "Фолклендські острови",
+    Bermuda: "Бермуди",
+    "Roman Republic": "Римська республіка",
+    Carthage: "Карфаген",
+    "Achaemenid Empire": "Імперія Ахеменідів",
+    "Empire of Alexander": "Імперія Александра",
+    "Kingdom of Macedon": "Македонське царство",
+    Athens: "Афіни",
+    Sparta: "Спарта",
+    "Greek Sicily": "Грецька Сицилія",
+    Etruria: "Етрурія",
+    "Ptolemaic Egypt": "Єгипет Птолемеїв",
+    "Seleucid Empire": "Держава Селевкідів",
+    "Kingdom of Pergamon": "Пергамське царство",
+    Numidia: "Нумідія",
+    Mauretania: "Мавретанія",
+    "Parthian Empire": "Парфянське царство",
+    "Sasanian Empire": "Сасанідська держава",
+    "Kingdom of Kush": "Куш",
+    "Kingdom of Armenia": "Вірменське царство",
   };
   if (uk && name.includes(" — ")) {
     const partition =
