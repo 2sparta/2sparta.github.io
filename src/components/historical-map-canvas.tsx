@@ -129,6 +129,7 @@ export function HistoricalMapCanvas({
   onPolity,
   sourceRaster,
   edit,
+  resetKey = 0,
 }: {
   historical?: HistoricalCollection;
   land?: FeatureCollection;
@@ -143,6 +144,7 @@ export function HistoricalMapCanvas({
   onPolity: (feature: HistoricalFeature) => void;
   sourceRaster?: ByzantineFrame["raster"];
   edit?: AtlasCanvasEdit;
+  resetKey?: number;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const editRef = useRef(edit);
@@ -163,41 +165,20 @@ export function HistoricalMapCanvas({
         instance = L.map(container.current, {
           zoomControl: false,
           scrollWheelZoom: false,
-          minZoom: 1,
+          minZoom: view === "world" ? 0 : 1,
           maxZoom: 8,
           zoomSnap: 0.25,
           attributionControl: true,
           zoomAnimation: false,
           fadeAnimation: false,
         });
-        instance.fitBounds(ATLAS_BOUNDS.rus);
+        instance.fitBounds(ATLAS_BOUNDS[view]);
         instance.attributionControl.setPrefix(false);
         instance.attributionControl.addAttribution(
           '<a href="https://github.com/aourednik/historical-basemaps" target="_blank" rel="noopener noreferrer">Historical Basemaps (GPL-3.0)</a> · <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener noreferrer">Natural Earth</a>',
         );
         instance.attributionControl.addAttribution(
-          '<a href="https://lucius-note.net/byzantium/" target="_blank" rel="noopener noreferrer">Візантія: ©Lucius</a>',
-        );
-        instance.attributionControl.addAttribution(
-          '<a href="/atlas/franks/NOTICE.md" target="_blank" rel="noopener noreferrer">Франки: Sémhur, Trasamundo (CC BY-SA 3.0), Romain0 (PD)</a>',
-        );
-        instance.attributionControl.addAttribution(
-          '<a href="/atlas/rus/NOTICE.md" target="_blank" rel="noopener noreferrer">Русь: Unochepassava94, Koryakov Yuri, Das Steinerne Herz, Redx360, Hellerick, Mnohohrishnyi · CC BY-SA / CC0</a>',
-        );
-        instance.attributionControl.addAttribution(
-          '<a href="/atlas/mongols/NOTICE.md" target="_blank" rel="noopener noreferrer">Монголи / Моголи: Cattette, Gabagool, Elvonudinium, Avantiputra7, Joppen · CC BY / BY-SA</a>',
-        );
-        instance.attributionControl.addAttribution(
-          '<a href="/atlas/isles/NOTICE.md" target="_blank" rel="noopener noreferrer">Британські острови: навчальні схеми, берег за Natural Earth</a>',
-        );
-        instance.attributionControl.addAttribution(
-          '<a href="/atlas/antiquity/NOTICE.md" target="_blank" rel="noopener noreferrer">Античність: навчальні схеми Риму, Карфагена і сусідів</a>',
-        );
-        instance.attributionControl.addAttribution(
-          '<a href="/atlas/germany/NOTICE.md" target="_blank" rel="noopener noreferrer">Німеччина: навчальні схеми від імперії 962 року</a>',
-        );
-        instance.attributionControl.addAttribution(
-          '<a href="/atlas/napoleon/NOTICE.md" target="_blank" rel="noopener noreferrer">Наполеонівські війни: навчальні схеми 1792–1815</a>',
+          '<a href="/atlas/world/NOTICE.md" target="_blank" rel="noopener noreferrer">Регіональні джерела, автори й ліцензії</a>',
         );
         instance.createPane("atlas-original").style.zIndex = "410";
         instance.getPane("atlas-original")!.style.pointerEvents = "none";
@@ -260,7 +241,7 @@ export function HistoricalMapCanvas({
   useEffect(() => {
     if (!runtime) return;
     runtime.map.fitBounds(ATLAS_BOUNDS[view], { padding: [12, 12], animate: false });
-  }, [runtime, view]);
+  }, [runtime, view, resetKey]);
   useEffect(() => {
     if (!runtime || !container.current) return;
     const resize = () => runtime.map.invalidateSize({ animate: false });
@@ -311,8 +292,7 @@ export function HistoricalMapCanvas({
                       : "#9aa5b0",
               weight: p.invaded ? 2.3 : feature!.id === selected ? 2.5 : p.detailed ? 0.9 : 0.65,
               fillColor: p.color ?? polityColor(p.subject),
-              fillOpacity:
-                feature!.id === selected ? 0.9 : p.layer === "land" ? 0.45 : p.detailed ? 1 : 0.23,
+              fillOpacity: feature!.id === selected ? 0.9 : p.layer === "land" ? 0.3 : 0.8,
               dashArray: p.invaded
                 ? "6 3"
                 : p.layer === "land"
@@ -404,7 +384,11 @@ export function HistoricalMapCanvas({
       }).addTo(layers);
     if (
       !sourceRaster &&
-      (view === "england" || view === "scotland" || view === "wales" || view === "ireland" || view === "isles")
+      (view === "england" ||
+        view === "scotland" ||
+        view === "wales" ||
+        view === "ireland" ||
+        view === "isles")
     ) {
       const seas =
         view === "ireland"
@@ -500,6 +484,15 @@ export function HistoricalMapCanvas({
     for (const place of places) {
       const isCity = place.type === "city";
       const active = place.id === selected;
+      if (
+        view === "world" &&
+        zoom < 3.5 &&
+        !active &&
+        !place.campaign &&
+        !place.occupation &&
+        !place.cossack
+      )
+        continue;
       const marker = place.capital
         ? L.marker([place.lat, place.lng], {
             pane: "atlas-markers",
@@ -547,7 +540,7 @@ export function HistoricalMapCanvas({
         permanent:
           active ||
           ((Boolean(place.campaign) || place.occupation) && zoom >= 4.5) ||
-          place.capital ||
+          (place.capital && (view !== "world" || zoom >= 4.5)) ||
           (view === "spain" &&
             zoom >= 4 &&
             ["es-city-madrid", "es-city-barcelona"].includes(place.id)) ||
@@ -598,7 +591,12 @@ export function HistoricalMapCanvas({
   useEffect(() => {
     if (!runtime || !selected) return;
     const place = places.find((p) => p.id === selected);
-    if (place) runtime.map.panTo([place.lat, place.lng], { animate: false });
+    if (place)
+      runtime.map.setView(
+        [place.lat, place.lng],
+        view === "world" ? Math.max(5, runtime.map.getZoom()) : runtime.map.getZoom(),
+        { animate: false },
+      );
     else if (historical) {
       const f = historical.features.find((f) => f.id === selected);
       if (f)
@@ -608,7 +606,7 @@ export function HistoricalMapCanvas({
           animate: false,
         });
     }
-  }, [runtime, selected, places, historical]);
+  }, [runtime, selected, places, historical, view]);
   useEffect(() => {
     snapRef.current = (p) => p;
     if (!runtime || !edit?.snap || !historical) return;

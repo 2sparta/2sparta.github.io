@@ -62,6 +62,7 @@ test("The atlas loads the real dataset, switches occupation/land layers, and cha
       });
     assert.ok(document.querySelector('option[value="pllt-deluge-occupation"]'));
     assert.ok(document.querySelector('option[value*="moscow-occupation"]'));
+    await click(check("Історичні українські землі"));
     assert.ok(document.querySelector('option[value^="pllt-land-"]'));
     await click(check("Окупації · штрихування"));
     assert.equal(document.querySelector('option[value="pllt-deluge-occupation"]'), null);
@@ -94,6 +95,14 @@ test("The atlas loads the real dataset, switches occupation/land layers, and cha
       jump(1795);
       await delay();
     });
+    for (
+      let i = 0;
+      i < 40 && !document.querySelector('option[value="pllt-partition-1795-1795-Prussia"]');
+      i++
+    )
+      await act(async () => {
+        await delay();
+      });
     assert.ok(document.querySelector('option[value="pllt-partition-1795-1795-Prussia"]'));
     assert.equal(document.querySelector('option[value="pllt-1795-commonwealth"]'), null);
     for (const [year, count] of [
@@ -105,6 +114,14 @@ test("The atlas loads the real dataset, switches occupation/land layers, and cha
         jump(year);
         await delay();
       });
+      for (
+        let i = 0;
+        i < 40 && document.querySelectorAll('option[value^="pllt-partition-"]').length !== count;
+        i++
+      )
+        await act(async () => {
+          await delay();
+        });
       assert.equal(document.querySelectorAll('option[value^="pllt-partition-"]').length, count);
       assert.ok(document.querySelector('[aria-label="Легенда поділів Речі Посполитої"]'));
     }

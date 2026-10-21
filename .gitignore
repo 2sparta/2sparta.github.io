@@ -9,3 +9,4 @@ artifacts
 .project_id
 *.log
 .DS_Store
+.cache/

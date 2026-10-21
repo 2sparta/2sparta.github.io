@@ -52,6 +52,7 @@ export type HistoricalProperties = {
     | "germany"
     | "napoleon";
   layer?: "state" | "land" | "dependency" | "occupation" | "cossack" | "colony" | "front";
+  worldOverlay?: "reconquista" | "front";
   validUntilDate?: string;
   validTo?: number;
   invaded?: boolean;
@@ -98,7 +99,6 @@ export type AtlasPlace = {
   irish?: boolean;
   scottish?: boolean;
   welsh?: boolean;
-  english?: boolean;
 };
 export type AtlasEvent = {
   year: number;
@@ -211,6 +211,31 @@ export function placeEpoch(places: AtlasPlace[], year: number) {
 }
 export function historicalName(name: string, uk = true) {
   const names: Record<string, string> = {
+    France: "Франція",
+    Ukraine: "Україна",
+    USSR: "СРСР",
+    Russia: "Росія",
+    England: "Англія",
+    Scotland: "Шотландія",
+    Wales: "Вельс",
+    Austria: "Австрія",
+    Italy: "Італія",
+    Greece: "Греція",
+    Turkey: "Туреччина",
+    Romania: "Румунія",
+    Moldova: "Молдова",
+    Belarus: "Білорусь",
+    China: "Китай",
+    India: "Індія",
+    Japan: "Японія",
+    Canada: "Канада",
+    "United States of America": "Сполучені Штати Америки",
+    "United States": "Сполучені Штати Америки",
+    Brazil: "Бразилія",
+    Argentina: "Аргентина",
+    "Qing Empire": "Імперія Цін",
+    "Manchu Empire": "Маньчжурська імперія",
+    "British Raj": "Британська Індія",
     "Visigothic Kingdom": "Вестготське королівство",
     Florida: "Флорида",
     Spain: "Іспанія",
@@ -492,7 +517,9 @@ export function historicalName(name: string, uk = true) {
     "Dál Riata": "Дал Ріада",
     Strathclyde: "Стратклайд",
     "Lords of Galloway": "Володарі Галловея",
-    "English Mercia": "Англійська Мерсія",    Cornwall: "Корнуол",    Gwynedd: "Гвінед",
+    "English Mercia": "Англійська Мерсія",
+    Cornwall: "Корнуол",
+    Gwynedd: "Гвінед",
     Powys: "Повіс",
     Deheubarth: "Дехейбарт",
     Dyfed: "Дівед",
