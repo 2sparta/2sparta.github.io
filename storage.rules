@@ -1,0 +1,7 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // The app currently has no Firebase Storage upload or download feature.
+    match /{path=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,41 @@
+name: Firebase security
+on:
+  pull_request:
+    paths:
+      - "firestore*"
+      - "storage.rules"
+      - "firebase.json"
+      - "functions/**"
+      - "src/lib/firebase.ts"
+      - "src/lib/school/**"
+      - "mobile/src/lib/**"
+      - "tests/*rules*"
+      - "tests/firebase-security*"
+      - "package*.json"
+      - ".github/workflows/firebase-security.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci --ignore-scripts
+      - run: npm --prefix functions ci --ignore-scripts
+      - run: npm run typecheck && npm --prefix functions run typecheck && npm run build:chess-functions
+      - run: npm audit --omit=dev --audit-level=high && npm --prefix functions audit --omit=dev --audit-level=high
+      - name: Isolated Firestore rules and server transactions
+        run: >-
+          npx --yes firebase-tools@15.34.1 emulators:exec --only firestore
+          --project demo-school-security
+          'npm run test:firestore && npm run test:school-settings-rules && npm run test:chess-rules && npm run test:firebase-security'

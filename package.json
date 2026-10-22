@@ -4,7 +4,9 @@
   "sideEffects": false,
   "type": "module",
   "overrides": {
-    "nf3": "0.3.17"
+    "nf3": "0.3.17",
+    "@grpc/grpc-js": "^1.14.5",
+    "source-map-js": "^1.2.2"
   },
   "scripts": {
     "dev": "node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080",
@@ -40,7 +42,8 @@
     "test:homework-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/homework-ui.test.tsx",
     "test:chess-interactions": "node --experimental-strip-types --test tests/chess-interactions.test.ts",
     "test:chess-interactions-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/chess-interactions-ui.test.tsx",
-    "check:classroom-chess-ui": "node scripts/check-classroom-chess-ui.mjs"
+    "check:classroom-chess-ui": "node scripts/check-classroom-chess-ui.mjs",
+    "test:firebase-security": "node --test tests/firebase-security-rules.test.mjs && node --import tsx --test functions/tests/security.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
@@ -122,6 +125,6 @@
     "tsx": "^4.23.15",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
-    "vite": "^8.2.0"
+    "vite": "^8.3.5"
   }
 }

@@ -3,9 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function viewer() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    function inSchool(schoolId) { return signedIn() && viewer().schoolId == schoolId; }
+    function inSchool(schoolId) { return signedIn() && schoolId is string && viewer().get('schoolId', null) == schoolId; }
     function teacherIn(schoolId) {
       return inSchool(schoolId) && (viewer().role == "teacher" || viewer().role == "admin");
+    }
+    function adminIn(schoolId) { return inSchool(schoolId) && viewer().role == 'admin'; }
+    function sameSchool() { return request.resource.data.schoolId == resource.data.schoolId; }
+    function ownGrade(d) {
+      return inSchool(d.schoolId) && (teacherIn(d.schoolId)
+        || (d.rosterId == viewer().get('rosterId', '')
+          && (viewer().role == 'student' || viewer().role == 'parent')));
     }
     function options(schoolId) {
       return exists(/databases/$(database)/documents/schoolSettings/$(schoolId))
@@ -168,86 +175,85 @@ service cloud.firestore {
       allow delete: if active() && userId == request.auth.uid;
     }
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-                    && request.auth.uid == userId
-                    && (request.resource.data.role == "student"
-                        || request.resource.data.role == "pending-teacher"
-                        || request.resource.data.role == "parent");
-      // Власник оновлює свій профіль. Роль: pending-teacher → teacher|admin.
-      // Адмін тієї ж школи може оновлювати інших учителів школи.
-      allow update: if request.auth != null
-                    && (
-                      (request.auth.uid == userId
-                        && (
-                          resource.data.role == request.resource.data.role
-                          || (resource.data.role == "pending-teacher"
-                              && (request.resource.data.role == "teacher"
-                                  || request.resource.data.role == "admin"))
-                          || (resource.data.role == "teacher"
-                              && request.resource.data.role == "admin")
-                          || (request.resource.data.role == "parent"
-                              && (resource.data.role == "student"
-                                  || resource.data.role == "pending-teacher"
-                                  || resource.data.role == "parent"))
-                        ))
-                      || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
-                          && resource.data.schoolId != null
-                          && resource.data.schoolId
-                              == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId)
-                    );
-    }
-    // Школи
-    match /schools/{schoolId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-                    && request.resource.data.createdBy == request.auth.uid;
-      allow update: if request.auth != null
-                    && resource.data.createdBy == request.auth.uid;
+      allow get: if signedIn() && (userId == request.auth.uid || inSchool(resource.data.schoolId));
+      allow list: if inSchool(resource.data.schoolId);
+      allow create: if signedIn() && userId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['role','displayName','email','schoolId','classId','groupId','rosterId','isAdmin','setupComplete','createdAt'])
+        && request.resource.data.role in ['student','parent','pending-teacher']
+        && request.resource.data.get('schoolId',null) == null
+        && request.resource.data.get('classId',null) == null && request.resource.data.get('groupId',null) == null
+        && request.resource.data.get('rosterId',null) == null
+        && request.resource.data.isAdmin == false && request.resource.data.setupComplete == false;
+      // Membership and roster links are assigned by the callable, never by a profile edit.
+      allow update: if signedIn() && (
+        (userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','email','setupComplete']))
+        || (adminIn(resource.data.schoolId) && sameSchool()
+          && resource.data.role in ['teacher','admin'] && request.resource.data.role in ['teacher','admin']
+          && request.resource.data.isAdmin == (request.resource.data.role == 'admin')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','isAdmin','displayName'])));
       allow delete: if false;
     }
-    // Коди-запрошення вчителів (id документа = 16-символьний код)
-    match /teacherInvites/{code} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null
-                    && resource.data.createdBy == request.auth.uid;
+    match /schools/{schoolId} {
+      allow read: if inSchool(schoolId);
+      allow create, delete: if false;
+      allow update: if adminIn(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','chatIds']);
     }
-    match /students/{studentId} {
-      allow read: if signedIn();
-      allow create: if teacherIn(request.resource.data.schoolId);
+    match /teacherInvites/{code} {
+      allow read: if adminIn(resource.data.schoolId);
+      allow create: if adminIn(request.resource.data.schoolId)
+        && code.matches('[A-Z2-9]{16}')
+        && request.resource.data.keys().hasOnly(['schoolId','createdBy','usedBy','createdAt'])
+        && request.resource.data.createdBy == request.auth.uid && request.resource.data.usedBy == null;
+      allow update: if false;
+      allow delete: if adminIn(resource.data.schoolId);
+    }
+    // Invitation secrets are separate from the roster visible to classmates.
+    match /studentInvites/{rosterId} {
+      allow read: if teacherIn(resource.data.schoolId);
+      allow create, update: if teacherIn(request.resource.data.schoolId)
+        && request.resource.data.keys().hasOnly(['schoolId','code'])
+        && request.resource.data.code.matches('[A-Z2-9]{16}')
+        && getAfter(/databases/$(database)/documents/students/$(rosterId)).data.schoolId == request.resource.data.schoolId
+        && (!exists(/databases/$(database)/documents/studentInvites/$(rosterId)) || sameSchool());
       allow delete: if teacherIn(resource.data.schoolId);
-      allow update: if signedIn() && (
-        (teacherIn(resource.data.schoolId) && request.resource.data.schoolId == resource.data.schoolId
+    }
+    match /membershipLimits/{uid} { allow read, write: if false; }
+    match /students/{studentId} {
+      allow read: if inSchool(resource.data.schoolId)
+        || (signedIn() && (resource.data.get('authUid','') == request.auth.uid || resource.data.get('linkedUserId','') == request.auth.uid));
+      allow create: if teacherIn(request.resource.data.schoolId) && !('inviteCode' in request.resource.data)
+        && request.resource.data.get('authUid',null) == null && request.resource.data.get('linkedUserId',null) == null
+        && request.resource.data.get('parentUids',[]).size() == 0;
+      allow delete: if teacherIn(resource.data.schoolId);
+      allow update: if signedIn() && sameSchool() && (
+        (teacherIn(resource.data.schoolId)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['authUid','linkedUserId','parentUids','inviteCode'])
           && (enabled(resource.data.schoolId,'points') || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['points','budget'])))
-        || ((resource.data.get('authUid','') == request.auth.uid || resource.data.get('linkedUserId','') == request.auth.uid)
+        || (linkedStudent(resource.data.schoolId) && studentId == viewer().rosterId
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doneLessonIds','clubPicks'])
           && (enabled(resource.data.schoolId,'clubs') || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['clubPicks'])))
         || (enabled(resource.data.schoolId,'studentHomework') && classPermission(resource.data.schoolId,resource.data.classId,'manageHomeworkPermissions')
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canPostHw']))
-        || (enabled(resource.data.schoolId,'points') && officePermission(resource.data.schoolId,'awardRewards')
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points'])
-          && resource.data.get('authUid','') != request.auth.uid && resource.data.get('linkedUserId','') != request.auth.uid
-          && request.resource.data.points >= resource.data.get('points',0) && request.resource.data.points <= 1000000)
-        || (enabled(resource.data.schoolId,'points') && officePermission(resource.data.schoolId,'awardRewards')
-          && studentId == viewer().rosterId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['budget'])
-          && request.resource.data.budget >= 0 && request.resource.data.budget <= resource.data.get('budget',0))
-        || (resource.data.get('authUid', null) == null && resource.data.get('linkedUserId', null) == null
-          && request.resource.data.authUid == request.auth.uid && request.resource.data.linkedUserId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['authUid','linkedUserId'])));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canPostHw'])));
     }
     match /lessons/{lessonId} {
-      allow read: if signedIn();
+      allow read: if inSchool(resource.data.schoolId);
       allow create: if teacherIn(request.resource.data.schoolId);
       allow update: if teacherIn(resource.data.schoolId) && request.resource.data.schoolId == resource.data.schoolId;
       allow delete: if teacherIn(resource.data.schoolId);
     }
     match /subjects/{subjectId} {
-      allow read, write: if request.auth != null;
+      allow read: if inSchool(resource.data.schoolId);
+      allow create: if teacherIn(request.resource.data.schoolId);
+      allow update: if teacherIn(resource.data.schoolId) && sameSchool();
+      allow delete: if teacherIn(resource.data.schoolId);
     }
     match /schedule/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if inSchool(resource.data.schoolId);
+      allow create: if teacherIn(request.resource.data.schoolId);
+      allow update: if teacherIn(resource.data.schoolId) && sameSchool();
+      allow delete: if teacherIn(resource.data.schoolId);
     }
     match /gradingSettings/{schoolId} {
       allow read: if inSchool(schoolId);
@@ -304,7 +310,7 @@ service cloud.firestore {
     }
     // Official lesson, homework and final marks may only be written by teachers.
     match /grades/{gradeId} {
-      allow read: if inSchool(resource.data.schoolId);
+      allow read: if ownGrade(resource.data);
       allow create: if teacherIn(request.resource.data.schoolId);
       allow update: if teacherIn(resource.data.schoolId)
         && request.resource.data.schoolId == resource.data.schoolId;
@@ -312,26 +318,30 @@ service cloud.firestore {
     }
     // Батьківські класи (напр. "8-А")
     match /classes/{classId} {
-      allow read: if signedIn();
+      allow read: if inSchool(resource.data.schoolId);
       allow create: if teacherIn(request.resource.data.schoolId);
       allow delete: if teacherIn(resource.data.schoolId);
-      allow update: if teacherIn(resource.data.schoolId) || (classPermission(resource.data.schoolId,classId,'manageDuty')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dutyGrid','dutyRevision']));
+      allow update: if sameSchool() && (teacherIn(resource.data.schoolId) || (classPermission(resource.data.schoolId,classId,'manageDuty')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dutyGrid','dutyRevision'])));
     }
     // Групи всередині класу (напр. "1 група") — одиниці розкладу.
     // students.group і schedule/week[groupId] посилаються на id групи.
     match /groups/{groupId} {
-      allow read, write: if request.auth != null;
+      allow read: if inSchool(resource.data.schoolId);
+      allow create: if teacherIn(request.resource.data.schoolId);
+      allow update: if teacherIn(resource.data.schoolId) && sameSchool();
+      allow delete: if teacherIn(resource.data.schoolId);
     }
     match /classDeletionRequests/{requestId} {
-      allow create: if request.auth != null
+      allow create: if teacherIn(request.resource.data.schoolId)
                     && request.resource.data.teacherUid == request.auth.uid;
       allow read, delete: if request.auth != null
                     && resource.data.teacherUid == request.auth.uid;
       allow update: if false;
     }
     match /mail/{mailId} {
-      allow create: if request.auth != null;
+      // Email queues spend trusted service credentials; browsers cannot enqueue mail.
+      allow create: if false;
       allow read, update, delete: if false;
     }
     match /electives/{electiveId} {
@@ -347,53 +357,75 @@ service cloud.firestore {
     match /elections/{electionId} {
       allow read: if inSchool(resource.data.schoolId) && enabled(resource.data.schoolId,'selfGovernment');
       allow create: if teacherIn(request.resource.data.schoolId) && enabled(request.resource.data.schoolId,'selfGovernment');
-      allow update: if inSchool(resource.data.schoolId) && enabled(resource.data.schoolId,'selfGovernment');
+      allow update: if sameSchool() && enabled(resource.data.schoolId,'selfGovernment') && (
+        teacherIn(resource.data.schoolId) || (linkedStudent(resource.data.schoolId)
+          && ownRoster().classId == resource.data.classId && resource.data.closed == false
+          && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+            && request.resource.data.votes.diff(resource.data.votes).affectedKeys().hasOnly([viewer().rosterId])
+            && request.resource.data.votes[viewer().rosterId] is string
+            && get(/databases/$(database)/documents/students/$(request.resource.data.votes[viewer().rosterId])).data.classId == resource.data.classId)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['candidates'])
+            && request.resource.data.candidates == resource.data.candidates.concat([{'rosterId':viewer().rosterId, 'name':viewer().displayName}])))));
+
       allow delete: if teacherIn(resource.data.schoolId);
     }
     // Історія старост (хто був з/по яку дату)
     match /starostaHistory/{historyId} {
-      allow read, write: if request.auth != null;
+      allow read: if inSchool(resource.data.schoolId);
+      allow create: if teacherIn(request.resource.data.schoolId);
+      allow update: if teacherIn(resource.data.schoolId) && sameSchool();
+      allow delete: if teacherIn(resource.data.schoolId);
     }
     // Повідомлення / сповіщення (recipientUid = auth.uid одержувача)
     match /notifications/{notifId} {
       allow read: if request.auth != null
                   && resource.data.recipientUid == request.auth.uid;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null
-                    && resource.data.recipientUid == request.auth.uid;
+      allow create: if inSchool(request.resource.data.schoolId)
+        && get(/databases/$(database)/documents/users/$(request.resource.data.recipientUid)).data.schoolId == request.resource.data.schoolId
+        && request.resource.data.keys().hasOnly(['recipientUid','schoolId','type','title','body','createdAt','read'])
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200
+        && request.resource.data.body is string && request.resource.data.body.size() <= 4000;
+      allow update: if signedIn() && resource.data.recipientUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read is bool;
       allow delete: if request.auth != null
                     && resource.data.recipientUid == request.auth.uid;
     }
     // Оголошення (шкільні / класові)
     match /announcements/{announcementId} {
-      allow read: if signedIn();
+      allow read: if inSchool(resource.data.schoolId);
       allow create: if teacherIn(request.resource.data.schoolId) || (request.resource.data.get('kind','') == 'activity'
         && enabled(request.resource.data.schoolId,'selfGovernment') && classPermission(request.resource.data.schoolId,request.resource.data.classId,'postActivities')
         && request.resource.data.authorId == request.auth.uid && request.resource.data.classIds == [ownRoster().classId]);
-      allow update: if teacherIn(resource.data.schoolId) || (resource.data.get('kind','') == 'activity' && resource.data.authorId == request.auth.uid
+      allow update: if sameSchool() && (teacherIn(resource.data.schoolId) || (resource.data.get('kind','') == 'activity' && resource.data.authorId == request.auth.uid
         && enabled(resource.data.schoolId,'selfGovernment') && classPermission(resource.data.schoolId,resource.data.classId,'postActivities')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','body','important','classIds','classId'])
-        && request.resource.data.classId == ownRoster().classId && request.resource.data.classIds == [ownRoster().classId]);
+        && request.resource.data.classId == ownRoster().classId && request.resource.data.classIds == [ownRoster().classId]));
       allow delete: if teacherIn(resource.data.schoolId) || (resource.data.authorId == request.auth.uid && enabled(resource.data.schoolId,'selfGovernment'));
     }
     // Клуби та факультативи
     match /clubs/{clubId} {
       allow read: if inSchool(resource.data.schoolId) && enabled(resource.data.schoolId,'clubs');
       allow create: if teacherIn(request.resource.data.schoolId) && enabled(request.resource.data.schoolId,'clubs');
-      allow update: if inSchool(resource.data.schoolId) && enabled(resource.data.schoolId,'clubs')
-        && (teacherIn(resource.data.schoolId) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds']));
+      allow update: if sameSchool() && inSchool(resource.data.schoolId) && enabled(resource.data.schoolId,'clubs')
+        && (teacherIn(resource.data.schoolId) || (linkedStudent(resource.data.schoolId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+          && request.resource.data.memberIds is list
+          && request.resource.data.memberIds.toSet().difference(resource.data.memberIds.toSet()).hasOnly([viewer().rosterId])
+          && resource.data.memberIds.toSet().difference(request.resource.data.memberIds.toSet()).hasOnly([viewer().rosterId])));
       allow delete: if teacherIn(resource.data.schoolId) && enabled(resource.data.schoolId,'clubs');
     }
     // Нагороди комітетів самоврядування (бюджет окремо від балів у топі)
     match /rewards/{rewardId} {
       allow read: if inSchool(resource.data.schoolId) && enabled(resource.data.schoolId,'points') && enabled(resource.data.schoolId,'selfGovernment');
       allow create: if enabled(request.resource.data.schoolId,'points') && officePermission(request.resource.data.schoolId,'createRewards')
-        && request.resource.data.authorRosterId == viewer().rosterId && request.resource.data.office == ownRoster().office;
-      allow update: if enabled(resource.data.schoolId,'points') && (teacherIn(resource.data.schoolId) ||
-        (resource.data.authorRosterId == viewer().get('rosterId','')
-          && ((officePermission(resource.data.schoolId,'createRewards') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','body','points']))
-            || (officePermission(resource.data.schoolId,'awardRewards') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['awarded','hold','awardedRosterId','awardedName'])))
-          && request.resource.data.schoolId == resource.data.schoolId && request.resource.data.authorRosterId == resource.data.authorRosterId));
+        && request.resource.data.authorRosterId == viewer().rosterId && request.resource.data.office == ownRoster().office
+        && request.resource.data.hold == 0 && request.resource.data.awarded == [] && request.resource.data.awardedRosterId == null
+        && request.resource.data.points is int && request.resource.data.points > 0 && request.resource.data.points <= 1000000;
+      allow update: if sameSchool() && enabled(resource.data.schoolId,'points')
+        && (teacherIn(resource.data.schoolId) || (officePermission(resource.data.schoolId,'createRewards') && resource.data.authorRosterId == viewer().rosterId))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','body','points'])
+        && request.resource.data.points is int && request.resource.data.points > 0 && request.resource.data.points <= 1000000
+        && (resource.data.get('awarded',[]).size() == 0 || request.resource.data.points == resource.data.points);
       allow delete: if enabled(resource.data.schoolId,'points') && (teacherIn(resource.data.schoolId) || (officePermission(resource.data.schoolId,'createRewards') && resource.data.authorRosterId == viewer().rosterId));
     }
     // Домашні завдання, які публікує староста
@@ -407,59 +439,52 @@ service cloud.firestore {
     // Історія змін балів (не оцінок) учнів
     match /pointsHistory/{entryId} {
       allow read: if inSchool(resource.data.schoolId) && enabled(resource.data.schoolId,'points');
-      allow create: if enabled(request.resource.data.schoolId,'points') && (teacherIn(request.resource.data.schoolId) || officePermission(request.resource.data.schoolId,'awardRewards')) && request.resource.data.byUserId == request.auth.uid;
+      allow create: if enabled(request.resource.data.schoolId,'points') && teacherIn(request.resource.data.schoolId) && request.resource.data.byUserId == request.auth.uid;
       allow update, delete: if false;
     }
-    // Чати (групи, DM, авто-групи школи)
-    match /chats/{chatId} {
-      allow read: if request.auth != null
-                  && (!exists(/databases/$(database)/documents/chats/$(chatId)) || enabled(resource.data.schoolId,'chat'))
-                  && (
-                    !(exists(/databases/$(database)/documents/chats/$(chatId)))
-                    || request.auth.uid in resource.data.memberUids
-                    || resource.data.isAuto == true
-                  );
-      allow create: if request.auth != null && enabled(request.resource.data.schoolId,'chat')
-                    && (
-                      request.auth.uid in request.resource.data.memberUids
-                      || request.resource.data.isAuto == true
-                    );
-      allow update: if request.auth != null && enabled(resource.data.schoolId,'chat')
-                    && (
-                      request.auth.uid in resource.data.memberUids
-                      || request.auth.uid in request.resource.data.memberUids
-                      || resource.data.isAuto == true
-                    );
-      allow delete: if request.auth != null && enabled(resource.data.schoolId,'chat')
-                    && resource.data.createdBy == request.auth.uid
-                    && resource.data.isAuto != true;
+    function autoEligible(d) {
+      return inSchool(d.schoolId) && d.isAuto == true
+        && (d.kind == 'school' || (d.kind == 'teachers' && teacherIn(d.schoolId))
+          || (d.kind == 'class' && (teacherIn(d.schoolId) || viewer().get('classId','') == d.classId)));
     }
-    // Повідомлення — лише учасники; автор редагує/м'яко видаляє;
-    // будь-який учасник чату може лише закріпити/відкріпити (pinned/pinnedAt).
+    function chatMember(d) {
+      return inSchool(d.schoolId) && enabled(d.schoolId,'chat') && request.auth.uid in d.memberUids;
+    }
+    function messageChat(d) {
+      return get(/databases/$(database)/documents/chats/$(d.chatId)).data;
+    }
+    match /chats/{chatId} {
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/chats/$(chatId))
+        || (enabled(resource.data.schoolId,'chat') && (chatMember(resource.data) || autoEligible(resource.data))));
+      allow list: if chatMember(resource.data);
+      allow create: if autoEligible(request.resource.data) && enabled(request.resource.data.schoolId,'chat')
+        && request.resource.data.memberUids == [request.auth.uid] && request.resource.data.createdBy == request.auth.uid
+        && (request.resource.data.kind != 'class' || getAfter(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.schoolId == request.resource.data.schoolId);
+      allow update: if sameSchool() && enabled(resource.data.schoolId,'chat') && (
+        (chatMember(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastBody','lastAt']))
+        || (autoEligible(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+          && request.resource.data.memberUids.toSet() == resource.data.memberUids.toSet().union([request.auth.uid].toSet())));
+      allow delete: if chatMember(resource.data) && resource.data.createdBy == request.auth.uid && resource.data.isAuto != true;
+    }
     match /chatMessages/{messageId} {
-      allow read: if request.auth != null && enabled(get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.schoolId,'chat')
-                  && request.auth.uid in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.memberUids;
-      allow create: if request.auth != null && enabled(get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.schoolId,'chat')
-                    && request.resource.data.senderUid == request.auth.uid
-                    && request.auth.uid in get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.memberUids;
-      allow update: if request.auth != null && enabled(get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.schoolId,'chat')
-                    && request.resource.data.senderUid == resource.data.senderUid
-                    && request.resource.data.chatId == resource.data.chatId
-                    && (
-                      resource.data.senderUid == request.auth.uid
-                      || (
-                        request.auth.uid in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.memberUids
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned', 'pinnedAt'])
-                      )
-                    );
+      allow read: if chatMember(messageChat(resource.data));
+      allow create: if signedIn() && request.resource.data.senderUid == request.auth.uid && chatMember(messageChat(request.resource.data))
+        && request.resource.data.keys().hasOnly(['chatId','senderUid','authorName','body','subjectName','imageUrls','pinned','deleted','createdAt'])
+        && request.resource.data.body is string && request.resource.data.body.size() <= 20000;
+      allow update: if chatMember(messageChat(resource.data)) && (
+        (resource.data.senderUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body','editedAt','deleted','imageUrls'])
+          && request.resource.data.body is string && request.resource.data.body.size() <= 20000)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned','pinnedAt']));
       allow delete: if false;
     }
     match /chatTyping/{docId} {
-      allow read: if request.auth != null && enabled(viewer().schoolId,'chat');
-      allow create, update: if request.auth != null && enabled(viewer().schoolId,'chat')
-                            && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null && enabled(viewer().schoolId,'chat')
-                    && resource.data.uid == request.auth.uid;
+      allow read: if chatMember(messageChat(resource.data));
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && chatMember(messageChat(request.resource.data));
+      allow update: if signedIn() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid
+        && request.resource.data.chatId == resource.data.chatId && chatMember(messageChat(resource.data));
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
+    match /{document=**} { allow read, write: if false; }
   }
 }

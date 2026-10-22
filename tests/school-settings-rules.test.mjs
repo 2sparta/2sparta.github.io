@@ -190,7 +190,8 @@ try {
   const awarder = env.authenticatedContext("w").firestore();
   await assertFails(updateDoc(doc(awarder, "rewards", "award-only"), { points: 999 }));
   await assertFails(updateDoc(doc(awarder, "rewards", "award-only"), { title: "Changed" }));
-  await assertSucceeds(
+  // Awards and their budget debit now happen exclusively in a server transaction.
+  await assertFails(
     updateDoc(doc(awarder, "rewards", "award-only"), {
       awarded: [{ rosterId: "ra", name: "A" }],
       hold: 0,

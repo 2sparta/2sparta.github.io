@@ -27,7 +27,7 @@ function SetupScreen() {
   const qc = useQueryClient();
   const subjects = useQuery({ queryKey: ["subjects"], queryFn: () => listSubjects() });
   const [name, setName] = useState("");
-  const [admin, setAdmin] = useState(false);
+  const admin = false;
   const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState("");
   const gate = typeof window !== "undefined" && hasGateSessionMarker();
@@ -60,25 +60,6 @@ function SetupScreen() {
             className="h-12 w-full rounded-full border border-transparent bg-surface-2 px-4 text-[15px] outline-none focus:border-forest-mid/35 focus:bg-surface"
           />
         </label>
-        <p className="mb-2 font-display text-sm font-bold">{t.setupRole}</p>
-        <div className="mb-4 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <button
-            type="button"
-            onClick={() => setAdmin(false)}
-            className={cn("rounded-[20px] border-[1.5px] p-4 text-left", !admin ? "border-forest-mid bg-forest/[0.07]" : "border-hairline")}
-          >
-            <span className="block font-display text-sm font-extrabold">{t.roleTeacher}</span>
-            <span className="mt-1 block text-xs text-muted">{t.roleTeacherDesc}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setAdmin(true)}
-            className={cn("rounded-[20px] border-[1.5px] p-4 text-left", admin ? "border-forest-mid bg-forest/[0.07]" : "border-hairline")}
-          >
-            <span className="block font-display text-sm font-extrabold">{t.roleAdmin}</span>
-            <span className="mt-1 block text-xs text-muted">{t.roleAdminDesc}</span>
-          </button>
-        </div>
         {!admin && (
           <div className="mb-3">
             <p className="mb-2 font-display text-sm font-bold">{t.mySubjects}</p>

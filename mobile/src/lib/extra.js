@@ -1,3 +1,4 @@
+import { getRandomValues } from "expo-crypto";
 import { deleteDoc, doc, getDoc, setDoc, updateDoc, writeBatch, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { isOnline } from "./offline";
@@ -15,14 +16,10 @@ function newId() {
 
 const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-function teacherCode() {
-  let out = "";
-  for (let i = 0; i < 16; i++) out += ALPH[Math.floor(Math.random() * ALPH.length)];
-  return out;
-}
+function teacherCode() { return studentCode(); }
 
 function studentCode() {
-  return String(100000 + Math.floor(Math.random() * 900000));
+  return Array.from(getRandomValues(new Uint8Array(16)), b => ALPH[b % ALPH.length]).join("");
 }
 
 async function mustOnline() {
@@ -124,7 +121,9 @@ export async function addStudent(profile, { name, classId, groupId }) {
   const group = groups.find((g) => s(g.id) === groupId) ?? groups[0];
   const id = newId();
   const code = studentCode();
-  await setDoc(doc(db, "students", id), {
+  const batch = writeBatch(db);
+  batch.set(doc(db, "studentInvites", id), { schoolId: profile.schoolId, code });
+  batch.set(doc(db, "students", id), {
     schoolId: profile.schoolId,
     classId,
     className: klass.exists() ? s(klass.data().name) : "",
@@ -133,13 +132,13 @@ export async function addStudent(profile, { name, classId, groupId }) {
     group: group ? s(group.id) : null,
     name: title,
     points: 0,
-    inviteCode: code,
     authUid: null,
     linkedUserId: null,
     isStarosta: false,
     doneLessonIds: [],
     createdAt: Date.now(),
   });
+  await batch.commit();
   return { id, inviteCode: code };
 }
 

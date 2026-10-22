@@ -1,3 +1,4 @@
+import { schoolMembership } from "./membership";
 import {
   arrayRemove,
   arrayUnion,
@@ -208,104 +209,19 @@ async function chatIndex(schoolId) {
 
 export async function linkStudent(code) {
   await mustOnline();
-  const clean = String(code || "").replace(/\s+/g, "");
-  const u = user();
-  const snap = await getDocs(query(collection(db, "students"), where("inviteCode", "==", clean)));
-  if (snap.empty) throw new Error("CODE_NOT_FOUND");
-  const row = snap.docs[0];
-  const taken = row.data().authUid || row.data().linkedUserId;
-  if (taken && taken !== u.uid) throw new Error("CODE_USED");
-  await updateDoc(row.ref, { authUid: u.uid, linkedUserId: u.uid });
-  const d = row.data();
-  const userRef = doc(db, "users", u.uid);
-  const existing = await getDoc(userRef);
-  const patch = {
-    role: "student",
-    displayName: s(d.name) || (u.email ?? "").split("@")[0],
-    email: u.email,
-    schoolId: d.schoolId ?? null,
-    classId: d.classId ?? null,
-    groupId: d.groupId ?? null,
-    rosterId: row.id,
-    isAdmin: false,
-    setupComplete: true,
-  };
-  if (existing.exists()) await updateDoc(userRef, patch);
-  else await setDoc(userRef, { ...patch, createdAt: Date.now() });
-  if (d.schoolId) {
-    const chats = await chatIndex(s(d.schoolId));
-    for (const c of chats) {
-      const classOk = !c.classId || c.classId === s(d.classId);
-      if (c.kind !== "teachers" && classOk) {
-        await updateDoc(doc(db, "chats", c.id), { memberUids: arrayUnion(u.uid) });
-      }
-    }
-  }
+  await schoolMembership({ action: "linkStudent", code });
   return loadProfile();
 }
 
 export async function linkParent(code) {
   await mustOnline();
-  const clean = String(code || "").replace(/\s+/g, "");
-  const u = user();
-  const snap = await getDocs(query(collection(db, "students"), where("inviteCode", "==", clean)));
-  if (snap.empty) throw new Error("CODE_NOT_FOUND");
-  const row = snap.docs[0];
-  const d = row.data();
-  await updateDoc(row.ref, { parentUids: arrayUnion(u.uid) });
-  const userRef = doc(db, "users", u.uid);
-  const existing = await getDoc(userRef);
-  const patch = {
-    role: "parent",
-    displayName: existing.exists() && s(existing.data().displayName) ? s(existing.data().displayName) : (u.email ?? "").split("@")[0],
-    email: u.email,
-    schoolId: d.schoolId ?? null,
-    classId: d.classId ?? null,
-    groupId: d.groupId ?? null,
-    rosterId: row.id,
-    childRosterId: row.id,
-    isAdmin: false,
-    setupComplete: true,
-  };
-  if (existing.exists()) await updateDoc(userRef, patch);
-  else await setDoc(userRef, { ...patch, createdAt: Date.now() });
+  await schoolMembership({ action: "linkParent", code });
   return loadProfile();
 }
 
 export async function joinSchool(code, displayName) {
   await mustOnline();
-  const u = user();
-  const clean = String(code || "").replace(/\s+/g, "").toUpperCase();
-  const invRef = doc(db, "teacherInvites", clean);
-  const inv = await getDoc(invRef);
-  if (!inv.exists()) throw new Error("CODE_NOT_FOUND");
-  if (inv.data().usedBy) throw new Error("CODE_USED");
-  const schoolId = s(inv.data().schoolId);
-  const display = (displayName || "").trim() || u.displayName || (u.email ?? "").split("@")[0];
-  await updateDoc(invRef, { usedBy: u.uid });
-  const userRef = doc(db, "users", u.uid);
-  const existing = await getDoc(userRef);
-  const school = await getDoc(doc(db, "schools", schoolId));
-  const patch = {
-    role: "teacher",
-    displayName: display,
-    email: u.email,
-    schoolId,
-    schoolName: school.exists() ? s(school.data().name) : "",
-    isAdmin: false,
-    setupComplete: false,
-  };
-  if (existing.exists()) await updateDoc(userRef, patch);
-  else {
-    await setDoc(userRef, { ...patch, role: "pending-teacher", createdAt: Date.now() });
-    await updateDoc(userRef, { role: "teacher" });
-  }
-  const chats = await chatIndex(schoolId);
-  for (const c of chats) {
-    if (c.kind === "teachers" || c.kind === "school") {
-      await updateDoc(doc(db, "chats", c.id), { memberUids: arrayUnion(u.uid) });
-    }
-  }
+  await schoolMembership({ action: "joinTeacher", code, displayName });
   return loadProfile();
 }
 
@@ -321,14 +237,12 @@ export async function completeSetup(profile, { displayName, isAdmin, subjectIds 
   const u = user();
   const name = (displayName || "").trim();
   if (!name) throw new Error("NAME");
-  const admin = Boolean(isAdmin);
+  const admin = profile.isAdmin;
   const ids = subjectIds ?? [];
   if (!admin && ids.length === 0) throw new Error("SUBJECTS");
   await updateDoc(doc(db, "users", u.uid), {
     displayName: name,
-    isAdmin: admin,
     setupComplete: true,
-    ...(admin ? { role: "admin" } : {}),
   });
   const subjects = await bySchool("subjects", profile.schoolId);
   for (const sub of subjects) {
@@ -531,7 +445,12 @@ export async function listGrades(profile) {
   return cached(profile.userId, "grades", async () => {
     const students = await bySchool("students", profile.schoolId);
     const names = new Map(students.map((r) => [s(r.id), s(r.name)]));
-    let rows = await bySchool("grades", profile.schoolId);
+    let rows;
+    if (profile.role === "teacher") rows = await bySchool("grades", profile.schoolId);
+    else {
+      const snap = await getDocs(query(collection(db, "grades"), where("schoolId", "==", profile.schoolId), where("rosterId", "==", profile.rosterId)));
+      rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
     if (profile.role === "student" || profile.role === "parent") {
       if (!profile.rosterId) return { grades: [] };
       rows = rows.filter((g) => s(g.rosterId) === profile.rosterId);
@@ -665,7 +584,14 @@ export async function voteElection(profile, electionId, candidateId) {
 
 export async function listChats(profile) {
   return cached(profile.userId, "chats", async () => {
-    const snap = await getDocs(query(collection(db, "chats"), where("memberUids", "array-contains", profile.userId)));
+    for (const c of await chatIndex(profile.schoolId)) {
+      if (profile.role !== "teacher" && (c.kind === "teachers" || (c.classId && c.classId !== profile.classId))) continue;
+      const ref = doc(db, "chats", c.id), snap = await getDoc(ref);
+      if (snap.exists() && !snap.data().memberUids?.includes(profile.userId)) {
+        await updateDoc(ref, { memberUids: arrayUnion(profile.userId) });
+      }
+    }
+    const snap = await getDocs(query(collection(db, "chats"), where("schoolId", "==", profile.schoolId), where("memberUids", "array-contains", profile.userId)));
     const chats = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .filter((c) => s(c.schoolId) === profile.schoolId)

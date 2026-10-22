@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { generateKeyPairSync } from "node:crypto";
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -162,6 +164,12 @@ try {
   }
   await assertFails(getDoc(doc(a, "chessLimits", "a")));
   // Exercise the actual compiled callable handler and Admin SDK transactions against Firestore.
+  if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? "")) throw new Error("Loopback emulator required");
+  const { initializeApp, cert } = createRequire(new URL("../functions/package.json", import.meta.url))("firebase-admin/app");
+  initializeApp({ projectId: "demo-chess", credential: cert({
+    projectId: "demo-chess", clientEmail: "emulator@demo-chess.iam.gserviceaccount.com",
+    privateKey: generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+  }) });
   const { chessAction } = await import("../functions/dist/index.cjs");
   const call = (uid, data) =>
     chessAction.run({ data, auth: uid ? { uid, token: { uid, sub: uid } } : undefined });

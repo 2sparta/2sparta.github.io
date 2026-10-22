@@ -1,3 +1,5 @@
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from "./firebase";
 import { arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
 import { isOnline } from "./offline";
@@ -207,11 +209,6 @@ export async function addReward(profile, { title, body, points }) {
   if (profile.role !== "student" || !profile.office || !profile.rosterId) throw new Error("Forbidden");
   const amount = clamp(Number(points) || 0);
   if (!title.trim() || !body.trim() || amount < 1) throw new Error("Required");
-  const ref = doc(db, "students", profile.rosterId);
-  const snap = await getDoc(ref);
-  const budget = clamp(Number(snap.data()?.budget) || 0);
-  if (amount > budget) throw new Error("BUDGET");
-  await updateDoc(ref, { budget: budget - amount });
   await setDoc(doc(db, "rewards", newId()), {
     schoolId: profile.schoolId,
     office: profile.office,
@@ -220,6 +217,8 @@ export async function addReward(profile, { title, body, points }) {
     title: title.trim(),
     body: body.trim(),
     points: amount,
+    hold: 0,
+    awarded: [],
     awardedRosterId: null,
     awardedName: null,
     createdAt: Date.now(),
@@ -228,28 +227,7 @@ export async function addReward(profile, { title, body, points }) {
 
 export async function awardReward(profile, rewardId, rosterId) {
   await mustOnline();
-  if (rosterId === profile.rosterId) throw new Error("SELF");
-  const rewardRef = doc(db, "rewards", rewardId);
-  const reward = await getDoc(rewardRef);
-  if (!reward.exists() || s(reward.data().authorRosterId) !== profile.rosterId) throw new Error("Forbidden");
-  if (reward.data().awardedRosterId) throw new Error("AWARDED");
-  const studentRef = doc(db, "students", rosterId);
-  const student = await getDoc(studentRef);
-  if (!student.exists()) throw new Error("Not found");
-  const points = clamp(Number(reward.data().points) || 0);
-  const next = clamp(clamp(Number(student.data().points) || 0) + points);
-  await updateDoc(studentRef, { points: next });
-  await setDoc(doc(db, "pointsHistory", newId()), {
-    schoolId: profile.schoolId,
-    rosterId,
-    delta: points,
-    note: `Нагорода: ${s(reward.data().title)}`,
-    byUserId: profile.userId,
-    byName: profile.displayName || "",
-    pointsAfter: next,
-    createdAt: Date.now(),
-  });
-  await updateDoc(rewardRef, { awardedRosterId: rosterId, awardedName: s(student.data().name) });
+  await httpsCallable(getFunctions(app, "europe-west1"), "awardSchoolReward")({ rewardId, rosterIds: [rosterId] });
 }
 
 function mapClub(r, rosterId) {

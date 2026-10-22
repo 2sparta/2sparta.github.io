@@ -1,5 +1,6 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, signOut, type Auth } from "firebase/auth";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 /** Public web config of the existing «Класний простір» project. Safe to ship; access is limited by Firestore rules. */
@@ -15,9 +16,15 @@ export const firebaseConfig = {
 let app: FirebaseApp | undefined;
 let authRef: Auth | undefined;
 let dbRef: Firestore | undefined;
+let appCheckStarted = false;
 
 export function firebaseApp() {
   app ??= getApps()[0] ?? initializeApp(firebaseConfig);
+  const siteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
+  if (!appCheckStarted && typeof window !== "undefined" && siteKey) {
+    initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
+    appCheckStarted = true;
+  }
   return app;
 }
 

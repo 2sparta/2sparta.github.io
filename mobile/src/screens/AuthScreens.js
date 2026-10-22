@@ -90,7 +90,7 @@ export function LinkScreen({ profile, onDone }) {
     <Screen>
       <H1>{profile?.role === "parent" ? "Код дитини" : "Код учня"}</H1>
       <Muted>{profile?.role === "parent" ? "Код дитини від класного керівника. Акаунт учня не займається." : "Код дає класний керівник. Той самий, що на сайті."}</Muted>
-      <Field placeholder="Код" value={code} onChangeText={setCode} keyboardType="number-pad" />
+      <Field placeholder="Код" value={code} onChangeText={setCode} autoCapitalize="characters" />
       {error ? <Text style={{ color: colors.terra, marginBottom: 8 }}>{error}</Text> : null}
       <Btn label={busy ? "…" : "Приєднатися"} disabled={busy || !code.trim()} onPress={go} />
     </Screen>
@@ -125,7 +125,7 @@ export function JoinSchoolScreen({ profile, onDone }) {
 
 export function SetupScreen({ profile, onDone }) {
   const [name, setName] = useState(profile.displayName || "");
-  const [admin, setAdmin] = useState(false);
+  const admin = profile.isAdmin;
   const [subjects, setSubjects] = useState([]);
   const [picked, setPicked] = useState([]);
   const [error, setError] = useState("");
@@ -165,7 +165,6 @@ export function SetupScreen({ profile, onDone }) {
     <Screen>
       <H1>Профіль учителя</H1>
       <Field placeholder="Ім'я" value={name} onChangeText={setName} />
-      <Btn ghost label={admin ? "Адміністратор" : "Звичайний учитель"} onPress={() => setAdmin((v) => !v)} />
       {!admin &&
         subjects.map((s) => (
           <Btn key={s.id} ghost label={`${picked.includes(s.id) ? "✓ " : ""}${s.name}`} onPress={() => toggle(s.id)} />

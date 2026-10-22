@@ -15,6 +15,7 @@ import {
   writeBatch,
   type DocumentData,
 } from "firebase/firestore";
+import { schoolMembership } from "./membership-client";
 import { auth, db } from "@/lib/firebase";
 import {
   DEFAULT_BELLS,
@@ -274,6 +275,7 @@ async function seedSchool(schoolId: string, adminUid: string, adminName: string)
     used.add(code);
     const id = newId();
     roster.push({ id, name: st.name });
+    batch.set(doc(fire, "studentInvites", id), { schoolId, code });
     batch.set(doc(fire, "students", id), {
       schoolId,
       classId,
@@ -283,7 +285,6 @@ async function seedSchool(schoolId: string, adminUid: string, adminName: string)
       group: groupId,
       name: st.name,
       points: st.points,
-      inviteCode: code,
       authUid: null,
       linkedUserId: null,
       isStarosta: st.name.startsWith("Максим"),
@@ -433,78 +434,15 @@ function shiftDate(iso: string, days: number) {
 
 export async function createSchool(input?: { data?: { name: string; displayName?: string } }) {
   const data = dataOf(input);
-  const u = user();
-  const name = (data?.name ?? "").trim();
-  if (!name) throw new Error("School name required");
-  const display = (data?.displayName ?? "").trim() || u.displayName || (u.email ?? "").split("@")[0] || name;
-  const ref = doc(db(), "users", u.uid);
-  const existing = await getDoc(ref);
-  if (!existing.exists()) {
-    await setDoc(ref, {
-      role: "pending-teacher",
-      displayName: display,
-      email: u.email,
-      schoolId: null,
-      isAdmin: false,
-      setupComplete: false,
-      createdAt: Date.now(),
-    });
-  }
-  const schoolId = newId();
-  await setDoc(doc(db(), "schools", schoolId), {
-    name,
-    createdBy: u.uid,
-    creatorEmail: u.email,
-    createdAt: Date.now(),
-  });
-  await updateDoc(ref, {
-    role: "admin",
-    displayName: display,
-    email: u.email,
-    schoolId,
-    schoolName: name,
-    isAdmin: true,
-    setupComplete: true,
-  });
-  const seeded = await seedSchool(schoolId, u.uid, display);
-  await saveChatIndex(schoolId, seeded.chats);
+  const result = await schoolMembership({ action: "createSchool", ...data });
+  const p = await loadProfile();
+  const seeded = await seedSchool(result.schoolId!, p.userId, p.displayName);
+  await saveChatIndex(result.schoolId!, seeded.chats);
   return loadProfile();
 }
 
 export async function joinSchool(input?: { data?: { code: string; displayName?: string } }) {
-  const data = dataOf(input);
-  const u = user();
-  const code = (data?.code ?? "").replace(/\s+/g, "").toUpperCase();
-  const invRef = doc(db(), "teacherInvites", code);
-  const inv = await getDoc(invRef);
-  if (!inv.exists()) throw new Error("CODE_NOT_FOUND");
-  if (inv.data().usedBy) throw new Error("CODE_USED");
-  const schoolId = s(inv.data().schoolId);
-  const display = (data?.displayName ?? "").trim() || u.displayName || (u.email ?? "").split("@")[0];
-  await updateDoc(invRef, { usedBy: u.uid });
-  const userRef = doc(db(), "users", u.uid);
-  const existing = await getDoc(userRef);
-  const school = await getDoc(doc(db(), "schools", schoolId));
-  const patch = {
-    role: "teacher",
-    displayName: display,
-    email: u.email,
-    schoolId,
-    schoolName: school.exists() ? s(school.data().name) : "",
-    isAdmin: false,
-    setupComplete: false,
-  };
-  if (existing.exists()) await updateDoc(userRef, patch);
-  else {
-    await setDoc(userRef, { ...patch, role: "pending-teacher", createdAt: Date.now() });
-    await updateDoc(userRef, { role: "teacher" });
-  }
-  const chats = await chatIndex(schoolId);
-  for (const c of chats) {
-    if (c.kind === "teachers" || c.kind === "school") {
-      await updateDoc(doc(db(), "chats", c.id), { memberUids: arrayUnion(u.uid) });
-    }
-  }
+  await schoolMembership({ action: "joinTeacher", ...dataOf(input) });
   return loadProfile();
 }
 
@@ -514,14 +452,12 @@ export async function completeSetup(input?: { data?: { displayName: string; isAd
   const u = user();
   const name = (data?.displayName ?? "").trim();
   if (!name) throw new Error("NAME");
-  const admin = Boolean(data?.isAdmin);
+  const admin = p.isAdmin;
   const subjectIds = data?.subjectIds ?? [];
   if (!admin && subjectIds.length === 0) throw new Error("SUBJECTS");
   await updateDoc(doc(db(), "users", u.uid), {
     displayName: name,
-    isAdmin: admin,
     setupComplete: true,
-    ...(admin ? { role: "admin" } : {}),
   });
   const subjects = await bySchool("subjects", p.schoolId!);
   for (const sub of subjects) {
@@ -535,106 +471,24 @@ export async function completeSetup(input?: { data?: { displayName: string; isAd
 }
 
 export async function linkStudent(input?: { data?: { code: string } }) {
-  const code = (dataOf(input)?.code ?? "").replace(/\s+/g, "");
-  const u = user();
-  const snap = await getDocs(query(collection(db(), "students"), where("inviteCode", "==", code)));
-  if (snap.empty) throw new Error("CODE_NOT_FOUND");
-  const row = snap.docs[0];
-  const taken = row.data().authUid || row.data().linkedUserId;
-  if (taken && taken !== u.uid) throw new Error("CODE_USED");
-  await updateDoc(row.ref, { authUid: u.uid, linkedUserId: u.uid });
-  const d = row.data();
-  const userRef = doc(db(), "users", u.uid);
-  const existing = await getDoc(userRef);
-  const patch = {
-    role: "student",
-    displayName: s(d.name) || (u.email ?? "").split("@")[0],
-    email: u.email,
-    schoolId: d.schoolId ?? null,
-    classId: d.classId ?? null,
-    groupId: d.groupId ?? null,
-    rosterId: row.id,
-    isAdmin: false,
-    setupComplete: true,
-  };
-  if (existing.exists()) await updateDoc(userRef, patch);
-  else await setDoc(userRef, { ...patch, createdAt: Date.now() });
-  if (d.schoolId) {
-    const chats = await chatIndex(s(d.schoolId));
-    for (const c of chats) {
-      const classOk = !c.classId || c.classId === s(d.classId);
-      if (c.kind !== "teachers" && classOk) {
-        await updateDoc(doc(db(), "chats", c.id), { memberUids: arrayUnion(u.uid) });
-      }
-    }
-  }
+  await schoolMembership({ action: "linkStudent", code: dataOf(input)?.code });
   return loadProfile();
 }
 
 export async function linkParent(input?: { data?: { code: string } }) {
-  const code = (dataOf(input)?.code ?? "").replace(/\s+/g, "");
-  const u = user();
-  const snap = await getDocs(query(collection(db(), "students"), where("inviteCode", "==", code)));
-  if (snap.empty) throw new Error("CODE_NOT_FOUND");
-  const row = snap.docs[0];
-  const d = row.data();
-  await updateDoc(row.ref, { parentUids: arrayUnion(u.uid) });
-  const userRef = doc(db(), "users", u.uid);
-  const existing = await getDoc(userRef);
-  const patch = {
-    role: "parent",
-    displayName: existing.exists() && s(existing.data().displayName) ? s(existing.data().displayName) : (u.email ?? "").split("@")[0],
-    email: u.email,
-    schoolId: d.schoolId ?? null,
-    classId: d.classId ?? null,
-    groupId: d.groupId ?? null,
-    rosterId: row.id,
-    childRosterId: row.id,
-    isAdmin: false,
-    setupComplete: true,
-  };
-  if (existing.exists()) await updateDoc(userRef, patch);
-  else await setDoc(userRef, { ...patch, createdAt: Date.now() });
+  await schoolMembership({ action: "linkParent", code: dataOf(input)?.code });
   return loadProfile();
 }
 
 export async function enterDemoAsStudent() {
-  const u = user();
   const existing = await loadProfile();
   if (existing.linked && existing.role === "student") return existing;
-  const schoolId = newId();
-  const display = u.displayName || (u.email ?? "").split("@")[0] || "Класний керівник";
-  await setDoc(doc(db(), "schools", schoolId), {
-    name: "Ліцей №1",
-    createdBy: u.uid,
-    creatorEmail: u.email,
-    createdAt: Date.now(),
-  });
-  const seeded = await seedSchool(schoolId, u.uid, display);
-  const maksym = await getDoc(doc(db(), "students", seeded.maksymId));
-  await updateDoc(maksym.ref, { authUid: u.uid, linkedUserId: u.uid });
-  const userRef = doc(db(), "users", u.uid);
-  const userSnap = await getDoc(userRef);
-  const patch = {
-    role: "student",
-    displayName: s(maksym.data()?.name) || "Максим Коваленко",
-    email: u.email,
-    schoolId,
-    schoolName: "Ліцей №1",
-    classId: seeded.classId,
-    groupId: seeded.groupId,
-    rosterId: seeded.maksymId,
-    isAdmin: false,
-    setupComplete: true,
-  };
-  if (userSnap.exists()) await updateDoc(userRef, patch);
-  else await setDoc(userRef, { ...patch, createdAt: Date.now() });
-  await saveChatIndex(schoolId, seeded.chats);
-  for (const c of seeded.chats) {
-    if (c.kind === "teachers") {
-      await updateDoc(doc(db(), "chats", c.id), { memberUids: arrayRemove(u.uid) });
-    }
-  }
+  const result = await schoolMembership({ action: "createSchool", name: "Ліцей №1" });
+  const owner = await loadProfile();
+  const seeded = await seedSchool(result.schoolId!, owner.userId, owner.displayName);
+  await saveChatIndex(result.schoolId!, seeded.chats);
+  const invite = await getDoc(doc(db(), "studentInvites", seeded.maksymId));
+  await schoolMembership({ action: "linkStudent", code: invite.data()?.code, demo: true });
   return loadProfile();
 }
 
@@ -828,7 +682,8 @@ export async function addSubject(input?: { data?: { name: string; room?: string;
 
 export async function listStudents() {
   const p = await requireTeacher();
-  const rows = await bySchool("students", p.schoolId!);
+  const [rows, invites] = await Promise.all([bySchool("students", p.schoolId!), bySchool("studentInvites", p.schoolId!)]);
+  const codes = new Map(invites.map(i => [i.id, i.code]));
   return rows
     .map((r) => ({
       id: s(r.id),
@@ -838,7 +693,7 @@ export async function listStudents() {
       groupId: r.groupId ? s(r.groupId) : null,
       groupName: r.groupName ? s(r.groupName) : null,
       points: clampPoints(Number(r.points) || 0),
-      inviteCode: s(r.inviteCode),
+      inviteCode: s(codes.get(r.id)),
       linkedUserId: r.linkedUserId ? s(r.linkedUserId) : r.authUid ? s(r.authUid) : null,
       isStarosta: r.isStarosta === true,
       office: r.office ? s(r.office) : null,
@@ -858,7 +713,9 @@ export async function addStudent(input?: { data?: { name: string; classId: strin
   const group = groups.find((g) => s(g.id) === data.groupId) ?? groups[0];
   const id = newId();
   const code = studentInviteCode();
-  await setDoc(doc(db(), "students", id), {
+  const batch = writeBatch(db());
+  batch.set(doc(db(), "studentInvites", id), { schoolId: p.schoolId, code });
+  batch.set(doc(db(), "students", id), {
     schoolId: p.schoolId,
     classId: data.classId,
     className: klass.exists() ? s(klass.data().name) : "",
@@ -867,7 +724,6 @@ export async function addStudent(input?: { data?: { name: string; classId: strin
     group: group ? s(group.id) : null,
     name,
     points: 0,
-    inviteCode: code,
     authUid: null,
     linkedUserId: null,
     isStarosta: false,
@@ -877,6 +733,7 @@ export async function addStudent(input?: { data?: { name: string; classId: strin
     doneLessonIds: [],
     createdAt: Date.now(),
   });
+  await batch.commit();
   return { id, inviteCode: code };
 }
 
@@ -924,7 +781,7 @@ export async function listLeaderboard() {
 export async function listPointsHistory(input?: { data?: { rosterId?: string } }) {
   const p = await requireProfile();
   await requireFeature(p, "points");
-  const wanted = p.role === "student" ? p.rosterId : dataOf(input)?.rosterId;
+  const wanted = p.role !== "teacher" ? p.rosterId : dataOf(input)?.rosterId;
   if (!wanted) return [];
   const rows = await bySchool("pointsHistory", p.schoolId!);
   return rows
@@ -1383,8 +1240,8 @@ export async function listGrades(input?: { data?: { rosterId?: string } }) {
   const p = await requireProfile();
   const rosterId = p.role === "student" || p.role === "parent" ? p.rosterId : dataOf(input)?.rosterId;
   if (!rosterId) return { grades: [] as Grade[] };
-  const grades = (await bySchool("grades", p.schoolId!))
-    .filter((g) => s(g.rosterId) === rosterId)
+  const snap = await getDocs(query(collection(db(), "grades"), where("schoolId", "==", p.schoolId), where("rosterId", "==", rosterId)));
+  const grades = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     .map(mapGrade)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   return { grades };
@@ -1762,21 +1619,6 @@ export async function closeElection(input?: { data?: { electionId: string } }) {
   return { winner };
 }
 
-async function classMemberUids(schoolId: string, classId: string, me: string) {
-  const [students, users] = await Promise.all([bySchool("students", schoolId), bySchool("users", schoolId)]);
-  const uids = new Set<string>([me]);
-  for (const u of users) {
-    const role = s(u.role);
-    if (role === "teacher" || role === "admin" || role === "pending-teacher") uids.add(s(u.id));
-  }
-  for (const st of students) {
-    if (s(st.classId) !== classId) continue;
-    const uid = s(st.authUid || st.linkedUserId);
-    if (uid) uids.add(uid);
-  }
-  return [...uids];
-}
-
 async function ensureMyChats(p: Profile) {
   if (!p.schoolId) return;
   const index = await chatIndex(p.schoolId);
@@ -1790,12 +1632,12 @@ async function ensureMyChats(p: Profile) {
     return true;
   };
   for (const c of index) {
-    if (p.role === "student" && (c.kind === "teachers" || (c.classId && c.classId !== p.classId))) continue;
+    if (p.role !== "teacher" && (c.kind === "teachers" || (c.classId && c.classId !== p.classId))) continue;
     await join(c.id);
   }
   const classes = await bySchool("classes", p.schoolId);
   const indexedClasses = new Set(index.filter((c) => c.kind === "class" && c.classId).map((c) => c.classId));
-  const wanted = p.role === "student" ? classes.filter((c) => s(c.id) === p.classId) : classes;
+  const wanted = p.role !== "teacher" ? classes.filter((c) => s(c.id) === p.classId) : classes;
   for (const klass of wanted) {
     const classId = s(klass.id);
     if (indexedClasses.has(classId)) continue;
@@ -1807,7 +1649,7 @@ async function ensureMyChats(p: Profile) {
         kind: "class",
         name: s(klass.name) || classId,
         classId,
-        memberUids: await classMemberUids(p.schoolId, classId, p.userId),
+        memberUids: [p.userId],
         isAuto: true,
         createdBy: p.userId,
         lastBody: null,
@@ -1820,21 +1662,12 @@ async function ensureMyChats(p: Profile) {
     const id = `auto_teachers_${p.schoolId}`;
     const exists = await join(id);
     if (!exists) {
-      const users = await bySchool("users", p.schoolId);
-      const memberUids = [
-        ...new Set([
-          p.userId,
-          ...users
-            .filter((u) => ["teacher", "admin", "pending-teacher"].includes(s(u.role)))
-            .map((u) => s(u.id)),
-        ]),
-      ];
       await setDoc(doc(db(), "chats", id), {
         schoolId: p.schoolId,
         kind: "teachers",
         name: "Учительський чат",
         classId: null,
-        memberUids,
+        memberUids: [p.userId],
         isAuto: true,
         createdBy: p.userId,
         lastBody: null,
@@ -1856,7 +1689,7 @@ export async function listChats() {
   const p = await requireProfile();
   await requireFeature(p, "chat");
   await ensureMyChats(p);
-  const snap = await getDocs(query(collection(db(), "chats"), where("memberUids", "array-contains", p.userId)));
+  const snap = await getDocs(query(collection(db(), "chats"), where("schoolId", "==", p.schoolId), where("memberUids", "array-contains", p.userId)));
   const rows = snap.docs
     .map((d) => ({ id: d.id, ...d.data() }) as Bag)
     .filter((c) => s(c.schoolId) === p.schoolId);
@@ -1934,25 +1767,13 @@ export async function startDm(input?: { data?: { otherUserId: string; name: stri
   await requireFeature(p, "chat");
   const data = dataOf(input);
   if (!data?.otherUserId) throw new Error("Missing");
-  const mine = await getDocs(query(collection(db(), "chats"), where("memberUids", "array-contains", p.userId)));
+  const mine = await getDocs(query(collection(db(), "chats"), where("schoolId", "==", p.schoolId), where("memberUids", "array-contains", p.userId)));
   const existing = mine.docs.find((d) => {
     const members = (d.data().memberUids ?? []) as string[];
     return d.data().kind === "dm" && members.includes(data.otherUserId);
   });
   if (existing) return { id: existing.id };
-  const id = newId();
-  await setDoc(doc(db(), "chats", id), {
-    schoolId: p.schoolId,
-    kind: "dm",
-    name: data.name || "Діалог",
-    classId: null,
-    memberUids: [p.userId, data.otherUserId],
-    isAuto: false,
-    createdBy: p.userId,
-    lastBody: null,
-    lastAt: null,
-  });
-  return { id };
+  return schoolMembership({ action: "createChat", kind: "dm", name: data.name || "Діалог", memberUids: [data.otherUserId] });
 }
 
 export async function listPeople() {
@@ -2325,19 +2146,7 @@ export async function createGroupChat(input?: { data?: { name: string; memberUid
   const name = (data?.name ?? "").trim();
   const members = [...new Set([p.userId, ...(data?.memberUids ?? [])])];
   if (!name || members.length < 2) throw new Error("Need members");
-  const id = newId();
-  await setDoc(doc(db(), "chats", id), {
-    schoolId: p.schoolId,
-    kind: "group",
-    name,
-    classId: null,
-    memberUids: members,
-    isAuto: false,
-    createdBy: p.userId,
-    lastBody: null,
-    lastAt: null,
-  });
-  return { id };
+  return schoolMembership({ action: "createChat", kind: "group", name, memberUids: members });
 }
 
 export async function pinMessage(input?: { data?: { messageId: string; pinned: boolean } }) {

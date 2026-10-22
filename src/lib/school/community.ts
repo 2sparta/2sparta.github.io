@@ -1,3 +1,5 @@
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { firebaseApp } from "@/lib/firebase";
 import {
   arrayRemove,
   arrayUnion,
@@ -386,60 +388,15 @@ export async function deleteReward(input?: { data?: { id: string } }) {
   if (!snap.exists() || snap.data().schoolId !== p.schoolId) throw new Error("Not found");
   const own = s(snap.data().authorRosterId) === p.rosterId;
   if (p.role !== "teacher" && (!own || !await hasOfficePermission(p, "createRewards"))) throw new Error("Forbidden");
-  const raw = snap.data();
-  const awarded = awardedOf(raw);
-  const points = clamp(Number(raw.points) || 0);
-  const hold = typeof raw.hold === "number" ? clamp(Number(raw.hold)) : awarded.length ? 0 : points;
-  if (hold > 0) {
-    const author = doc(db(), "students", s(raw.authorRosterId));
-    const authorSnap = await getDoc(author);
-    if (authorSnap.exists()) {
-      await updateDoc(author, { budget: clamp(clamp(Number(authorSnap.data().budget) || 0) + hold) });
-    }
-  }
   await deleteDoc(ref);
   return { ok: true };
 }
 
 export async function awardReward(input?: { data?: { rewardId: string; rosterId?: string; rosterIds?: string[] } }) {
-  const p = await profile();
-  await requireFeature(p, "selfGovernment");
-  await requireFeature(p, "points");
-  if (!await hasOfficePermission(p, "awardRewards") || !p.rosterId) throw new Error("Forbidden");
   const data = dataOf(input);
-  const wanted = [...new Set([...(data?.rosterIds ?? []), data?.rosterId ?? ""].filter(Boolean))];
-  if (!data?.rewardId || !wanted.length || wanted.length > 50) throw new Error("Missing");
-  const rewardRef = doc(db(), "rewards", data.rewardId);
-  const authorRef = doc(db(), "students", p.rosterId);
-  return runTransaction(db(), async (tx) => {
-    const reward = await tx.get(rewardRef);
-    const author = await tx.get(authorRef);
-    const config = await tx.get(doc(db(), "schoolSettings", p.schoolId!));
-    const settings = parseSettings(config.data());
-    const actor = { role: p.role, office: author.data()?.office as string | null };
-    if (!settings.points || !canOffice(settings, actor, "awardRewards")) throw new Error("FEATURE_DISABLED");
-    if (!reward.exists() || reward.data().schoolId !== p.schoolId || reward.data().authorRosterId !== p.rosterId) throw new Error("Forbidden");
-    const raw = reward.data(), already = awardedOf(raw);
-    const fresh = wanted.filter((id) => id !== p.rosterId && !already.some((a) => a.rosterId === id));
-    if (!fresh.length) throw new Error("Missing");
-    const recipients = await Promise.all(fresh.map((id) => tx.get(doc(db(), "students", id))));
-    if (recipients.some((r) => !r.exists() || r.data().schoolId !== p.schoolId)) throw new Error("Not found");
-    const points = clamp(Number(raw.points) || 0);
-    const hold = typeof raw.hold === "number" ? clamp(raw.hold) : already.length ? 0 : points;
-    const cost = Math.max(0, points * fresh.length - hold);
-    const budget = clamp(Number(author.data()?.budget) || 0);
-    if (cost > budget) throw new Error("BUDGET");
-    if (cost) tx.update(authorRef, { budget: budget - cost });
-    const names = recipients.map((student) => {
-      const next = clamp(clamp(Number(student.data()?.points) || 0) + points);
-      tx.update(student.ref, { points: next });
-      tx.set(doc(db(), "pointsHistory", newId()), { schoolId: p.schoolId, rosterId: student.id, delta: next - clamp(Number(student.data()?.points) || 0), note: `Нагорода: ${s(raw.title)}`, byUserId: p.userId, byName: p.displayName, pointsAfter: next, createdAt: Date.now() });
-      return { rosterId: student.id, name: s(student.data()?.name) };
-    });
-    const awarded = [...already, ...names];
-    tx.update(rewardRef, { awarded, hold: 0, awardedRosterId: awarded[0]?.rosterId ?? null, awardedName: awarded.map((a) => a.name).join(", ") });
-    return { ok: true };
-  });
+  const rosterIds = [...new Set([...(data?.rosterIds ?? []), data?.rosterId ?? ""].filter(Boolean))];
+  await httpsCallable(getFunctions(firebaseApp(), "europe-west1"), "awardSchoolReward")({ rewardId: data?.rewardId, rosterIds });
+  return { ok: true };
 }
 
 function mapClub(r: Bag, rosterId: string | null) {

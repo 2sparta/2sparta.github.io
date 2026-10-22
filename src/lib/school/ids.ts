@@ -12,8 +12,7 @@ export function teacherInviteCode(): string {
 }
 
 export function studentInviteCode(): string {
-  const n = 100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
-  return String(n);
+  return teacherInviteCode();
 }
 
 export function kyivToday(): string {
