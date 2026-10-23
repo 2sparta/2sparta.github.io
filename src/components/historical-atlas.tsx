@@ -1,3 +1,9 @@
+import { comparisonSnapshot } from "@/lib/atlas/comparison-snapshot";
+import { ALL_PLACES } from "@/lib/atlas/places";
+import { useWorldSnapshot, useTerritoryComparison } from "./atlas-data";
+import { AtlasLearningPanel, MapEventCard, useAtlasLearning } from "./atlas-learning-panel";
+import type { TerritoryChange } from "@/lib/atlas/comparison";
+import { formatMapEventDate } from "@/lib/atlas/learning";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FeatureCollection } from "geojson";
@@ -12,44 +18,34 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
-import { ATLAS_EVENTS, ATLAS_PLACES, ATLAS_SOURCES } from "@/lib/atlas/content";
-import { ANTIQUITY_EVENTS, ANTIQUITY_PLACES, formatAtlasYear } from "@/lib/atlas/antiquity";
-import { GERMANY_EVENTS, GERMANY_PLACES } from "@/lib/atlas/germany";
-import { NAPOLEON_EVENTS, NAPOLEON_PLACES } from "@/lib/atlas/napoleon";
-import { ISLES_PLACES, islesEventsFor } from "@/lib/atlas/isles";
-import { BYZANTINE_EVENTS, BYZANTINE_PLACES } from "@/lib/atlas/byzantine";
-import { FRANKISH_EVENTS, FRANKISH_PLACES } from "@/lib/atlas/frankish";
-import { RUS_EVENTS, RUS_PLACES } from "@/lib/atlas/rus";
+import { ATLAS_EVENTS, ATLAS_SOURCES } from "@/lib/atlas/content";
+import { ANTIQUITY_EVENTS, formatAtlasYear } from "@/lib/atlas/antiquity";
+import { GERMANY_EVENTS } from "@/lib/atlas/germany";
+import { NAPOLEON_EVENTS } from "@/lib/atlas/napoleon";
+import { islesEventsFor } from "@/lib/atlas/isles";
+import { BYZANTINE_EVENTS } from "@/lib/atlas/byzantine";
+import { FRANKISH_EVENTS } from "@/lib/atlas/frankish";
+import { RUS_EVENTS } from "@/lib/atlas/rus";
 import { MONGOL_EVENTS, mongolPlacesAt, campaignPlaces } from "@/lib/atlas/mongols";
-import { FRANCE_EVENTS, FRANCE_PLACES } from "@/lib/atlas/france";
-import {
-  COMMONWEALTH_EVENTS,
-  COMMONWEALTH_PLACES,
-  cossackPlacesAt,
-  occupationPlacesAt,
-} from "@/lib/atlas/commonwealth";
-import { SPAIN_EVENTS, SPAIN_PLACES, spanishCampaignPlaces } from "@/lib/atlas/spain";
-import { ENGLAND_EVENTS, ENGLAND_PLACES } from "@/lib/atlas/england";
+import { FRANCE_EVENTS } from "@/lib/atlas/france";
+import { COMMONWEALTH_EVENTS, cossackPlacesAt, occupationPlacesAt } from "@/lib/atlas/commonwealth";
+import { SPAIN_EVENTS, spanishCampaignPlaces } from "@/lib/atlas/spain";
+import { ENGLAND_EVENTS } from "@/lib/atlas/england";
 import {
   activePlaces,
   historicalName,
   polityColor,
-  validateHistoricalCollection,
   type AtlasView,
   type AtlasPlace,
   type HistoricalFeature,
 } from "@/lib/atlas/model";
 import {
-  applyWorldPatch,
   compareWorldDates,
   formatWorldDate,
   shiftWorldDay,
   uniqueWorldPlaces,
-  validateWorldManifest,
-  validateWorldPatch,
   worldDate,
   worldDateKey,
-  worldFrameAt,
   WORLD_MIN_YEAR,
   WORLD_MAX_YEAR,
 } from "@/lib/atlas/world";
@@ -95,20 +91,6 @@ function Sources({ ids }: { ids: string[] }) {
     </ul>
   );
 }
-const ALL_PLACES = [
-  ...ATLAS_PLACES,
-  ...BYZANTINE_PLACES,
-  ...FRANKISH_PLACES,
-  ...RUS_PLACES,
-  ...FRANCE_PLACES,
-  ...COMMONWEALTH_PLACES,
-  ...SPAIN_PLACES,
-  ...ENGLAND_PLACES,
-  ...ISLES_PLACES,
-  ...ANTIQUITY_PLACES,
-  ...GERMANY_PLACES,
-  ...NAPOLEON_PLACES,
-];
 const ALL_EVENTS = [
   ...ATLAS_EVENTS,
   ...BYZANTINE_EVENTS,
@@ -196,39 +178,16 @@ export function HistoricalAtlas({
   useEffect(() => {
     editor.dispatch({ type: "cancel" });
   }, [profile?.schoolId, profile?.userId]);
-  const manifest = useQuery({
-    queryKey: ["historical-atlas-world-manifest"],
-    queryFn: async ({ signal }) =>
-      validateWorldManifest(await jsonFile("/atlas/world/manifest.json", signal)),
-    staleTime: Infinity,
-    enabled: typeof window !== "undefined",
-    retry: 1,
-  });
-  const frame = worldFrameAt(manifest.data, date);
-  const baseRecord = manifest.data?.baseFiles.find((f) => f.year === frame?.baseYear);
-  const base = useQuery({
-    queryKey: ["historical-atlas-world-base", baseRecord?.year],
-    queryFn: async ({ signal }) =>
-      validateHistoricalCollection(await jsonFile(`/atlas/world/${baseRecord!.path}`, signal)),
-    enabled: Boolean(baseRecord),
-    staleTime: Infinity,
-    retry: 1,
-  });
-  const patch = useQuery({
-    queryKey: ["historical-atlas-world-patch", frame?.path],
-    queryFn: async ({ signal }) => {
-      const raw = validateWorldPatch(await jsonFile(`/atlas/world/${frame!.path}`, signal));
-      if (raw.baseYear !== frame!.baseYear) throw new Error("INVALID_WORLD_PATCH");
-      return raw;
-    },
-    enabled: Boolean(frame),
-    staleTime: Infinity,
-    retry: 1,
-  });
-  const composed = useMemo(() => {
-    if (!base.data || !patch.data) return undefined;
-    return applyWorldPatch(base.data, patch.data);
-  }, [base.data, patch.data]);
+  const learning = useAtlasLearning(date, navigate);
+  const snapshot = useWorldSnapshot(date);
+  const { manifest, frame, base, patch, collection: composed } = snapshot;
+  const secondSnapshot = useWorldSnapshot(learning.compareDate, learning.comparing);
+  const [selectedChange, setSelectedChange] = useState<TerritoryChange>();
+  const selectChange = useCallback((change: TerritoryChange) => setSelectedChange(change), []);
+  useEffect(
+    () => setSelectedChange(undefined),
+    [dateKey, worldDateKey(learning.compareDate), learning.comparing],
+  );
   const filtered = useMemo(
     () =>
       composed && {
@@ -263,6 +222,34 @@ export function HistoricalAtlas({
     () => applyAtlasEdits(filtered, manual.data?.entries ?? [], date.year),
     [filtered, manual.data?.entries, date.year],
   );
+  const firstHistorical = useMemo(
+    () =>
+      comparisonSnapshot(
+        applyAtlasEdits(composed, manual.data?.entries ?? [], date.year),
+        date.year,
+        frame?.baseYear,
+      ),
+    [composed, manual.data?.entries, date.year, frame?.baseYear],
+  );
+  const secondHistorical = useMemo(
+    () =>
+      comparisonSnapshot(
+        applyAtlasEdits(
+          secondSnapshot.collection,
+          manual.data?.entries ?? [],
+          learning.compareDate.year,
+        ),
+        learning.compareDate.year,
+        secondSnapshot.frame?.baseYear,
+      ),
+    [
+      secondSnapshot.collection,
+      manual.data?.entries,
+      learning.compareDate.year,
+      secondSnapshot.frame?.baseYear,
+    ],
+  );
+  const comparison = useTerritoryComparison(firstHistorical, secondHistorical, learning.comparing);
   const saveEntries = async (entries: AtlasEdit[]) => {
     if (!manual.data?.canEdit || manual.isError || saveManual.isPending || loading || failed)
       return false;
@@ -612,6 +599,65 @@ export function HistoricalAtlas({
             </div>
           </details>
         )}
+        <AtlasLearningPanel model={learning} date={date} />
+        {learning.comparing && (
+          <div
+            className="my-3 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-xs"
+            aria-live="polite"
+          >
+            <span
+              className="mr-2 inline-block size-3 rounded-sm border-2 border-dashed border-amber-800 bg-amber-400"
+              aria-hidden="true"
+            />
+            <strong>{uk ? "Зміна належності" : "Ownership change"}</strong>
+            {secondSnapshot.loading || comparison.loading ? (
+              <p role="status" className="mt-2">
+                {uk ? "Порівнюємо території…" : "Comparing territories…"}
+              </p>
+            ) : secondSnapshot.error || comparison.error ? (
+              <p role="alert" className="mt-2">
+                {uk
+                  ? "Порівняння не вдалося. Змініть дату або вимкніть і знову ввімкніть порівняння."
+                  : "Comparison failed. Change the date or toggle comparison to retry."}
+              </p>
+            ) : (
+              comparison.result && (
+                <p className="mt-2" data-testid="atlas-comparison-summary">
+                  {uk
+                    ? `Ділянок зі зміною: ${comparison.result.collection.features.length}.`
+                    : `Changed areas: ${comparison.result.collection.features.length}.`}
+                </p>
+              )
+            )}
+            <p className="mt-2 text-muted">
+              {uk
+                ? "Порівнюються доступні історичні зрізи. Прогалини даних не рахуються як завоювання; різна точність джерел може впливати на дрібні ділянки."
+                : "Uses available historical snapshots. Data gaps are not conquests; differing source precision can affect small areas."}
+            </p>
+            {(frame?.baseYear !== date.year ||
+              secondSnapshot.frame?.baseYear !== learning.compareDate.year) && (
+              <p role="status" className="mt-2 font-semibold">
+                {uk
+                  ? "Світова основа не має зрізів на обидва вибрані роки: порівнюються доступні датовані регіональні уточнення та шкільні правки."
+                  : "World basemaps are unavailable for both selected years: comparing available dated regional details and school edits."}
+              </p>
+            )}
+            {secondSnapshot.frame && (
+              <p className="mt-1 text-muted">
+                {uk ? "Другий зріз" : "Second snapshot"}:{" "}
+                {formatWorldDate(secondSnapshot.frame, uk)} · {uk ? "світова основа" : "world base"}{" "}
+                {secondSnapshot.frame.baseYear}
+              </p>
+            )}
+            {Boolean(comparison.result?.skipped) && (
+              <p role="status" className="mt-1 text-terracotta">
+                {uk
+                  ? `Не вдалося обробити перетинів: ${comparison.result!.skipped}. Результат частковий.`
+                  : `Unprocessed intersections: ${comparison.result!.skipped}. Results are partial.`}
+              </p>
+            )}
+          </div>
+        )}
         <div
           className="my-4 rounded-2xl border border-hairline bg-surface-2/50 px-4 py-3 text-xs"
           data-testid="world-source-date"
@@ -793,6 +839,12 @@ export function HistoricalAtlas({
         <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <HistoricalMapCanvas
+              changes={learning.comparing ? comparison.result?.collection : undefined}
+              onChangeArea={selectChange}
+              events={learning.showEvents ? learning.events : []}
+              selectedEvent={learning.selectedEvent?.id}
+              onEvent={learning.chooseEvent}
+              viewport={learning.focus}
               historical={historical}
               land={physical.data?.land}
               rivers={physical.data?.rivers}
@@ -841,6 +893,62 @@ export function HistoricalAtlas({
             </p>
           </div>
           <aside className="min-w-0 space-y-4">
+            {learning.selectedEvent && (
+              <MapEventCard event={learning.selectedEvent} onClose={learning.closeEvent} />
+            )}
+            {learning.comparing && selectedChange && (
+              <section
+                aria-label={uk ? "Перехід території" : "Territory transfer"}
+                className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm"
+              >
+                <h3 className="font-bold">{uk ? "Зміна належності" : "Ownership change"}</h3>
+                <p className="mt-2">
+                  {formatWorldDate(date, uk)}:{" "}
+                  <strong>{historicalName(selectedChange.from, uk)}</strong>
+                </p>
+                <p className="mt-2">
+                  {formatWorldDate(learning.compareDate, uk)}:{" "}
+                  <strong>{historicalName(selectedChange.to, uk)}</strong>
+                </p>
+              </section>
+            )}
+            {learning.showEvents && (
+              <section
+                aria-label={uk ? "Події вибраного періоду" : "Events in this period"}
+                className="rounded-xl border border-hairline p-3"
+              >
+                <h3 className="text-xs font-bold">
+                  {uk ? "Події вибраного періоду" : "Events in this period"}
+                </h3>
+                <p className="my-2 text-xs text-muted">
+                  ⚔ {uk ? "битви" : "battles"} · § {uk ? "договори" : "treaties"} · ⚑{" "}
+                  {uk ? "повстання" : "uprisings"}
+                </p>
+                <div className="max-h-64 space-y-2 overflow-y-auto">
+                  {learning.events.map((event) => (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={() => learning.chooseEvent(event)}
+                      className="block w-full rounded-lg bg-surface-2 p-2 text-left text-xs"
+                    >
+                      <span className="block font-bold text-forest-mid">
+                        {formatMapEventDate(event, uk)}
+                      </span>
+                      {event.title}
+                    </button>
+                  ))}
+                  {!learning.events.length && (
+                    <p className="text-xs text-muted">
+                      {uk
+                        ? "У добірці поки немає подій цього періоду. Оберіть навчальний маршрут або ширший період."
+                        : "No curated events in this period. Choose a route or a wider period."}
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
             <label className="relative block">
               <span className="sr-only">
                 {uk ? "Пошук держави або міста" : "Search states or cities"}
