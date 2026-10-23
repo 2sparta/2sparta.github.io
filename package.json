@@ -40,7 +40,9 @@
     "test:homework-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/homework-ui.test.tsx",
     "test:chess-interactions": "node --experimental-strip-types --test tests/chess-interactions.test.ts",
     "test:chess-interactions-ui": "node --import tsx --import ./tests/assessment-dom-setup.mjs --test tests/chess-interactions-ui.test.tsx",
-    "check:classroom-chess-ui": "node scripts/check-classroom-chess-ui.mjs"
+    "check:classroom-chess-ui": "node scripts/check-classroom-chess-ui.mjs",
+    "test:atlas-learning": "node --import tsx --test tests/atlas-learning.test.ts",
+    "check:atlas-learning-ui": "node scripts/check-atlas-learning-ui.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",

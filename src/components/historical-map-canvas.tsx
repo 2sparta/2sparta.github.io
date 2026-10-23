@@ -1,3 +1,5 @@
+import type { ChangeCollection, TerritoryChange } from "@/lib/atlas/comparison";
+import { formatMapEventDate, type MapEvent } from "@/lib/atlas/learning";
 import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection, Position } from "geojson";
 import type * as Leaflet from "leaflet";
@@ -130,6 +132,14 @@ export function HistoricalMapCanvas({
   sourceRaster,
   edit,
   resetKey = 0,
+  changes,
+  onChangeArea,
+  events = [],
+  selectedEvent,
+  onEvent,
+  viewport,
+  onViewport,
+  compact = false,
 }: {
   historical?: HistoricalCollection;
   land?: FeatureCollection;
@@ -145,6 +155,14 @@ export function HistoricalMapCanvas({
   sourceRaster?: ByzantineFrame["raster"];
   edit?: AtlasCanvasEdit;
   resetKey?: number;
+  changes?: ChangeCollection;
+  onChangeArea?: (change: TerritoryChange) => void;
+  events?: MapEvent[];
+  selectedEvent?: string;
+  onEvent?: (event: MapEvent) => void;
+  viewport?: { lat: number; lng: number; zoom: number; key?: number };
+  onViewport?: (viewport: { lat: number; lng: number; zoom: number }) => void;
+  compact?: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const editRef = useRef(edit);
@@ -185,6 +203,8 @@ export function HistoricalMapCanvas({
         instance.createPane("atlas-markers").style.zIndex = "430";
         instance.createPane("atlas-custom").style.zIndex = "420";
         instance.createPane("atlas-edit").style.zIndex = "450";
+        instance.createPane("atlas-comparison").style.zIndex = "425";
+        instance.createPane("atlas-events").style.zIndex = "440";
         L.control.scale({ imperial: false }).addTo(instance);
         setRuntime({ L, map: instance });
       })
@@ -608,6 +628,84 @@ export function HistoricalMapCanvas({
     }
   }, [runtime, selected, places, historical, view]);
   useEffect(() => {
+    if (!runtime || !changes) return;
+    const layer = runtime.L.geoJSON(changes, {
+      pane: "atlas-comparison",
+      style: {
+        color: "#9c3d08",
+        weight: 2,
+        fillColor: "#f59e0b",
+        fillOpacity: 0.65,
+        dashArray: "5 3",
+      },
+      onEachFeature: (feature, target) => {
+        const label = document.createElement("span");
+        label.textContent = `${historicalName(feature.properties.from, uk)} → ${historicalName(feature.properties.to, uk)}`;
+        target.bindTooltip(label, { sticky: true, className: "atlas-label" });
+        target.on("click", () => onChangeArea?.(feature.properties));
+      },
+    }).addTo(runtime.map);
+    return () => {
+      layer.remove();
+    };
+  }, [runtime, changes, uk, onChangeArea]);
+  useEffect(() => {
+    if (!runtime || !events.length || edit) return;
+    const { L, map } = runtime,
+      group = L.layerGroup().addTo(map),
+      seen = new Map<string, number>();
+    for (const event of events) {
+      const key = `${event.lat}:${event.lng}`,
+        index = seen.get(key) ?? 0;
+      seen.set(key, index + 1);
+      const dx = index ? Math.cos(index * 2.4) * 32 : 0,
+        dy = index ? Math.sin(index * 2.4) * 32 : 0;
+      const symbol = event.kind === "battle" ? "⚔" : event.kind === "treaty" ? "§" : "⚑",
+        color =
+          event.id === selectedEvent
+            ? "#123f35"
+            : event.kind === "battle"
+              ? "#a64814"
+              : event.kind === "treaty"
+                ? "#1d60a0"
+                : "#7e438d";
+      const marker = L.marker([event.lat, event.lng], {
+        pane: "atlas-events",
+        title: event.title,
+        alt: event.title,
+        icon: L.divIcon({
+          className: "atlas-event-marker",
+          html: `<span style="display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:${color};color:white;border:2px solid white;box-shadow:0 1px 5px #0006;font-size:17px">${symbol}</span>`,
+          iconSize: [28, 28],
+          iconAnchor: [14 - dx, 14 - dy],
+        }),
+      });
+      const label = document.createElement("span");
+      label.textContent = `${formatMapEventDate(event, uk)} · ${event.title}`;
+      marker.bindTooltip(label, { direction: "top", className: "atlas-label" });
+      marker.on("click", () => onEvent?.(event));
+      marker.addTo(group);
+    }
+    return () => {
+      group.remove();
+    };
+  }, [runtime, events, selectedEvent, onEvent, uk, Boolean(edit)]);
+  useEffect(() => {
+    if (runtime && viewport)
+      runtime.map.setView([viewport.lat, viewport.lng], viewport.zoom, { animate: false });
+  }, [runtime, viewport?.lat, viewport?.lng, viewport?.zoom, viewport?.key]);
+  useEffect(() => {
+    if (!runtime || !onViewport) return;
+    const changed = () => {
+      const p = runtime.map.getCenter();
+      onViewport({ lat: p.lat, lng: p.lng, zoom: runtime.map.getZoom() });
+    };
+    runtime.map.on("moveend", changed);
+    return () => {
+      runtime.map.off("moveend", changed);
+    };
+  }, [runtime, onViewport]);
+  useEffect(() => {
     snapRef.current = (p) => p;
     if (!runtime || !edit?.snap || !historical) return;
     const { L, map } = runtime;
@@ -819,7 +917,7 @@ export function HistoricalMapCanvas({
     <div className="relative isolate overflow-hidden rounded-2xl border border-hairline">
       <div
         ref={container}
-        className="atlas-map h-[min(65dvh,620px)] min-h-[360px] w-full bg-[#cddde0]"
+        className={`atlas-map ${compact ? "h-[360px] min-h-[280px]" : "h-[min(65dvh,620px)] min-h-[360px]"} w-full bg-[#cddde0]`}
         role="region"
         aria-label={
           uk

@@ -1,3 +1,4 @@
+import { validateMapWidget, type AtlasMapWidget } from "../atlas/embed.ts";
 export type ConflictSide = {
   name: string;
   participants: string;
@@ -6,6 +7,7 @@ export type ConflictSide = {
   losses: string;
 };
 export type ArticleWidget =
+  | AtlasMapWidget
   | { type: "toc"; title: string }
   | {
       type: "conflict";
@@ -41,6 +43,7 @@ export const WIDGET_LABELS = {
     infobox: "Інформаційна картка",
     timeline: "Хронологія",
     callout: "Примітка / порада",
+    map: "Інтерактивна історична мапа",
   },
   en: {
     toc: "Table of contents",
@@ -48,14 +51,31 @@ export const WIDGET_LABELS = {
     infobox: "Infobox",
     timeline: "Timeline",
     callout: "Note / tip",
+    map: "Interactive historical map",
   },
 };
-export const WIDGET_TYPES: WidgetType[] = ["toc", "conflict", "infobox", "timeline", "callout"];
+export const WIDGET_TYPES: WidgetType[] = [
+  "toc",
+  "conflict",
+  "infobox",
+  "timeline",
+  "callout",
+  "map",
+];
 export function emptyConflictSide(): ConflictSide {
   return { name: "", participants: "", leaders: "", forces: "", losses: "" };
 }
 export function newArticleWidget(type: WidgetType, uk: boolean): ArticleWidget {
   const title = WIDGET_LABELS[uk ? "uk" : "en"][type];
+  if (type === "map")
+    return {
+      type,
+      title,
+      date: { year: 1772, month: 8, day: 5 },
+      center: { lat: 52, lng: 25 },
+      zoom: 4.5,
+      layers: ["borders", "cities", "rivers", "events"],
+    };
   if (type === "toc") return { type, title };
   if (type === "conflict")
     return {
@@ -80,6 +100,7 @@ export function validateArticleWidget(raw: unknown): ArticleWidget {
     return value.trim();
   };
   const title = text(w.title, 160, true);
+  if (w.type === "map") return validateMapWidget(w, title);
   if (w.type === "toc") return { type: w.type, title };
   if (w.type === "conflict") {
     if (!Array.isArray(w.sides) || w.sides.length < 2 || w.sides.length > 4)

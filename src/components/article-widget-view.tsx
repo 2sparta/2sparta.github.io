@@ -1,6 +1,11 @@
+import { lazy, Suspense } from "react";
 import { Info, Lightbulb, TriangleAlert } from "lucide-react";
 import type { ArticleHeading, ArticleWidget } from "@/lib/materials/article-widgets";
 import { usePrefs } from "@/lib/prefs";
+
+const EmbeddedHistoricalMap = lazy(() =>
+  import("./embedded-historical-map").then((m) => ({ default: m.EmbeddedHistoricalMap })),
+);
 
 export function ArticleWidgetView({
   widget: w,
@@ -12,6 +17,12 @@ export function ArticleWidgetView({
   prefix: string;
 }) {
   const uk = usePrefs((s) => s.lang) === "uk";
+  if (w.type === "map")
+    return (
+      <Suspense fallback={<p role="status">{uk ? "Завантажуємо мапу…" : "Loading map…"}</p>}>
+        <EmbeddedHistoricalMap widget={w} />
+      </Suspense>
+    );
   const box = "my-6 overflow-hidden rounded-2xl border border-hairline bg-surface-2/40";
   const title = (
     <h3 className="border-b border-hairline bg-cream/70 px-4 py-3 font-display text-lg font-extrabold">

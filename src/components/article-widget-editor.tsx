@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
+import { AtlasDateFields } from "./atlas-learning-panel";
+import { EMBED_LAYERS, EMBED_LAYER_LABELS } from "@/lib/atlas/embed";
 import { Plus, X, ArrowUp, ArrowDown } from "lucide-react";
 import {
   newArticleWidget,
@@ -11,6 +13,10 @@ import {
 } from "@/lib/materials/article-widgets";
 import { usePrefs } from "@/lib/prefs";
 import { PillButton, TextInput } from "./ui/panel";
+
+const EmbeddedHistoricalMap = lazy(() =>
+  import("./embedded-historical-map").then((m) => ({ default: m.EmbeddedHistoricalMap })),
+);
 
 export function ArticleWidgetEditor({
   initial,
@@ -26,7 +32,8 @@ export function ArticleWidgetEditor({
   const uk = usePrefs((s) => s.lang) === "uk";
   const labels = WIDGET_LABELS[uk ? "uk" : "en"];
   const [w, set] = useState(initial);
-  let valid = true;
+  const [dateValid, setDateValid] = useState(true);
+  let valid = w.type !== "map" || dateValid;
   try {
     validateArticleWidget(w);
   } catch {
@@ -121,6 +128,70 @@ export function ArticleWidgetEditor({
             ? "Зміст автоматично оновлюється за всіма п’ятьма рівнями заголовків статті. Натискання на пункт відкриває відповідний розділ."
             : "Contents updates from all five heading levels. Each item links to its section."}
         </p>
+      )}
+      {w.type === "map" && (
+        <>
+          <AtlasDateFields
+            onValidityChange={setDateValid}
+            date={w.date}
+            onChange={(date) => set({ ...w, date })}
+            label={uk ? "Дата фрагмента" : "Fragment date"}
+          />
+          <div className="grid grid-cols-3 gap-3">
+            {(["lat", "lng", "zoom"] as const).map((key, i) => (
+              <label key={key} className="min-w-0 text-xs font-bold">
+                {(uk ? ["Широта", "Довгота", "Масштаб"] : ["Latitude", "Longitude", "Zoom"])[i]}
+                <input
+                  type="number"
+                  step={key === "zoom" ? 0.25 : "any"}
+                  value={key === "zoom" ? w.zoom : w.center[key]}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    set(
+                      key === "zoom"
+                        ? { ...w, zoom: value }
+                        : { ...w, center: { ...w.center, [key]: value } },
+                    );
+                  }}
+                  className="mt-1 min-h-11 w-full rounded-xl border border-hairline bg-surface px-3 text-sm"
+                />
+              </label>
+            ))}
+          </div>
+          <fieldset>
+            <legend className="text-xs font-bold">
+              {uk ? "Шари фрагмента" : "Fragment layers"}
+            </legend>
+            <div className="mt-2 flex flex-wrap gap-3">
+              {EMBED_LAYERS.map((layer) => (
+                <label key={layer} className="flex min-h-9 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={w.layers.includes(layer)}
+                    onChange={(e) =>
+                      set({
+                        ...w,
+                        layers: e.target.checked
+                          ? [...w.layers, layer]
+                          : w.layers.filter((l) => l !== layer),
+                      })
+                    }
+                  />
+                  {EMBED_LAYER_LABELS[layer][uk ? 0 : 1]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {valid && (
+            <Suspense
+              fallback={
+                <p role="status">{uk ? "Завантажуємо перегляд мапи…" : "Loading map preview…"}</p>
+              }
+            >
+              <EmbeddedHistoricalMap widget={w} onCapture={(view) => set({ ...w, ...view })} />
+            </Suspense>
+          )}
+        </>
       )}
       {w.type === "conflict" && (
         <>
@@ -337,8 +408,12 @@ export function ArticleWidgetEditor({
       {!valid && (
         <p role="status" className="text-xs text-muted">
           {uk
-            ? "Заповніть усі поля з *. У конфлікті потрібні назви щонайменше двох сторін."
-            : "Fill every * field. A conflict needs at least two named sides."}
+            ? w.type === "map"
+              ? "Перевірте дату, широту (−85…85), довготу (−180…180) і масштаб (0…8)."
+              : "Заповніть усі поля з *. У конфлікті потрібні назви щонайменше двох сторін."
+            : w.type === "map"
+              ? "Check the date, latitude (−85…85), longitude (−180…180) and zoom (0…8)."
+              : "Fill every * field. A conflict needs at least two named sides."}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
