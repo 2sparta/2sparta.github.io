@@ -4,7 +4,18 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { BookOpen, CalendarDays, Link2, MessageCircle, Star, Users } from "lucide-react";
+import {
+  Atom,
+  BookOpen,
+  CalendarDays,
+  Link2,
+  Map as MapIcon,
+  MessageCircle,
+  NotebookPen,
+  Star,
+  Swords,
+  Users,
+} from "lucide-react";
 import { getHome } from "@/lib/school/server";
 import { formatLessonsLine, greetingWord, STRINGS } from "@/lib/i18n";
 import { kyivClock, kyivWeekday } from "@/lib/school/ids";
@@ -66,6 +77,13 @@ export function HomePage() {
       icon: BookOpen,
       texture: "/img/tile-green.jpg",
       pos: "center",
+    },
+    {
+      to: "/app/homework",
+      title: lang === "uk" ? "Домашні завдання" : "Homework",
+      desc: lang === "uk" ? "Що потрібно зробити й до якого дня" : "What is due and when",
+      tone: "sage" as const,
+      icon: NotebookPen,
     },
     {
       to: "/app/grades",
@@ -219,70 +237,67 @@ export function HomePage() {
           )}
         </section>
 
-        <section className="mb-5 grid grid-cols-2 gap-3 min-[1550px]:grid-cols-3 max-[520px]:grid-cols-1">
+        <section
+          className="home-quick-grid"
+          aria-label={lang === "uk" ? "Швидкий доступ" : "Quick access"}
+        >
           {tiles.map((tile) => {
             const Icon = tile.icon;
             return (
-              <button
-                key={tile.to}
-                type="button"
-                onClick={() => void navigate({ to: tile.to })}
-                style={
-                  tile.texture
-                    ? {
-                        backgroundImage: `url(${tile.texture})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: tile.pos,
-                      }
-                    : undefined
-                }
-                className={cn(
-                  "group relative flex min-h-[188px] flex-col gap-2 overflow-hidden rounded-[22px] px-[18px] pt-[20px] pb-[18px] text-left shadow-[var(--shadow-soft)] transition duration-200 hover:-translate-y-[3px] hover:shadow-[0_14px_28px_rgba(26,61,50,0.16)]",
-                  tile.tone === "forest" && "bg-tile-forest text-paper",
-                  tile.tone === "sage" && "bg-tile-sage text-paper",
-                  tile.tone === "terra" && "bg-tile-terra text-paper",
-                  tile.tone === "cream" && "bg-tile-cream text-[#243028]",
-                  tile.tone === "deep" && "bg-tile-deep text-paper",
-                )}
-              >
-                {tile.texture && (
-                  <span
-                    className={cn(
-                      "pointer-events-none absolute inset-0",
-                      tile.tone === "sage" && "bg-white/10",
-                      tile.tone === "deep" && "bg-black/20",
-                      tile.tone === "terra" && "bg-black/10",
-                      tile.tone === "forest" && "bg-black/25",
-                    )}
-                  />
-                )}
-                <span
-                  className={cn(
-                    "relative z-[1] mb-1.5 grid size-11 place-items-center rounded-full border-[1.5px] border-current/40",
-                    tile.tone === "cream" && "border-[#243028]/30",
-                  )}
-                >
-                  <Icon className="size-[22px]" />
+              <Link key={tile.to} to={tile.to} className="home-quick-card" data-sound="navigate">
+                <span>
+                  <Icon size={21} />
                 </span>
-                <span
-                  className={cn(
-                    "relative z-[1] font-display text-lg font-extrabold tracking-tight",
-                    tile.tone !== "cream" && "[text-shadow:0_1px_2px_rgba(0,0,0,0.28)]",
-                  )}
-                >
-                  {tile.title}
+                <span>
+                  <strong>{tile.title}</strong>
+                  <small>{tile.desc}</small>
                 </span>
-                <span
-                  className={cn(
-                    "relative z-[1] text-xs leading-snug font-medium opacity-95",
-                    tile.tone !== "cream" && "[text-shadow:0_1px_2px_rgba(0,0,0,0.25)]",
-                  )}
-                >
-                  {tile.desc}
-                </span>
-              </button>
+              </Link>
             );
           })}
+        </section>
+        <section className="home-tools">
+          <h2>{lang === "uk" ? "Час для відкриттів" : "Make room for discovery"}</h2>
+          <div>
+            {[
+              {
+                tool: "chess" as const,
+                icon: Swords,
+                uk: "Шаховий клуб",
+                en: "Chess club",
+                desc: "Партія, дебют чи новий суперник",
+                enDesc: "A game, an opening or a new opponent",
+              },
+              {
+                tool: "atlas" as const,
+                icon: MapIcon,
+                uk: "Історична мапа",
+                en: "Historical map",
+                desc: "Мандруйте крізь століття",
+                enDesc: "Travel through the centuries",
+              },
+              {
+                tool: "periodic" as const,
+                icon: Atom,
+                uk: "Хімічні елементи",
+                en: "Chemical elements",
+                desc: "Досліджуйте періодичну таблицю",
+                enDesc: "Explore the periodic table",
+              },
+            ].map(({ icon: Icon, ...item }) => (
+              <Link
+                key={item.tool}
+                to="/app/materials"
+                search={{ section: "useful", tool: item.tool }}
+                className="home-tool"
+                data-sound="navigate"
+              >
+                <Icon size={24} />
+                <strong>{lang === "uk" ? item.uk : item.en}</strong>
+                <small>{lang === "uk" ? item.desc : item.enDesc}</small>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <Link
@@ -302,19 +317,7 @@ export function HomePage() {
           </span>
           <BookOpen className="size-6 shrink-0 text-forest-mid" />
         </Link>
-        <figure className="relative isolate mb-6 min-h-[88px] overflow-hidden rounded-[18px]">
-          <img
-            src="/img/mountains.jpg"
-            alt=""
-            className="absolute inset-0 size-full object-cover"
-          />
-          <figcaption className="relative z-[1] flex min-h-[88px] items-center justify-center gap-2 bg-[linear-gradient(90deg,rgba(12,28,22,0.28),rgba(12,28,22,0.18))] px-5 py-4 text-center font-display text-sm font-extrabold text-paper [text-shadow:0_1px_8px_rgba(0,0,0,0.45)]">
-            <span aria-hidden className="opacity-80">
-              ◆
-            </span>
-            {t.homeQuote}
-          </figcaption>
-        </figure>
+        <p className="my-6 text-center text-xs leading-relaxed text-muted">{t.homeQuote}</p>
       </div>
       <HomeFeed uk={lang === "uk"} />
     </div>

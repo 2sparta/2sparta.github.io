@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Chess, DEFAULT_POSITION, type Color, type PieceSymbol } from "chess.js";
 import {
@@ -8,9 +9,10 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Cpu,
   FlipVertical2,
-  Globe2,
+  Maximize2,
+  Minimize2,
+  Undo2,
   Lightbulb,
   Loader2,
   RotateCcw,
@@ -43,6 +45,8 @@ import { ChessTournaments } from "./chess/tournaments";
 import { ChessPreferences } from "./chess/preferences";
 import { useChessPreferences } from "@/lib/chess/preferences";
 import { usePremove } from "./chess/use-premove";
+import { SoundToggle } from "./sound-controls";
+import { useChessSounds } from "./chess/use-sounds";
 import "./chess/chess.css";
 export type ChessTab = "play" | "openings" | "analysis" | "tournaments";
 export type ChessNavigation = { tab: ChessTab; gameId?: string; tournamentId?: string };
@@ -245,6 +249,46 @@ export function ChessClub({
   api?: ChessApi;
 }) {
   const chessPreferences = useChessPreferences();
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key === "Escape" &&
+        !(event.target instanceof Element && event.target.closest(".chess-promotion"))
+      )
+        setFocused(false);
+      if (event.key === "Tab") {
+        const controls = [
+          ...document.querySelectorAll<HTMLElement>(
+            '.chess-focused button:not(:disabled), .chess-focused a[href], .chess-focused input, .chess-focused select, .chess-focused textarea, .chess-focused summary, .chess-focused [tabindex="0"]',
+          ),
+        ].filter((el) => el.getClientRects().length && el.tabIndex >= 0);
+        const first = controls[0],
+          last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", escape);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>(".chess-focus-trigger")?.focus(),
+    );
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener("keydown", escape);
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLButtonElement>(".chess-focus-trigger")?.focus(),
+      );
+    };
+  }, [focused]);
   const uk = usePrefs((s) => s.lang) === "uk",
     profile = useMeQuery().data?.profile;
   const [tab, setTab] = useState<ChessTab>(requestedTab),
@@ -508,6 +552,13 @@ export function ChessClub({
       setError(tr("Цей хід неможливий.", "That move is not legal."));
     }
   }
+  function undoLocal() {
+    premove.cancel();
+    const count = mode === "bot" && localFull.turn() === local.human ? 2 : 1;
+    const moves = local.moves.slice(0, Math.max(0, local.moves.length - count));
+    setLocal((old) => ({ ...old, moves, resigned: null }));
+    setLocalPly(moves.length);
+  }
   function newLocal(options: Partial<LocalGame> = {}) {
     if (
       local.moves.length &&
@@ -526,6 +577,7 @@ export function ChessClub({
     setLocalPly(0);
     setOrientation(next.human);
     setError("");
+    setHintFen(null);
   }
   function studyGame(board: Chess) {
     const moves = board.history({ verbose: true }).map(uciOf);
@@ -645,23 +697,39 @@ export function ChessClub({
   );
   const premovePlayer = activeOnline ? myColor : mode === "bot" ? local.human : null;
   const premovePosition = activeOnline ? onlineFull : localFull;
-  const premoveActive = Boolean(tab === "play" && premovePlayer && (
-    activeOnline ? game?.status === "active" && gamePly === game.moves.length
-      : mode === "bot" && restored && !localFinished && localPly === local.moves.length
-  ));
+  const premoveActive = Boolean(
+    tab === "play" &&
+    premovePlayer &&
+    (activeOnline
+      ? game?.status === "active" && gamePly === game.moves.length
+      : mode === "bot" && restored && !localFinished && localPly === local.moves.length),
+  );
   const playOnBoard = (move: string) => {
     if (activeOnline) {
-      if (game && canOnlineMove) void action({ action: "move", id: game.id, move, revision: game.revision });
+      if (game && canOnlineMove)
+        void action({ action: "move", id: game.id, move, revision: game.revision });
     } else applyLocal(move);
   };
   const premove = usePremove({
-    fen: premovePosition.fen(), color: premovePlayer,
-    context: tab + ":" + mode + ":" + (activeOnline ? selectedGame : storageKey + ":" + local.human + ":" + local.initialFen),
-    ply: activeOnline ? game?.moves.length ?? 0 : local.moves.length,
-    active: premoveActive, enabled: chessPreferences.premoves,
-    ready: !activeOnline || !pending, onPlay: playOnBoard,
+    fen: premovePosition.fen(),
+    color: premovePlayer,
+    context:
+      tab +
+      ":" +
+      mode +
+      ":" +
+      (activeOnline ? selectedGame : storageKey + ":" + local.human + ":" + local.initialFen),
+    ply: activeOnline ? (game?.moves.length ?? 0) : local.moves.length,
+    active: premoveActive,
+    enabled: chessPreferences.premoves,
+    ready: !activeOnline || !pending,
+    onPlay: playOnBoard,
   });
-  const canPremove = premoveActive && chessPreferences.premoves && premovePosition.turn() !== premovePlayer && (!activeOnline || !pending);
+  const canPremove =
+    premoveActive &&
+    chessPreferences.premoves &&
+    premovePosition.turn() !== premovePlayer &&
+    (!activeOnline || !pending);
   const localResult = local.resigned ? (local.resigned === "w" ? "0-1" : "1-0") : localEnd?.result;
   const gameStatus = activeOnline
     ? game?.status === "waiting"
@@ -685,40 +753,56 @@ export function ChessClub({
           ? tr("Шах. Захистіть короля.", "Check. Protect your king.")
           : localPly !== local.moves.length
             ? tr("Перегляд історії партії", "Reviewing game history")
-            : tr("Ваш наступний хід.", "Your next move.");
-  return (
-    <section className="chess-club" aria-label={tr("Шаховий клуб", "Chess club")}>
-      <header className="chess-hero">
-        <div className="relative z-10">
-          <div className="chess-hero-kicker">
-            <span className="size-1.5 rounded-full bg-[#d5b879]" />
-            {tr("КЛАСНИЙ ПРОСТІР · ШАХОВИЙ КЛУБ", "CLASS SPACE · CHESS CLUB")}
-          </div>
-          <h1>{tr("Думайте на хід уперед.", "Think one move ahead.")}</h1>
-          <p>
-            {tr(
-              "Навчайтеся, грайте й знаходьте своїх суперників. Від першого дебюту до шкільного кубка.",
-              "Learn, play and find your opponents. From your first opening to the school cup.",
-            )}
-          </p>
-          <div className="chess-hero-meta">
-            <span>
-              <BookOpen className="size-4" />
-              {tr("База дебютів", "Opening library")}
-            </span>
-            <span>
-              <Cpu className="size-4" />
-              {tr("Бот і аналіз", "Bot & analysis")}
-            </span>
-            <span>
-              <Trophy className="size-4" />
-              {tr("Живі турніри", "Live tournaments")}
-            </span>
-          </div>
+            : mode === "local"
+              ? board.turn() === "w"
+                ? tr("Хід білих", "White to move")
+                : tr("Хід чорних", "Black to move")
+              : tr("Ваш хід", "Your turn");
+  useChessSounds({
+    context: activeOnline ? `online:${selectedGame}` : `local:${storageKey}:${local.initialFen}`,
+    moves: activeOnline ? (game?.moves ?? []) : local.moves,
+    initialFen: activeOnline ? DEFAULT_POSITION : local.initialFen,
+    result: activeOnline ? game?.result : localResult,
+    ready: tab === "play" && (activeOnline ? Boolean(game) : restored),
+  });
+  const content = (
+    <section
+      className={`chess-club ${focused ? "chess-focused" : ""}`}
+      role={focused ? "dialog" : undefined}
+      aria-modal={focused ? true : undefined}
+      aria-label={tr("Шаховий клуб", "Chess club")}
+    >
+      <header className="chess-heading">
+        <div className="chess-heading-icon">
+          <Swords size={25} />
         </div>
-        <div className="chess-hero-art">
-          <ChessPiece piece="n" color="w" />
-          <div className="chess-art-board" />
+        <div>
+          <p className="chess-eyebrow">{tr("ГРАЙТЕ. ДУМАЙТЕ. ЗРОСТАЙТЕ.", "PLAY. THINK. GROW.")}</p>
+          <h1>{tr("Шаховий клуб", "Chess club")}</h1>
+        </div>
+        <div className="chess-heading-actions">
+          <SoundToggle />
+          <button
+            type="button"
+            className="chess-focus-trigger chess-secondary"
+            aria-label={
+              focused
+                ? tr("Повернутися до сайту", "Exit focus mode")
+                : tr("Режим дошки", "Focus mode")
+            }
+            aria-pressed={focused}
+            onClick={() => setFocused(!focused)}
+            title={
+              focused
+                ? tr("Вийти з режиму дошки · Esc", "Exit focus mode · Esc")
+                : tr("Зосередитися на дошці", "Focus on the board")
+            }
+          >
+            {focused ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            <span>
+              {focused ? tr("Повернутися", "Exit focus") : tr("Режим дошки", "Focus mode")}
+            </span>
+          </button>
         </div>
       </header>
       <nav className="chess-tabs" aria-label={tr("Розділи шахів", "Chess sections")}>
@@ -750,7 +834,6 @@ export function ChessClub({
           </button>
         ))}
       </nav>
-      <ChessPreferences uk={uk} />
       {error && (
         <div className="chess-error" role="alert">
           <span className="flex-1">{error}</span>
@@ -774,7 +857,7 @@ export function ChessClub({
         </div>
       )}
       {tab === "play" && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="chess-play-options">
           <div className="chess-mode-switch" aria-label={tr("Режим гри", "Game mode")}>
             {(["bot", "online", "local"] as const).map((m) => (
               <button
@@ -792,12 +875,12 @@ export function ChessClub({
                 {m === "bot"
                   ? tr("З ботом", "Bot")
                   : m === "online"
-                    ? tr("З людьми", "People")
-                    : tr("На одній дошці", "Same device")}
+                    ? tr("Онлайн", "Online")
+                    : tr("Удвох", "Same device")}
               </button>
             ))}
           </div>
-          <span className="text-xs text-muted">
+          <span className="chess-save-note">
             {mode === "online"
               ? tr(
                   "Час і ходи синхронізуються між гравцями.",
@@ -826,6 +909,14 @@ export function ChessClub({
           )}
           <div className="chess-game-layout">
             <div className="min-w-0">
+              {tab === "play" && (
+                <div className="chess-position-status" role="status">
+                  <span
+                    className={`chess-status-dot ${localFinished || game?.status === "finished" ? "is-finished" : ""}`}
+                  />
+                  {gameStatus}
+                </div>
+              )}
               <div className="chess-board-frame">
                 <PlayerBar
                   name={
@@ -863,7 +954,7 @@ export function ChessClub({
                   orientation={orientation}
                   uk={uk}
                   hint={hintMove}
-                  premoveColor={canPremove ? premovePlayer ?? undefined : undefined}
+                  premoveColor={canPremove ? (premovePlayer ?? undefined) : undefined}
                   queuedPremove={premove.move}
                   onPremove={canPremove ? premove.queue : undefined}
                   onCancelPremove={premove.cancel}
@@ -886,11 +977,7 @@ export function ChessClub({
                           localPly !== local.moves.length ||
                           (mode === "bot" && localFull.turn() !== local.human && !canPremove)))
                   }
-                  onMove={
-                    tab === "analysis"
-                      ? analysisMove
-                      : playOnBoard
-                  }
+                  onMove={tab === "analysis" ? analysisMove : playOnBoard}
                 />
                 <CapturedPieces
                   pieces={captured[orientation]}
@@ -925,21 +1012,66 @@ export function ChessClub({
               <PositionControls
                 uk={uk}
                 onFlip={() => setOrientation((c) => (c === "w" ? "b" : "w"))}
-                onReset={tab === "play" && !activeOnline ? () => newLocal() : undefined}
               />
-              {premove.move && tab === "play" && <div className="chess-premove-notice" role="status">
-                <span>{tr("Премув: ", "Premove: ")}<b>{premove.move.slice(0, 2)} → {premove.move.slice(2, 4)}{premove.move.slice(4).toUpperCase()}</b>
-                  {" · "}{tr("очікуємо ходу суперника", "waiting for your opponent")}</span>
-                <button type="button" onClick={premove.cancel}>{tr("Скасувати премув", "Cancel premove")}</button>
-              </div>}
+              {tab === "play" && !activeOnline && (
+                <div className="chess-quick-actions">
+                  <button
+                    type="button"
+                    className="chess-secondary"
+                    disabled={!local.moves.length || bot.busy}
+                    onClick={undoLocal}
+                  >
+                    <Undo2 size={15} />
+                    {tr("Повернути хід", "Take back")}
+                  </button>
+                  <button
+                    type="button"
+                    className="chess-secondary"
+                    disabled={
+                      localFinished ||
+                      bot.busy ||
+                      localPly !== local.moves.length ||
+                      (mode === "bot" && localFull.turn() !== local.human)
+                    }
+                    onClick={() => setHintFen(localBoard.fen())}
+                  >
+                    <Lightbulb size={15} />
+                    {hintJob.busy && hintFen === localBoard.fen()
+                      ? tr("Шукаю…", "Looking…")
+                      : hintMove
+                        ? `${tr("Підказка", "Hint")} · ${hintJob.result?.lines[0]?.san}`
+                        : tr("Підказка", "Hint")}
+                  </button>
+                  {localPly !== local.moves.length && (
+                    <button
+                      type="button"
+                      className="chess-secondary"
+                      onClick={() => setLocalPly(local.moves.length)}
+                    >
+                      <ArrowRight size={15} />
+                      {tr("Продовжити гру", "Resume play")}
+                    </button>
+                  )}
+                </div>
+              )}
+              {premove.move && tab === "play" && (
+                <div className="chess-premove-notice" role="status">
+                  <span>
+                    {tr("Премув: ", "Premove: ")}
+                    <b>
+                      {premove.move.slice(0, 2)} → {premove.move.slice(2, 4)}
+                      {premove.move.slice(4).toUpperCase()}
+                    </b>
+                    {" · "}
+                    {tr("очікуємо ходу суперника", "waiting for your opponent")}
+                  </span>
+                  <button type="button" onClick={premove.cancel}>
+                    {tr("Скасувати премув", "Cancel premove")}
+                  </button>
+                </div>
+              )}
               {tab === "play" && (
                 <>
-                  <div className="chess-position-status" role="status">
-                    <span
-                      className={`chess-status-dot ${localFinished || game?.status === "finished" ? "is-finished" : ""}`}
-                    />
-                    {gameStatus}
-                  </div>
                   {practiceEval !== null && (
                     <div className="chess-eval-strip">
                       <div
@@ -1014,140 +1146,100 @@ export function ChessClub({
             </div>
             <aside className="min-w-0 space-y-4">
               {tab === "play" && !activeOnline && (
-                <div className="chess-config">
-                  <span className="chess-eyebrow">
-                    {mode === "bot"
-                      ? tr("ВАШ СПАРИНГ-ПАРТНЕР", "YOUR SPARRING PARTNER")
-                      : tr("ГРА ПОРУЧ", "SIDE BY SIDE")}
-                  </span>
-                  <h2>
-                    {mode === "bot"
-                      ? tr("Партія без поспіху", "An unhurried game")
-                      : tr("Одна дошка, двоє друзів", "One board, two friends")}
-                  </h2>
-                  <p>
-                    {mode === "bot"
-                      ? tr(
-                          "Три рівні для практики. Оберіть свій темп і спробуйте новий план.",
-                          "Three practice levels. Choose your pace and try a new plan.",
-                        )
-                      : tr(
-                          "Передавайте пристрій після ходу. Обидва гравці керують своїми фігурами.",
-                          "Pass the device after each move. Both players control their own pieces.",
-                        )}
-                  </p>
-                  {mode === "bot" && (
-                    <>
-                      <label className="chess-field mt-4">
-                        {tr("Рівень суперника", "Opponent level")}
-                        <select
-                          value={local.difficulty}
-                          onChange={(e) => newLocal({ difficulty: Number(e.target.value) })}
-                        >
-                          {LEVELS.map((l, i) => (
-                            <option key={i} value={i}>
-                              {uk ? l.uk : l.en}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="mt-4 flex gap-2">
-                        {(["w", "b"] as const).map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={`chess-colour-choice ${local.human === c ? "is-active" : ""}`}
-                            aria-pressed={local.human === c}
-                            onClick={() => newLocal({ human: c })}
-                          >
-                            <ChessPiece piece="k" color={c} />
-                            {c === "w" ? tr("За білих", "White") : tr("За чорних", "Black")}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                <div className="chess-local-panel">
                   <button
-                    className="chess-primary mt-4 w-full"
+                    type="button"
+                    className="chess-primary w-full mb-3"
                     onClick={() => newLocal({ mode: mode === "bot" ? "bot" : "local" })}
                   >
-                    <RotateCcw className="size-4" />
+                    <RotateCcw size={16} />
                     {tr("Нова партія", "New game")}
                   </button>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      className="chess-text-button"
-                      disabled={
-                        localFinished ||
-                        bot.busy ||
-                        localPly !== local.moves.length ||
-                        (mode === "bot" && localFull.turn() !== local.human)
-                      }
-                      onClick={() => setHintFen(localBoard.fen())}
-                    >
-                      <Lightbulb className="size-3.5" />
-                      {hintJob.busy && hintFen === localBoard.fen()
-                        ? tr("Шукаю…", "Looking…")
-                        : hintMove
-                          ? `${tr("Підказка", "Hint")} · ${hintJob.result?.lines[0]?.san}`
-                          : tr("Підказка", "Hint")}
-                    </button>
-                    <button
-                      className="chess-text-button"
-                      onClick={() => {
-                        const fen = localBoard.fen();
-                        navigator.clipboard
-                          ?.writeText(fen)
-                          .then(() => setNotice(tr("Позицію скопійовано.", "Position copied.")))
-                          .catch(() => setNotice(fen));
-                      }}
-                    >
-                      <Copy className="size-3.5" />
-                      {tr("Копіювати FEN", "Copy FEN")}
-                    </button>
-                    <button
-                      className="chess-text-button"
-                      disabled={!local.moves.length || bot.busy}
-                      onClick={() => {
-                        premove.cancel();
-                        const count = mode === "bot" && localFull.turn() === local.human ? 2 : 1;
-                        const moves = local.moves.slice(0, Math.max(0, local.moves.length - count));
-                        setLocal((old) => ({ ...old, moves, resigned: null }));
-                        setLocalPly(moves.length);
-                      }}
-                    >
-                      {tr("Повернути хід", "Take back")}
-                    </button>
-                    <button
-                      className="chess-text-button"
-                      disabled={!local.moves.length || localFinished}
-                      onClick={() => {
-                        if (confirm(tr("Здати цю локальну партію?", "Resign this local game?")))
-                          setLocal((old) => ({
-                            ...old,
-                            resigned: mode === "bot" ? old.human : localFull.turn(),
-                          }));
-                      }}
-                    >
-                      {tr("Здатися", "Resign")}
-                    </button>
-                    <button
-                      className="chess-text-button"
-                      disabled={!local.moves.length}
-                      onClick={() => studyGame(localFull)}
-                    >
-                      {tr("Розібрати партію", "Analyze game")}
-                      <ArrowRight className="size-3" />
-                    </button>
-                  </div>
-                  {bot.error && (
-                    <p className="mt-3 text-sm" role="alert">
-                      {tr(
-                        "Бот не запустився. Спробуйте нову партію або режим на одній дошці.",
-                        "The bot could not start. Try a new game or same-device play.",
+                  <details className="chess-config">
+                    <summary>
+                      {tr("Параметри партії", "Game settings")}
+                      <span>
+                        {mode === "bot" ? (uk ? level.uk : level.en) : tr("Удвох", "Same device")}
+                      </span>
+                    </summary>
+                    <div className="chess-config-body">
+                      {mode === "bot" && (
+                        <>
+                          <label className="chess-field mt-4">
+                            {tr("Рівень суперника", "Opponent level")}
+                            <select
+                              value={local.difficulty}
+                              onChange={(e) => newLocal({ difficulty: Number(e.target.value) })}
+                            >
+                              {LEVELS.map((l, i) => (
+                                <option key={i} value={i}>
+                                  {uk ? l.uk : l.en}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="mt-4 flex gap-2">
+                            {(["w", "b"] as const).map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                className={`chess-colour-choice ${local.human === c ? "is-active" : ""}`}
+                                aria-pressed={local.human === c}
+                                onClick={() => newLocal({ human: c })}
+                              >
+                                <ChessPiece piece="k" color={c} />
+                                {c === "w" ? tr("За білих", "White") : tr("За чорних", "Black")}
+                              </button>
+                            ))}
+                          </div>
+                        </>
                       )}
-                    </p>
-                  )}
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button
+                          className="chess-text-button"
+                          onClick={() => {
+                            const fen = localBoard.fen();
+                            navigator.clipboard
+                              ?.writeText(fen)
+                              .then(() => setNotice(tr("Позицію скопійовано.", "Position copied.")))
+                              .catch(() => setNotice(fen));
+                          }}
+                        >
+                          <Copy className="size-3.5" />
+                          {tr("Копіювати FEN", "Copy FEN")}
+                        </button>
+                        <button
+                          className="chess-text-button"
+                          disabled={!local.moves.length || localFinished}
+                          onClick={() => {
+                            if (confirm(tr("Здати цю локальну партію?", "Resign this local game?")))
+                              setLocal((old) => ({
+                                ...old,
+                                resigned: mode === "bot" ? old.human : localFull.turn(),
+                              }));
+                          }}
+                        >
+                          {tr("Здатися", "Resign")}
+                        </button>
+                        <button
+                          className="chess-text-button"
+                          disabled={!local.moves.length}
+                          onClick={() => studyGame(localFull)}
+                        >
+                          {tr("Розібрати партію", "Analyze game")}
+                          <ArrowRight className="size-3" />
+                        </button>
+                      </div>
+                      {bot.error && (
+                        <p className="mt-3 text-sm" role="alert">
+                          {tr(
+                            "Бот не запустився. Спробуйте нову партію або режим на одній дошці.",
+                            "The bot could not start. Try a new game or same-device play.",
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </details>
                 </div>
               )}
               {tab === "play" && activeOnline && game && (
@@ -1354,6 +1446,7 @@ export function ChessClub({
                   </button>
                 </div>
               )}
+              <ChessPreferences uk={uk} />
             </aside>
           </div>
         </>
@@ -1585,6 +1678,9 @@ export function ChessClub({
       </footer>
     </section>
   );
+  return focused && typeof document !== "undefined"
+    ? createPortal(content, document.body)
+    : content;
 }
 function ArrowUpRightIcon() {
   return (

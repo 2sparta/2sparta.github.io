@@ -5,6 +5,7 @@ import { listNotices, markNoticesRead } from "@/lib/school/server";
 import { STRINGS } from "@/lib/i18n";
 import { usePrefs } from "@/lib/prefs";
 import { cn } from "@/lib/cn";
+import { playSound } from "@/lib/sounds";
 
 export function NotificationsNav() {
   const { lang } = usePrefs();
@@ -12,9 +13,25 @@ export function NotificationsNav() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
-  const notes = useQuery({ queryKey: ["notices"], queryFn: () => listNotices(), refetchInterval: 20000 });
+  const notes = useQuery({
+    queryKey: ["notices"],
+    queryFn: () => listNotices(),
+    refetchInterval: 20000,
+  });
   const list = notes.data?.notices ?? [];
   const unread = list.filter((n) => !n.read).length;
+  const seen = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!notes.data) return;
+    const ids = new Set(list.map((n) => n.id));
+    if (
+      seen.current &&
+      list.some((n) => !n.read && !seen.current!.has(n.id)) &&
+      document.visibilityState === "visible"
+    )
+      playSound("notification");
+    seen.current = ids;
+  }, [notes.data]);
   const mark = useMutation({
     mutationFn: () => markNoticesRead(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notices"] }),

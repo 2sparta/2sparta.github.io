@@ -1,6 +1,9 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { BrandMark, ThemeLangPill } from "./theme-lang";
+import { BookOpen, CalendarDays, Swords } from "lucide-react";
+import { usePrefs } from "@/lib/prefs";
+import { SoundToggle } from "./sound-controls";
 
 export function AuthLayout({
   variant,
@@ -10,37 +13,94 @@ export function AuthLayout({
   children: ReactNode;
 }) {
   const forest = variant === "forest";
-  const img = forest ? "/img/leaves-forest.jpg" : "/img/leaves-cream.jpg";
+  const uk = usePrefs((s) => s.lang === "uk");
   return (
-    <div
-      className={cn(
-        "relative flex min-h-dvh flex-col items-center overflow-hidden px-5 pb-12 pt-5",
-        forest ? "nature-variant-forest bg-forest" : "bg-cream",
-      )}
-    >
-      <div className="nature-scene" aria-hidden>
-        <div className="nature-blob nature-blob-a" />
-        <div className="nature-blob nature-blob-b" />
-        <img className="nature-photo nature-photo-left" src={img} alt="" />
-        <img className="nature-photo nature-photo-right" src={img} alt="" />
-      </div>
-      <header className="relative z-10 flex w-full max-w-[1120px] items-center justify-between gap-4 px-2 pb-4">
-        <BrandMark light={forest} />
-        <ThemeLangPill inverted={forest} />
+    <div className={cn("auth-page", forest && "auth-page-register")}>
+      <header className="auth-header">
+        <BrandMark />
+        <div className="flex items-center gap-2">
+          <SoundToggle />
+          <ThemeLangPill />
+        </div>
       </header>
-      <div className="relative z-10 flex w-full flex-1 flex-col items-center justify-center">
-        {children}
+      <div className="auth-content">
+        <section className="auth-story">
+          <p className="auth-kicker">
+            {uk ? "ВАША ШКОЛА. ВАШІ МОЖЛИВОСТІ." : "YOUR SCHOOL. YOUR POSSIBILITIES."}
+          </p>
+          <h1>
+            {uk ? (
+              <>
+                Менше метушні.
+                <br />
+                Більше відкриттів.
+              </>
+            ) : (
+              <>
+                Less distraction.
+                <br />
+                More discovery.
+              </>
+            )}
+          </h1>
+          <p>
+            {uk
+              ? "Навчання, спілкування й улюблені заняття — в одному зручному просторі."
+              : "Learning, community and the things you love — together in one welcoming space."}
+          </p>
+          <div className="auth-features">
+            {[
+              {
+                icon: CalendarDays,
+                uk: "Ваш день — перед очима",
+                en: "Your day, at a glance",
+                desc: "Розклад, уроки та домашні завдання",
+                enDesc: "Schedule, lessons and homework",
+              },
+              {
+                icon: BookOpen,
+                uk: "Знання завжди поруч",
+                en: "Knowledge within reach",
+                desc: "Матеріали, мапи та корисні інструменти",
+                enDesc: "Resources, maps and learning tools",
+              },
+              {
+                icon: Swords,
+                uk: "Місце для нових перемог",
+                en: "Room for your next win",
+                desc: "Шахи, гуртки та шкільна спільнота",
+                enDesc: "Chess, clubs and your school community",
+              },
+            ].map(({ icon: Icon, ...item }) => (
+              <div key={item.en}>
+                <span>
+                  <Icon size={21} />
+                </span>
+                <div>
+                  <strong>{uk ? item.uk : item.en}</strong>
+                  <small>{uk ? item.desc : item.enDesc}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="auth-story-footer">
+            <span />
+            {uk ? "Крок за кроком — до більшого." : "Small steps. New possibilities."}
+          </div>
+        </section>
+        <div className="auth-form-area">{children}</div>
       </div>
+      <footer className="auth-page-footer">
+        {uk
+          ? "Класний простір · Навчатися разом легше"
+          : "Class space · Learning is better together"}
+      </footer>
     </div>
   );
 }
 
 export function AuthCard({ children }: { children: ReactNode }) {
-  return (
-    <div className="relative z-10 mt-3 w-full max-w-[520px] rounded-[32px] border border-white/40 bg-surface px-9 py-9 shadow-[var(--shadow-card)] max-sm:px-5">
-      {children}
-    </div>
-  );
+  return <div className="auth-card">{children}</div>;
 }
 
 export function Field({
@@ -54,7 +114,7 @@ export function Field({
       </span>
       <input
         {...props}
-        className="h-12 w-full rounded-full border border-transparent bg-surface-2 pr-4 pl-11 text-[15px] text-ink outline-none transition placeholder:text-muted focus:border-forest-mid/35 focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-forest)_12%,transparent)]"
+        className="h-12 w-full rounded-xl border border-hairline bg-surface-2 pr-4 pl-11 text-[15px] text-ink outline-none transition placeholder:text-muted focus:border-forest-mid/35 focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-forest)_12%,transparent)]"
       />
     </label>
   );
@@ -69,7 +129,7 @@ export function PrimaryButton({
     <button
       {...props}
       className={cn(
-        "mt-1.5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-forest-mid font-display text-[15px] font-bold text-paper transition hover:bg-forest-hover disabled:opacity-60",
+        "mt-1.5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest-mid font-display text-[15px] font-bold text-paper transition hover:bg-forest-hover disabled:opacity-60",
         className,
       )}
     >
