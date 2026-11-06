@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Download, Copy } from "lucide-react";
 import type { Chess } from "chess.js";
 export function MoveList({
@@ -12,6 +13,15 @@ export function MoveList({
   uk: boolean;
 }) {
   const history = game.history();
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const selected = list.current?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (selected && list.current)
+      list.current.scrollTop = Math.max(
+        0,
+        selected.offsetTop - list.current.offsetTop - list.current.clientHeight / 2,
+      );
+  }, [ply]);
   return (
     <div>
       <div className="flex items-center justify-between border-b border-hairline pb-3">
@@ -20,13 +30,29 @@ export function MoveList({
           {Math.ceil(history.length / 2)} {uk ? "ходів" : "moves"}
         </span>
       </div>
-      <div className="chess-move-list" tabIndex={0} aria-label={uk ? "Історія ходів" : "Move history"}
+      <div
+        ref={list}
+        className="chess-move-list"
+        tabIndex={0}
+        aria-label={uk ? "Історія ходів" : "Move history"}
         onKeyDown={(event) => {
-          const next = event.key === "ArrowLeft" ? Math.max(0, ply - 1)
-            : event.key === "ArrowRight" ? Math.min(history.length, ply + 1)
-            : event.key === "Home" ? 0 : event.key === "End" ? history.length : null;
-          if (next !== null) { event.preventDefault(); event.stopPropagation(); onPly(next); }
-        }}>
+          const next =
+            event.key === "ArrowLeft"
+              ? Math.max(0, ply - 1)
+              : event.key === "ArrowRight"
+                ? Math.min(history.length, ply + 1)
+                : event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? history.length
+                    : null;
+          if (next !== null) {
+            event.preventDefault();
+            event.stopPropagation();
+            onPly(next);
+          }
+        }}
+      >
         {!history.length && (
           <p className="px-3 py-8 text-center text-sm text-muted">
             {uk ? "Партія починається з першого ходу." : "Every game starts with a first move."}

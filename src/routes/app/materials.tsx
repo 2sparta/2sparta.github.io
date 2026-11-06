@@ -87,37 +87,29 @@ function Page() {
   if (section === "useful")
     return (
       <div>
-        <div className="mb-5">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-forest-mid">
-            {uk ? "Додаткові матеріали" : "Learning resources"}
-          </p>
-          <h1 className="font-display text-3xl font-extrabold">{uk ? "Корисне" : "Tools"}</h1>
-          <p className="mt-2 text-sm text-muted">
-            {uk
-              ? "Інтерактивні інструменти для навчання, досліджень і гри."
-              : "Interactive tools for learning, discovery and play."}
-          </p>
-          <nav
-            aria-label={uk ? "Інструменти" : "Learning tools"}
-            className="mt-4 flex flex-wrap gap-2"
-          >
-            {LEARNING_TOOLS.map((item) => (
-              <Link
-                key={item.id}
-                to="/app/materials"
-                search={
-                  item.id === "atlas"
-                    ? { section: "useful", tool: item.id, year, month, day, view }
-                    : { section: "useful", tool: item.id, element, layout }
-                }
-                aria-current={tool === item.id ? "page" : undefined}
-                className={`rounded-xl border px-4 py-2 text-sm font-bold ${tool === item.id ? "border-forest-mid bg-forest-mid text-canvas" : "border-hairline bg-surface"}`}
-              >
-                {uk ? item.uk : item.en}
-              </Link>
-            ))}
-          </nav>
-        </div>
+        {tool !== "chess" && (
+          <div className="tool-switcher">
+            <Link to="/app/materials" search={{ section: "overview" }} data-sound="navigate">
+              <ArrowLeft size={14} />
+              {uk ? "Бібліотека" : "Library"}
+            </Link>
+            <select
+              aria-label={uk ? "Навчальний інструмент" : "Learning tool"}
+              value={tool}
+              onChange={(e) =>
+                void navigate({
+                  search: { section: "useful", tool: e.target.value as LearningTool },
+                })
+              }
+            >
+              {LEARNING_TOOLS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {uk ? item.uk : item.en}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {tool === "chess" ? (
           <Suspense fallback={<Panel>Завантаження шахового клубу…</Panel>}>
             <ChessClub
@@ -277,6 +269,26 @@ function MaterialsPage({ section, id }: { section: MaterialSection; id?: string 
           </PillButton>
         )}
       </div>
+      <nav className="resource-filters" aria-label={uk ? "Види матеріалів" : "Resource types"}>
+        {(
+          [
+            ["overview", "Усі матеріали", "All resources"],
+            ["articles", "Статті", "Articles"],
+            ["videos", "Відео", "Videos"],
+            ["links", "Посилання", "Links"],
+          ] as const
+        ).map(([key, label, en]) => (
+          <Link
+            key={key}
+            to="/app/materials"
+            search={{ section: key }}
+            aria-current={section === key ? "page" : undefined}
+            data-sound="navigate"
+          >
+            {uk ? label : en}
+          </Link>
+        ))}
+      </nav>
       {materials.isPending && (
         <Panel>
           <p role="status">{uk ? "Завантаження матеріалів…" : "Loading resources…"}</p>

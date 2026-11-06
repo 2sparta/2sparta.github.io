@@ -3,6 +3,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-r
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { SoundFeedback } from "@/components/sound-controls";
 import { useDocumentLang } from "@/components/session-gate";
 import { queryClient } from "@/lib/query";
 import appCss from "../styles.css?url";
@@ -45,6 +46,7 @@ function Root() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <DocumentSync />
+            <SoundFeedback />
             <Outlet />
             <Toaster richColors position="top-center" />
           </AuthProvider>
